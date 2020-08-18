@@ -1,4 +1,4 @@
-(ns cljctools.cljs-self-hosting
+(ns cljctools.self-hosted.api
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
@@ -6,8 +6,7 @@
                                      pipeline pipeline-async]]
    [cljs.js :as cljs]
    [cljs.env :as env]
-   [cljs.reader :refer [read-string]]
-   [cljctools.cljs-cache :refer [compile-state-ref]]))
+   [cljs.reader :refer [read-string]]))
 
 (defn test1
   []
@@ -19,8 +18,7 @@
 
 (comment
 
-  (type compile-state-ref)
-  
+
   (test1)
 
   ;;

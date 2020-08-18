@@ -10,12 +10,14 @@
 (defprotocol Active
   (-active? [_]))
 
-(defprotocol Editor
-  (-selection [_])
+(defprotocol Host
   (-register-commands [_ commands])
   (-create-tab [_ tabid])
   (-read-workspace-file [_ filepath])
   (-show-info-msg [_ msg])
-  (-active-ns [_] "nil if it's not clj file")
   (-join-workspace-path [_ subpath]))
+
+(defprotocol Editor
+  (-selection [_])
+  (-active-ns [_] "nil if it's not clj file"))
 
