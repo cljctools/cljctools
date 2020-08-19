@@ -38,7 +38,7 @@
                           (close! c|))
                         c|))
       (-eval-data [_ opts])
-      (-compile-str [_ opts])
+      (-eval-str [_ opts])
       (-compile-js-str [_ opts]))))
 
 (defn init

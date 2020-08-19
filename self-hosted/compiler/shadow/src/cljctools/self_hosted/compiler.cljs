@@ -20,23 +20,23 @@
   (let [compile-state-ref (env/default-compiler-env)]
     (reify
       p/Compiler
-      (-init [_ opts] (let [{:keys [path-to-bootstrap]} opts
-                            c| (chan 1)]
+      (-init [_ opts] (let [c| (chan 1)]
                         (boot/init compile-state-ref
-                                   {:path path-to-bootstrap}
+                                   opts
+                                   
                                    (fn []
                                      (prn "; boot/init initialized")
-                                     (let [eval cljs.core/*eval*]
-                                       (set! cljs.core/*eval*
-                                             (fn [form]
-                                               (binding [cljs.env/*compiler* compile-state-ref
-                                                         *ns* (find-ns cljs.analyzer/*cljs-ns*) #_(find-ns 'mult.extension)
-                                                         cljs.js/*eval-fn* cljs.js/js-eval]
-                                                 (eval form)))))
+                                     #_(let [eval cljs.core/*eval*]
+                                         (set! cljs.core/*eval*
+                                               (fn [form]
+                                                 (binding [cljs.env/*compiler* compile-state-ref
+                                                           *ns* (find-ns cljs.analyzer/*cljs-ns*) #_(find-ns 'mult.extension)
+                                                           cljs.js/*eval-fn* cljs.js/js-eval]
+                                                   (eval form)))))
                                      (close! c|)))
                         c|))
       (-eval-data [_ opts])
-      (-compile-str [_ opts] (let [{:keys [code nspace]} opts
+      (-eval-str [_ opts] (let [{:keys [code nspace]} opts
                                    c| (chan 1)]
                                (cljs/eval-str
                                 compile-state-ref
@@ -58,9 +58,9 @@
   [compiler opts]
   (p/-eval-data compiler opts))
 
-(defn compile-str
+(defn eval-str
   [compiler opts]
-  (p/-compile-str compiler opts))
+  (p/-eval-str compiler opts))
 
 (comment
 

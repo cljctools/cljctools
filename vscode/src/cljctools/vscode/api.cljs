@@ -27,6 +27,20 @@
   (def vscode (node/require "vscode"))
   (catch js/Error e (do (println "Error on (node/require vscode)") (println e))))
 
+(comment
+
+  (exists? js/global)
+  (type js/global)
+  js/global.process.versions
+
+  (def worker-threads (node/require "worker_threads"))
+  (type worker-threads.isMainThread)
+   
+
+  ;;
+  )
+
+
 (defn show-information-message*
   [vscode msg]
   (.. vscode.window (showInformationMessage msg)))
