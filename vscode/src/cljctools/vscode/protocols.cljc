@@ -1,5 +1,10 @@
 (ns cljctools.vscode.protocols)
 
+(defprotocol Connect
+  (-connect [_])
+  (-disconnect [_])
+  (-connected? [_]))
+
 (defprotocol Send
   (-send [_ v]))
 
