@@ -73,9 +73,10 @@
 
 (defn create-proc-server
   [channels ctx opts]
-  (let [{:keys [server-ops| server-ops|m ws-clients-evt| ws-clients-data|]} channels
+  (let [{:keys [server-ops| server-ops|m ws-clients-evt| ws-clients-data| ws-clients-data|m]} channels
         {:keys [ws? service-map]} opts
         server-ops|t (tap server-ops|m (chan 10))
+        ws-clients-data|t (tap ws-clients-data|m (chan 10))
         ws-clients (atom {})
         baos (ByteArrayOutputStream. 4096)
         transit-writer (transit/writer baos :json)
@@ -87,19 +88,25 @@
         transit-read (fn [payload]
                        (let [bais (ByteArrayInputStream. payload)
                              transit-reader (transit/reader bais :json)
-                             data (transit/read bais)]))
+                             data (transit/read transit-reader)]
+                         data))
         ws-paths {"/ws" {:on-connect (pedestal.ws/start-ws-connection
                                       (fn [ws-session send|]
+                                        (println "socket connected")
                                         (put! ws-clients-evt| {:op :ws-client/connect})
                                         (swap! ws-clients assoc ws-session send|)))
-                         :on-text (fn [msg] (put! ws-clients-data| {:op :ws-client/data :data msg}))
+                         :on-text (fn [msg]
+                                    (put! ws-clients-data| {:op :ws-client/data :data msg}))
                          :on-binary (fn [payload offset length]
                                       (put! ws-clients-data| {:op :ws-client/data
                                                               :data (transit-read payload)}))
                          :on-error (fn [t]
+                                     (println "socket error")
+                                     (println t)
                                      (put! ws-clients-evt| {:op :ws-client/error :ex t})
                                      #_(log/error :msg "WS Error happened" :exception t))
                          :on-close (fn [num-code reason-text]
+                                     (println "socket closed")
                                      (put! ws-clients-evt| {:op :ws-client/close
                                                             :num-code num-code
                                                             :reason reason-text})
@@ -107,42 +114,48 @@
         service (create-service (merge
                                  (when ws? {:ws-paths ws-paths})
                                  opts))
-        state {:opts opts
-               :ws-clients ws-clients}]
+        broadcast (let [{:keys [data]} opts]
+                    (doseq [[^Session session send|] @ws-clients]
+                      (when (.isOpen session)
+                        (transit-write data send|))))
+        state (atom {:opts opts
+                     :server nil
+                     :ws-clients ws-clients})]
     (go
       (loop []
-        (when-let [[v port] (alts! [server-ops|t])]
+        (when-let [[v port] (alts! [server-ops|t ws-clients-data|t])]
           (condp = port
             server-ops|t (condp = (:op v)
                            :start
                            (let [])
 
                            :stop
-                           (let []))))
+                           (let []))
+
+            ws-clients-data|t (condp = (:op v)
+                                :ws-client/data
+                                (let []
+                                  (println "server received" v)
+                                  #_(broadcast {:data v})))))
         (recur))
       (println "; proc-ops go-block exiting"))
     (reify
       p/Start
       (-start [_]
-        (-> service ;; start with production configuration
-            http/default-interceptors
-            http/dev-interceptors
-            http/create-server
-            http/start))
+        (let [server (-> service ;; start with production configuration
+                         http/default-interceptors
+                         http/dev-interceptors
+                         http/create-server
+                         http/start)]
+          (swap! state assoc :server server)))
       (-stop [_]
-        (http/stop service))
+        (http/stop (:server @state)))
       p/Broadcast
       (-broadcast [_ opts]
-        (let [{:keys [data]} opts]
-          (doseq [[^Session session send|] @(:ws-clients _)]
-    ;; The Pedestal Websocket API performs all defensive checks before sending,
-    ;;  like `.isOpen`, but this example shows you can make calls directly on
-    ;;  on the Session object if you need to
-            (when (.isOpen session)
-              (transit-write data send|)))))
+        (broadcast opts))
       clojure.lang.ILookup
       (valAt [_ k] (.valAt _ k nil))
-      (valAt [_ k not-found] (.valAt state k not-found)))))
+      (valAt [_ k not-found] (.valAt @state k not-found)))))
 
 (defn start
   [_]
