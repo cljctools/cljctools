@@ -10,10 +10,10 @@
    [cljs.reader :refer [read-string]]
    #_["fs" :as fs]
    #_["path" :as path]
-   [cognitect.transit :as t]
+   [cognitect.transit :as transit]
 
    [cljctools.vscode.protocols :as p]
-   [cljctools.vscode.spec :as sp]
+   [cljctools.vscode.spec :as spec]
    [cljctools.paredit :as paredit]
    [cljs.nodejs :as node]))
 
@@ -197,7 +197,7 @@
   [{:keys [context
            id title view-column
            script-path html-path script-replace
-           tab-msg| tab-state|]
+           msg| state|]
     :as opts
     :or {id (random-uuid)
          title "Default title"
@@ -207,8 +207,8 @@
          view-column vscode.ViewColumn.Two
          }}]
   (let [{:keys [on-message on-dispose on-state-change]
-         :or {on-message (fn [id data] (put! tab-msg| (assoc data :tab/id id)))
-              on-dispose (fn [id] (put! tab-state| (sp/vl :tab-state| {:op :host/tab-disposed :host.tab/id id})))
+         :or {on-message (fn [id data] (put! msg| (assoc data ::spec/tab-id id)))
+              on-dispose (fn [id] (put! state| (spec/vl ::spec/tab-state| {:op ::spec/tab-disposed ::spec/tab-id id})))
               on-state-change (fn [data] (prn data))}} opts
         panel (vscode.window.createWebviewPanel
                id
@@ -248,28 +248,28 @@
 
 (defn create-channels
   []
-  (let [host-ops| (chan 10)
-        host-ops|m (mult host-ops|)
-        host-evt| (chan 10)
-        host-evt|m (mult host-evt|)
-        host-evt|x (mix host-evt|)
-        ;; host|p (pub (tap host|m (chan 10)) sp/TOPIC (fn [_] 10))
+  (let [ops| (chan 10)
+        ops|m (mult ops|)
+        evt| (chan 10)
+        evt|m (mult evt|)
+        evt|x (mix evt|)
+        ;; host|p (pub (tap host|m (chan 10)) spec/TOPIC (fn [_] 10))
         ]
-    {:host-ops| host-ops|
-     :host-ops|m host-ops|m
-     :host-evt| host-evt|
-     :host-evt|m host-evt|m
-     :host-evt|x host-evt|x
+    {::spec/ops| ops|
+     ::spec/ops|m ops|m
+     ::spec/evt| evt|
+     ::spec/evt|m evt|m
+     ::spec/evt|x evt|x
     ;;  :host|p host|p
      }))
 
 (defn create-proc-host
   [channels ctx]
-  (let [{:keys [host-ops|m host-evt|]} channels
-        host-ops|t (tap host-ops|m (chan 10))
+  (let [{:keys [::spec/ops|m ::spec/evt|]} channels
+        ops|t (tap ops|m (chan 10))
         release #(do
-                   (untap host-ops|m  host-ops|t)
-                   (close! host-ops|t))
+                   (untap ops|m  ops|t)
+                   (close! ops|t))
         state (atom (select-keys ctx [:context]))]
     (do
       (.onDidChangeActiveTextEditor vscode.window (fn [text-editor]
@@ -279,13 +279,14 @@
                                                         #_(put! ops| (p/-vl-texteditor-changed ops|i data)))))))
     (go
       (loop []
-        (when-let [v (<! host-ops|t)]
+        (when-let [v (<! ops|t)]
           (condp = (:op v)
-            (sp/op :host-ops|
-                   :host/extension-activate) (let [{:keys [context]} v]
-                                               (prn "vscode.api :host/extension-activate")
-                                               (swap! state assoc :context context)
-                                               (put! host-evt| v)))
+
+            (spec/op ::spec/ops| ::spec/extension-activate)
+            (let [{:keys [context]} v]
+              (prn "vscode.api ::spec/extension-activate")
+              (swap! state assoc :context context)
+              (put! evt| v)))
           (recur)))
       (println "; proc-host go-block exits"))
     (reify
@@ -294,10 +295,10 @@
       p/Host
       (-show-info-msg [_ msg] (show-information-message* vscode msg))
       (-register-commands [_ opts]
-        (let [{:keys [cmd| ids]} opts
+        (let [{:keys [::spec/cmd| ids]} opts
               on-cmd (fn [id args]
                        #_(prn "on-cmd" id)
-                       (put! cmd| (sp/vl :host-cmd| {:op id :args args})))]
+                       (put! cmd| (spec/vl ::spec/cmd| {:op ::spec/cmd ::spec/cmd-id id :args args})))]
           (register-commands* {:ids ids
                                :vscode vscode
                                :context (:context @state)
@@ -328,13 +329,13 @@
 (def ^:dynamic *context* (atom nil))
 
 (defn activate
-  [{:keys [host-ops|] :as channels} context]
+  [{:keys [::spec/ops|] :as channels} context]
   (reset! *context* context)
   (prn "vscode.api makef-activate")
-  (put! host-ops| {:op :host/extension-activate :context context}))
+  (put! ops| {:op ::spec/extension-activate :context context}))
 
 (defn deactivate
-  [{:keys [host-ops|] :as channels}]
+  [{:keys [::spec/ops|] :as channels}]
   (js/console.log "cljctools.vscode.api/makef-deactivate"))
 
 (defn show-info-msg
@@ -342,7 +343,7 @@
   (p/-show-info-msg host msg))
 
 (defn register-commands
-  [host {:keys [cmd| ids] :as opts}]
+  [host opts]
   (p/-register-commands host opts))
 
 (defn create-tab

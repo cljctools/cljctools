@@ -7,7 +7,8 @@
    [goog.string :as gstring]
    [goog.string.format]
    [cognitect.transit :as transit]
-   [cljctools.net.protocols :as p]
+   [cljctools.net.core.protocols :as p]
+   [cljctools.net.core.spec :as core.spec]
    [cljs.nodejs :as node]))
 
 #_(def path (node/require "fs"))
@@ -18,18 +19,18 @@
 
 (defn create-channels
   []
-  (let [ws-evt| (chan (sliding-buffer 10))
-        ws-evt|m (mult ws-evt|)
-        ws-recv| (chan (sliding-buffer 10))
-        ws-recv|m (mult ws-recv|)]
-    {:ws-evt| ws-evt|
-     :ws-evt|m ws-evt|m
-     :ws-recv| ws-recv|
-     :ws-recv|m ws-recv|m}))
+  (let [evt| (chan (sliding-buffer 10))
+        evt|m (mult evt|)
+        recv| (chan (sliding-buffer 10))
+        recv|m (mult recv|)]
+    {::core.spec/evt| evt|
+     ::core.spec/evt|m evt|m
+     ::core.spec/recv| recv|
+     ::core.spec/recv|m recv|m}))
 
 (defn create-proc-ws
   [channels ctx opts]
-  (let [{:keys [ws-evt| ws-recv|]} channels
+  (let [{:keys [::core.spec/evt| ::core.spec/recv|]} channels
         {:keys [id url]} opts
         send| (chan 10)
         socket (WebSocket. url #js {})
@@ -65,21 +66,21 @@
         socket (doto socket
                  (.on "open" (fn []
                                (println "open")
-                               (put! ws-evt| {:op :ws/open})))
+                               (put! evt| {:op ::core.spec/socket-open})))
                  (.on "close" (fn [code reason]
                                 (println "close" code reason)
-                                (put! ws-evt| {:op :ws/close
-                                               :code code
-                                               :reason reason})
+                                (put! evt| {:op ::core.spec/socket-close
+                                            :code code
+                                            :reason reason})
                                 ; consider using take! if using go block here is wasteful
                                 ))
                  (.on "error" (fn [err]
                                 (println "error" err)
-                                (put! ws-evt| {:op :ws/error
-                                               :error err})))
+                                (put! evt| {:op ::core.spec/socket-error
+                                            :error err})))
                  (.on "message" (fn [data] (take! (transit-read data)
                                                   (fn [d]
-                                                    (put! ws-recv| d))))))
+                                                    (put! recv| d))))))
         state (atom {:socket socket
                      :send| send|})]
     (go

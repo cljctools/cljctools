@@ -7,7 +7,7 @@
    [goog.string :as gstring]
    [goog.string.format]
    [cognitect.transit :as transit]
-   [cljctools.net.protocols :as p]
+   [cljctools.net.core.protocols :as p]
    [cljs.nodejs :as node]))
 
 #_(def path (node/require "fs"))

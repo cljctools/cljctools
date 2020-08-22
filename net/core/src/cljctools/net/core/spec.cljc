@@ -1,5 +1,5 @@
-(ns cljctools.net.spec
-  #?(:cljs (:require-macros [cljctools.net.spec]))
+(ns cljctools.net.core.spec
+  #?(:cljs (:require-macros [cljctools.net.core.spec]))
   (:require
    [clojure.spec.alpha :as s]))
 

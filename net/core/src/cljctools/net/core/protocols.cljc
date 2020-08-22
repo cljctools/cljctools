@@ -1,4 +1,4 @@
-(ns cljctools.net.protocols)
+(ns cljctools.net.core.protocols)
 
 (defprotocol Connect
   (-connect [_])

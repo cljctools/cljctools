@@ -13,19 +13,18 @@
 (def ^:const TOPIC :topic)
 
 (def op-specs
-  {:host/extension-activate (s/keys :req-un [::op #_::out|])
-   :host/extension-deactivate (s/keys :req-un [::op #_::out|])
-   :host/tab-disposed (s/keys :req-un [::op #_::out|])
-   :host/cmd (s/keys :req-un [::op #_::out|])
-   })
+  {::extension-activate (s/keys :req-un [::op #_::out|])
+   ::extension-deactivate (s/keys :req-un [::op #_::out|])
+   ::tab-disposed (s/keys :req-un [::op #_::out|])
+   ::cmd (s/keys :req-un [::op #_::out|])})
 
 (def ch-specs
-  {:host-ops| #{:host/extension-activate
-                :host/extension-deactivate}
-   :host-evt| #{:host/extension-activate
-                :host/extension-deactivate}
-   :tab-state| #{:host/tab-disposed}
-   :host-cmd| #{:host/cmd}})
+  {::ops| #{::extension-activate
+            ::extension-deactivate}
+   ::evt| #{::extension-activate
+            ::extension-deactivate}
+   ::tab-state| #{::tab-disposed}
+   ::cmd| #{::cmd}})
 
 (def op-keys (set (keys op-specs)))
 (def ch-keys (set (keys ch-specs)))

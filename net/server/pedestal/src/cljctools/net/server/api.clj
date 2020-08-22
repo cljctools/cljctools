@@ -8,7 +8,7 @@
    [io.pedestal.http.route :as route]
    [io.pedestal.http.body-params :as body-params]
    [io.pedestal.http.jetty.websockets :as pedestal.ws]
-   [cljctools.net.protocols :as p]
+   [cljctools.net.core.protocols :as p]
    [cognitect.transit :as transit])
   (:import
    org.eclipse.jetty.websocket.api.Session
