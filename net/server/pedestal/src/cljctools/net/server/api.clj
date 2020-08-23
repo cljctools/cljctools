@@ -71,6 +71,14 @@
      :ws-clients-data| ws-clients-data|
      :ws-clients-data|m ws-clients-data|m}))
 
+; use (.getRemote ws-session) to send directly to one socket
+; as it is done in pedestal itself:
+; https://github.com/pedestal/pedestal/blob/master/jetty/src/io/pedestal/http/jetty/websockets.clj#L51
+; 
+; or: need to pass a custom :listener-fn to add-ws-endpoints
+; https://github.com/pedestal/pedestal/blob/master/jetty/src/io/pedestal/http/jetty/websockets.clj#L174
+; can req response map to session ?
+
 (defn create-proc-server
   [channels ctx opts]
   (let [{:keys [server-ops| server-ops|m ws-clients-evt| ws-clients-data| ws-clients-data|m]} channels

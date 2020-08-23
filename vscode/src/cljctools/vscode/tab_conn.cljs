@@ -8,7 +8,8 @@
    [cljs.reader :refer [read-string]]
    [clojure.pprint :refer [pprint]]
 
-   [cljctools.vscode.protocols :as p]))
+   [cljctools.vscode.protocols :as p]
+   [cljctools.vscode.spec :as spec]))
 
 #_(declare vscode)
 
@@ -17,26 +18,26 @@
 
 (defn create-channels
   []
-  (let [conn-recv| (chan (sliding-buffer 10))
-        conn-recv|m (mult conn-recv|)
-        conn-send| (chan 10)
-        conn-send|m (mult conn-send|)]
-    {:conn-recv| conn-recv|
-     :conn-recv|m conn-recv|m
-     :conn-send| conn-send|
-     :conn-send|m conn-send|m}))
+  (let [recv| (chan (sliding-buffer 10))
+        recv|m (mult recv|)
+        send| (chan 10)
+        send|m (mult send|)]
+    {::spec/recv| recv|
+     ::spec/recv|m recv|m
+     ::spec/send| send|
+     ::spec/send|m send|m}))
 
 (defn create-proc-conn
   [channels ctx]
-  (let [{:keys [conn-send| conn-send|m conn-recv|]} channels
-        conn-send|t (tap conn-send|m (chan 10))]
+  (let [{:keys [::spec/send| ::spec/send|m ::spec/recv|]} channels
+        send|t (tap send|m (chan 10))]
     (.addEventListener js/window "message"
                        (fn [ev]
                          #_(println ev.data)
-                         (put! conn-recv| (read-string ev.data))))
+                         (put! recv| (read-string ev.data))))
     (go
       (loop []
-        (when-let [v (<! conn-send|t)]
+        (when-let [v (<! send|t)]
           (.postMessage vscode (pr-str v)))
         (recur))
       (println "; proc-conn go-block exiting"))
@@ -46,7 +47,7 @@
       (-disconnect [_])
       (-connected? [_])
       p/Send
-      (-send [_ v] (put! conn-send| v)))))
+      (-send [_ v] (put! send| v)))))
 
 (defn send
   [conn v]

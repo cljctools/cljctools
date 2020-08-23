@@ -297,7 +297,7 @@
       (-register-commands [_ opts]
         (let [{:keys [::spec/cmd| ids]} opts
               on-cmd (fn [id args]
-                       #_(prn "on-cmd" id)
+                       (prn "on-cmd" id)
                        (put! cmd| (spec/vl ::spec/cmd| {:op ::spec/cmd ::spec/cmd-id id :args args})))]
           (register-commands* {:ids ids
                                :vscode vscode
