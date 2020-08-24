@@ -1,3 +1,0 @@
-{:paths ["src"]
- :deps {stylefruits/gniazdo {:mvn/version "1.1.4"}
-        github.com.cljctools/net.core {:local/root "../../core"}}}
