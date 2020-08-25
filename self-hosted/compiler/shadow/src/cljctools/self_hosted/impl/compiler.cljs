@@ -110,3 +110,82 @@
 
   ;;
   )
+
+(comment
+
+  (def tmp1 (atom 0))
+
+  (defn bar [])
+
+
+  (def ^:dynamic *extension-compiler* (compiler.api/create-compiler))
+
+  (def ^:dynamic *solution-compiler* (compiler.api/create-compiler))
+
+
+  #_(<! (compiler.api/init
+         *extension-compiler*
+         {:path "/home/user/code/deathstar/build/extension/resources/out/deathstar-bootstrap"
+          :load-on-init '#{deathstar.main clojure.core.async}}))
+  #_(<! (compiler.api/init
+         *solution-compiler*
+         {:path "/home/user/code/deathstar/build/resources/out/deathstar-bootstrap-solution-space"
+          :load-on-init '#{deathstar.tabapp.solution-space.main
+                           clojure.core.async}}))
+  #_(prn (self-hosted.api/test1))
+
+
+  (def a 'hello)
+  (-> #'a meta)
+
+  (binding [*ns* 'foo]
+    (pr-str
+     `(do
+        (type type)
+        (bar)
+        ~a)))
+
+  (take! (compiler.api/eval-str
+          *solution-compiler*
+          {:code
+           "
+            (cljs.core/type cljs.core/type)
+            #_(cljs.core/type deathstar.tabapp.solution-space.main/state)
+    "
+           :nspace 'deathstar.tabapp.solution-space.main})
+         (fn [data]
+           (prn data)
+           (prn (type (:value data)))))
+
+  (take! (compiler.api/eval-str
+          *extension-compiler*
+          {:code
+           "
+  (cljs.core/type deathstar.main/main)
+            
+    "
+           :nspace 'deathstar.main})
+         (fn [data]
+           (prn data)
+           (prn (type (:value data)))))
+
+  (take! (compiler.api/eval-str
+          *extension-compiler*
+          {:code
+           "
+       #_(cljs.core/type deathstar.extension/tmp1)
+            (type deathstar.extension/tmp1)
+             (swap! deathstar.extension/tmp1 inc)
+            #_@deathstar.extension/tmp1
+            @tmp1
+            
+            
+    "
+           :nspace 'deathstar.extension})
+         (fn [data]
+           (prn data)
+           (prn (type (:value data)))))
+
+
+  ;;
+  )

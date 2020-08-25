@@ -15,17 +15,6 @@
 (def net (node/require "net"))
 
 
-(defn create-channels
-  []
-  (let [ws-evt| (chan (sliding-buffer 10))
-        ws-evt|m (mult ws-evt|)
-        ws-recv| (chan (sliding-buffer 10))
-        ws-recv|m (mult ws-recv|)]
-    {:ws-evt| ws-evt|
-     :ws-evt|m ws-evt|m
-     :ws-recv| ws-recv|
-     :ws-recv|m ws-recv|m}))
-
 (defn create-proc-ws
   [channels ctx opts]
   (let [{:keys [ws-evt| ws-recv|]} channels

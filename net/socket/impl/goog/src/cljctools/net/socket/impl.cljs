@@ -12,10 +12,6 @@
    [goog Uri]
    [goog.history.Html5History]))
 
-(defn create-channels
-  []
-  (let []
-    {}))
 
 (comment
 

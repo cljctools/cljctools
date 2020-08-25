@@ -1,4 +1,4 @@
-(ns cljctools.net.server.api
+(ns cljctools.net.server.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
@@ -8,8 +8,10 @@
    [io.pedestal.http.route :as route]
    [io.pedestal.http.body-params :as body-params]
    [io.pedestal.http.jetty.websockets :as pedestal.ws]
-   [cljctools.net.core.protocols :as p]
-   [cognitect.transit :as transit])
+   [cognitect.transit :as transit]
+
+   [cljctools.net.server.spec :as server.spec]
+   [cljctools.net.server.chan :as server.chan])
   (:import
    org.eclipse.jetty.websocket.api.Session
    java.io.ByteArrayInputStream
@@ -56,20 +58,7 @@
       ::http/allowed-origins {:creds true :allowed-origins (constantly true)}}
      service-map)))
 
-(defn create-channels
-  []
-  (let [server-ops| (chan 10)
-        server-ops|m (mult server-ops|)
-        ws-clients-evt| (chan (sliding-buffer 50))
-        ws-clients-evt|m (mult ws-clients-evt|)
-        ws-clients-data| (chan (sliding-buffer 50))
-        ws-clients-data|m (mult ws-clients-data|)]
-    {:server-ops| server-ops|
-     :server-ops|m server-ops|m
-     :ws-clients-evt| ws-clients-evt|
-     :ws-clients-evt|m ws-clients-evt|m
-     :ws-clients-data| ws-clients-data|
-     :ws-clients-data|m ws-clients-data|m}))
+
 
 ; use (.getRemote ws-session) to send directly to one socket
 ; as it is done in pedestal itself:
@@ -79,12 +68,18 @@
 ; https://github.com/pedestal/pedestal/blob/master/jetty/src/io/pedestal/http/jetty/websockets.clj#L174
 ; can req response map to session ?
 
-(defn create-proc-server
-  [channels ctx opts]
-  (let [{:keys [server-ops| server-ops|m ws-clients-evt| ws-clients-data| ws-clients-data|m]} channels
-        {:keys [ws? service-map]} opts
+(defn create-proc-ops
+  [channels opts]
+  (let [{:keys [::server.chan/ops|
+                ::server.chan/ops|m
+                ::server.chan/ws-evt|
+                ::server.chan/ws-evt|m
+                ::server.chan/ws-recv|
+                ::server.chan/ws-recv|m]} channels
+        {:keys [::server.spec/with-websocket-endpoint?]} opts
         server-ops|t (tap server-ops|m (chan 10))
-        ws-clients-data|t (tap ws-clients-data|m (chan 10))
+        ws-recv|t (tap ws-recv|m (chan 10))
+        ws-evt|t (tap ws-evt|m (chan 10))
         ws-clients (atom {})
         baos (ByteArrayOutputStream. 4096)
         transit-writer (transit/writer baos :json)
@@ -100,81 +95,85 @@
                          data))
         ws-paths {"/ws" {:on-connect (pedestal.ws/start-ws-connection
                                       (fn [ws-session send|]
-                                        (println "socket connected")
-                                        (put! ws-clients-evt| {:op :ws-client/connect})
+                                        (println ::ws-connected)
+                                        (server.chan/ws-connected (::server.chan/ws-evt| channels))
                                         (swap! ws-clients assoc ws-session send|)))
                          :on-text (fn [msg]
-                                    (put! ws-clients-data| {:op :ws-client/data :data msg}))
+                                    (server.chan/ws-recv (::server.chan/ws-recv| channels) (read-string msg)))
                          :on-binary (fn [payload offset length]
-                                      (put! ws-clients-data| {:op :ws-client/data
-                                                              :data (transit-read payload)}))
-                         :on-error (fn [t]
-                                     (println "socket error")
-                                     (println t)
-                                     (put! ws-clients-evt| {:op :ws-client/error :ex t})
-                                     #_(log/error :msg "WS Error happened" :exception t))
+                                      (server.chan/ws-recv (::server.chan/ws-recv| channels) (transit-read payload)))
+                         :on-error (fn [error]
+                                     (println ::ws-error)
+                                     (server.chan/ws-error (::server.chan/ws-evt| channels) error))
                          :on-close (fn [num-code reason-text]
-                                     (println "socket closed")
-                                     (put! ws-clients-evt| {:op :ws-client/close
-                                                            :num-code num-code
-                                                            :reason reason-text})
-                                     #_(log/info :msg "WS Closed:" :reason reason-text))}}
+                                     (println ::ws-closed)
+                                     (server.chan/ws-closed (::server.chan/ws-evt| channels) num-code reason-text))}}
         service (create-service (merge
-                                 (when ws? {:ws-paths ws-paths})
+                                 (when with-websocket-endpoint? {:ws-paths ws-paths})
                                  opts))
-        broadcast (let [{:keys [data]} opts]
+        broadcast (fn [data]
                     (doseq [[^Session session send|] @ws-clients]
                       (when (.isOpen session)
                         (transit-write data send|))))
-        state (atom {:opts opts
-                     :server nil
-                     :ws-clients ws-clients})]
+        state (atom {::server nil})
+        start-server (fn []
+                       (let [server (-> service ;; start with production configuration
+                                        http/default-interceptors
+                                        http/dev-interceptors
+                                        http/create-server
+                                        http/start)]
+                         (swap! state assoc ::server server)))
+        stop-server (fn []
+                      (http/stop (::server @state)))]
     (go
       (loop []
-        (when-let [[v port] (alts! [server-ops|t ws-clients-data|t])]
+        (when-let [[v port] (alts! [ops|t ws-recv|t])]
           (condp = port
-            server-ops|t (condp = (:op v)
-                           :start
-                           (let [])
+            ops|t
+            (condp = (:op v)
+              ::server.chan/start-server
+              (let [{:keys [out|]} v]
+                (start-server)
+                (put! out| (merge v {:op-status :complete})))
 
-                           :stop
-                           (let []))
+              ::server.chan/stop-server
+              (let [{:keys [out|]} v]
+                (stop-server)
+                (put! out| (merge v {:op-status :complete})))
 
-            ws-clients-data|t (condp = (:op v)
-                                :ws-client/data
-                                (let []
-                                  (println "server received" v)
-                                  #_(broadcast {:data v})))))
+              ::server.chan/broadcast
+              (let []
+                (broadcast v)))
+
+            ws-recv|t
+            (let []
+              (println ::ws-recv|t v)
+              #_(broadcast {:data v}))
+
+            ws-evt|t
+            (condp = (:op v)
+              ::server.chan/ws-connected
+              (let []
+                (println ::ops ::ws-connected))
+
+              ::server.chan/ws-closed
+              (let []
+                (println ::ops ::ws-closed))
+
+              ::server.chan/ws-error
+              (let []
+                (println ::ops ::ws-error)))))
         (recur))
       (println "; proc-ops go-block exiting"))
-    (reify
-      p/Start
-      (-start [_]
-        (let [server (-> service ;; start with production configuration
-                         http/default-interceptors
-                         http/dev-interceptors
-                         http/create-server
-                         http/start)]
-          (swap! state assoc :server server)))
-      (-stop [_]
-        (http/stop (:server @state)))
-      p/Broadcast
-      (-broadcast [_ opts]
-        (broadcast opts))
-      clojure.lang.ILookup
-      (valAt [_ k] (.valAt _ k nil))
-      (valAt [_ k not-found] (.valAt @state k not-found)))))
-
-(defn start
-  [_]
-  (p/-start _))
-
-(defn stop
-  [_]
-  (p/-stop _))
-
-(defn broadcast
-  [_ opts]
-  (p/-broadcast _ opts))
+    #_(reify
+        p/Start
+        (-start [_])
+        (-stop [_])
+        p/Broadcast
+        (-broadcast [_ opts]
+          (broadcast opts))
+        clojure.lang.ILookup
+        (valAt [_ k] (.valAt _ k nil))
+        (valAt [_ k not-found] (.valAt @state k not-found)))))
 
 

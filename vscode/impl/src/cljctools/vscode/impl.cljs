@@ -1,4 +1,4 @@
-(ns cljctools.vscode.api
+(ns cljctools.vscode.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
@@ -12,8 +12,9 @@
    #_["path" :as path]
    [cognitect.transit :as transit]
 
-   [cljctools.vscode.protocols :as p]
-   [cljctools.vscode.spec :as spec]
+   [cljctools.vscode.protocols :as vscode.p]
+   [cljctools.vscode.spec :as vscode.spec]
+   [cljctools.vscode.chan :as vscode.chan]
    [cljctools.paredit :as paredit]
    [cljs.nodejs :as node]))
 
@@ -46,22 +47,28 @@
   (.. vscode.window (showInformationMessage msg)))
 
 (defn register-command*
-  [{:keys [id vscode context on-cmd] :as ops}]
+  [{:keys [::vsocde.spec/cmd-id
+           ::vscode
+           ::context
+           ::on-cmd] :as ops}]
   (let [disposable (.. vscode.commands
                        (registerCommand
-                        id
+                        cmd-id
                         (fn [& args]
-                          (on-cmd id args))))]
+                          (on-cmd cmd-id #_args))))]
     (.. context.subscriptions (push disposable))))
 
 (defn register-commands*
-  [{:keys [ids vscode context on-cmd] :as ops}]
+  [{:keys [::vscode.spec/cmd-ids
+           ::vscode
+           ::context
+           ::on-cmd] :as ops}]
   (let []
-    (doseq [id ids]
-      (register-command* {:id id
-                          :vscode vscode
-                          :context context
-                          :on-cmd on-cmd}))))
+    (doseq [cmd-id cmd-ids]
+      (register-command* {::vsocde.spec/cmd-id cmd-id
+                          ::vscode vscode
+                          ::context context
+                          ::on-cmd on-cmd}))))
 
 (defn read-workspace-file
   [filepath callback]
@@ -137,28 +144,48 @@
 (defn parse-ns
   "Safely tries to read the first form from the source text.
    Returns ns name or nil"
-  [filename text log]
+  [filepath text log]
   (try
-    (when (re-matches #".+\.clj(s|c)?" filename)
+    (when (re-matches #".+\.clj(s|c)?" filepath)
       (let [fform (read-string text)]
         (when (= (first fform) 'ns)
           (second fform))))
-    (catch js/Error ex (log "; parse-ns error " {:filename filename
-                                                 :err ex}))))
+    (catch js/Error ex (log "; parse-ns error " {::vscode.spec/filepath filepath
+                                                 :error ex}))))
+
+(defn readdir
+  "https://nodejs.org/api/fs.html#fs_fs_readdir_path_options_callback"
+  ([dirpath]
+   (readdir dirpath (chan 1)))
+  ([dirpath out|]
+   (.readdir fs dirpath #js {}
+             (fn [err filenames]
+               (put! out| (or err filenames))))
+   out|))
+
+(defn readfile
+  "https://nodejs.org/api/fs.html#fs_fs_readfile_path_options_callback"
+  ([filepath]
+   (readfile filepath (chan 1)))
+  ([filepath out|]
+   (.readFile fs filepath
+             (fn [err data]
+               (put! out| (or err data))))
+   out|))
 
 (defn active-ns
-  [text-editor log]
-  (when text-editor
+  [active-text-editor log]
+  (when active-text-editor
     (let [range (vscode.Range.
                  (vscode.Position. 0 0)
                  (vscode.Position. NS_DECL_LINE_RANGE 0))
-          text (.getText text-editor.document range)
-          filepath text-editor.document.fileName
-          ns-sym (parse-ns filepath text log)
-          data {:filepath filepath
-                :ns-sym ns-sym}]
+          text (.getText active-text-editor.document range)
+          active-document-filepath active-text-editor.document.fileName
+          ns-sym (parse-ns active-document-filepath text log)
+          data {::vscode.spec/filepath active-document-filepath
+                ::vscode.spec/ns ns-sym}]
       data
-      #_(prn text-editor.document.languageId))))
+      #_(prn active-text-editor.document.languageId))))
 
 #_(defn tabapp-html
     [{:keys [vscode context panel script-path html-path script-replace] :as opts}]
@@ -194,83 +221,86 @@
       panel))
 
 (defn create-tab*
-  [{:keys [context
-           id title view-column
-           script-path html-path script-replace
-           msg| state|]
-    :as opts
-    :or {id (random-uuid)
-         title "Default title"
-         script-path "resources/out/tabapp.js"
-         html-path "resources/index.html"
-         script-replace "/out/tabapp.js"
-         view-column vscode.ViewColumn.Two
-         }}]
+  [{:as channels
+    :keys [::vscode.chan/tab-recv|
+           ::vscode.chan/tab-evt|]}
+   {:as opts
+    :keys [::context
+           ::vscode.spec/tab-id
+           ::vscode.spec/tab-title
+           ::vscode.spec/tab-view-column
+           ::vscode.spec/tab-script-filepath
+           ::vscode.spec/tab-html-filepath
+           ::vscode.spec/tab-script-replace]
+    :or {tab-id (random-uuid)
+         tab-title "Default title"
+         tab-script-filepath "resources/out/tabapp.js"
+         tab-html-filepath "resources/index.html"
+         tab-script-replace "/out/tabapp.js"
+         tab-view-column vscode.ViewColumn.Two}}]
   (let [{:keys [on-message on-dispose on-state-change]
-         :or {on-message (fn [id data] (put! msg| (assoc data ::spec/tab-id id)))
-              on-dispose (fn [id] (put! state| (spec/vl ::spec/tab-state| {:op ::spec/tab-disposed ::spec/tab-id id})))
-              on-state-change (fn [data] (prn data))}} opts
+         :or {on-message (fn [msg]
+                           (let [data (read-string msg)]
+                             (vscode.chan/tab-recv tab-recv| data tab-id)))
+              on-dispose (fn []
+                           (vscode.chan/tab-disposed tab-evt| tab-id))
+              on-state-change (fn [data] (do nil))}} opts
         panel (vscode.window.createWebviewPanel
-               id
-               title
-               view-column
+               tab-id
+               tab-title
+               tab-view-column
                #js {:enableScripts true
                     :retainContextWhenHidden true})
         _ (do (.onDidDispose panel (fn []
-                                     (on-dispose id)))
+                                     (on-dispose)))
               (.onDidReceiveMessage  panel.webview (fn [msg]
-                                                     (let [data (read-string msg)]
-                                                       (on-message id data))))
+                                                     (on-message msg)))
               (.onDidChangeViewState panel (fn [panel]
-                                             (on-state-change {:active? panel.active}))))
+                                             (on-state-change {::vscode.spec/tab-active? panel.active}))))
         script-uri (as-> nil o
-                     (.join path context.extensionPath script-path)
+                     (.join path context.extensionPath tab-script-path)
                      (vscode.Uri.file o)
                      (.asWebviewUri panel.webview o)
                      (.toString o))
         html (as-> nil o
-               (.join path context.extensionPath html-path)
+               (.join path context.extensionPath tab-html-path)
                (.readFileSync fs o)
                (.toString o)
-               (string/replace o script-replace script-uri))
+               (string/replace o tab-script-replace script-uri))
         lookup opts]
     (set! panel.webview.html html)
     (reify
-      p/Send
+      vscode.p/Send
       (-send [_ v] (.postMessage (.-webview panel) (pr-str v)))
-      p/Release
+      vscode.p/Release
       (-release [_] (println "release for tab not implemented"))
-      p/Active
+      vscode.p/Active
       (-active? [_] panel.active)
       cljs.core/ILookup
       (-lookup [_ k] (-lookup _ k nil))
       (-lookup [_ k not-found] (-lookup lookup k not-found)))))
 
-(defn create-channels
-  []
-  (let [ops| (chan 10)
-        ops|m (mult ops|)
-        evt| (chan 10)
-        evt|m (mult evt|)
-        evt|x (mix evt|)
-        ;; host|p (pub (tap host|m (chan 10)) spec/TOPIC (fn [_] 10))
-        ]
-    {::spec/ops| ops|
-     ::spec/ops|m ops|m
-     ::spec/evt| evt|
-     ::spec/evt|m evt|m
-     ::spec/evt|x evt|x
-    ;;  :host|p host|p
-     }))
 
-(defn create-proc-host
-  [channels ctx]
-  (let [{:keys [::spec/ops|m ::spec/evt|]} channels
+
+; repl only
+(def ^:dynamic *context* (atom nil))
+
+(defn create-proc-ops
+  [channels opts]
+  (let [{:keys [::vscode.chan/ops|m
+                ::vscode.chan/evt|
+                ::vscode.chan/tab-evt|m
+                ::vscode.chan/tab-send|m]} channels
         ops|t (tap ops|m (chan 10))
+        tab-evt|t (tap tab-evt|m (chan (sliding-buffer 10)))
+        tab-send|t (tap tab-send|m (chan 10))
         release #(do
                    (untap ops|m  ops|t)
                    (close! ops|t))
-        state (atom (select-keys ctx [:context]))]
+        state (->
+               {::vscode.spec/tabs {}}
+               (merge (select-keys opts [::context]))
+               (atom))]
     (do
       (.onDidChangeActiveTextEditor vscode.window (fn [text-editor]
                                                     (let [data (active-ns text-editor prn)]
@@ -279,38 +309,74 @@
                                                         #_(put! ops| (p/-vl-texteditor-changed ops|i data)))))))
     (go
       (loop []
-        (when-let [v (<! ops|t)]
-          (condp = (:op v)
+        (when-let [[v port] (alts! [ops|t])]
+          (condp = port
+            ops|t
+            (condp = (:op v)
 
-            (spec/op ::spec/ops| ::spec/extension-activate)
-            (let [{:keys [context]} v]
-              (prn "vscode.api ::spec/extension-activate")
-              (swap! state assoc :context context)
-              (put! evt| v)))
+              ::vscode.chan/extension-activate
+              (let [{:keys [::context out|]} v
+                    resp (merge v {:op-status :complete})]
+                #_(prn "vscode.api ::spec/extension-activate")
+                (reset! *context* context)
+                (swap! state assoc ::context context)
+                (put! out| resp)
+                (put! evt| resp))
+
+              ::vscode.chan/register-commands
+              (let [{:keys [::vscode.spec/cmd-ids]} opts
+                    on-cmd (fn [cmd-id #_args]
+                             (prn ::vscode.chan/extension-cmd cmd-id)
+                             (vscode.chan/extension-cmd (::vscode.chan/cmd| channels) cmd-id))]
+                (register-commands* {::vscode.spec/cmd-ids cmd-ids
+                                     ::vscode vscode
+                                     ::context (::context @state)
+                                     ::on-cmd on-cmd}))
+
+              ::vscode.chan/show-info-msg
+              (let []
+                (show-information-message* vscode msg))
+
+              ::vscode.chan/tab-create
+              (let [{:keys [::vscode.spec/tab-id out|]} v
+                    tab (create-tab* channels (merge (select-keys @state [::context]) v))]
+                (swap! state update ::vscode.spec/tabs assoc tab-id tab)
+                (put! out| (merge {:op-status :complete} v)))
+
+              tab-evt|t
+              (condp = (:op v)
+                ::vscode.chan/tab-disposed
+                (let [{:keys [::vscode.spec/tab-id]} v]
+                  (swap! state update ::vscode.spec/tabs dissoc tab-id)))
+
+              tab-send|t
+              (let [{:keys [::vscode.spec/tab-id]} v
+                    tab (get-in @state [::vscode.spec/tabs tab-id])]
+                (vsode.p/-send tab v))))
           (recur)))
       (println "; proc-host go-block exits"))
     (reify
       p/Release
       (-release [_] (release))
       p/Host
-      (-show-info-msg [_ msg] (show-information-message* vscode msg))
-      (-register-commands [_ opts]
-        (let [{:keys [::spec/cmd| ids]} opts
-              on-cmd (fn [id args]
-                       (prn "on-cmd" id)
-                       (put! cmd| (spec/vl ::spec/cmd| {:op ::spec/cmd ::spec/cmd-id id :args args})))]
-          (register-commands* {:ids ids
-                               :vscode vscode
-                               :context (:context @state)
-                               :on-cmd on-cmd})))
-      (-create-tab [_ opts]
-        (create-tab* (merge {:context (:context @state)} opts)))
+      #_(-show-info-msg [_ msg] (show-information-message* vscode msg))
+      #_(-register-commands [_ opts]
+                            (let [{:keys [::spec/cmd| ids]} opts
+                                  on-cmd (fn [id args]
+                                           (prn "on-cmd" id)
+                                           (put! cmd| (spec/vl ::spec/cmd| {:op ::spec/cmd ::spec/cmd-id id :args args})))]
+                              (register-commands* {:ids ids
+                                                   :vscode vscode
+                                                   :context (:context @state)
+                                                   :on-cmd on-cmd})))
+      #_(-create-tab [_ opts]
+                     (create-tab* (merge {:context (:context @state)} opts)))
       (-read-workspace-file [_ filepath]
         (let [c| (chan 1)]
           (read-workspace-file filepath (fn [file] (put! c| (.toString file)) (close! c|)))
           c|))
       (-join-workspace-path [_ subpath]
-        (let [extpath (. (:context @state) -extensionPath)]
+        (let [extpath (. (::context @state) -extensionPath)]
           (.join path extpath subpath)))
       p/Editor
       (-active-ns [_] (active-ns vscode.window.activeTextEditor prn))
@@ -325,34 +391,32 @@
       (-lookup [_ k] (-lookup _ k nil))
       (-lookup [_ k not-found] (-lookup @state k not-found)))))
 
-; repl only
-(def ^:dynamic *context* (atom nil))
 
-(defn activate
-  [{:keys [::spec/ops|] :as channels} context]
-  (reset! *context* context)
-  (prn "vscode.api makef-activate")
-  (put! ops| {:op ::spec/extension-activate :context context}))
+;; (defn activate
+;;   [{:keys [::spec/ops|] :as channels} context]
+;;   (reset! *context* context)
+;;   (prn "vscode.api makef-activate")
+;;   (put! ops| {:op ::spec/extension-activate :context context}))
 
-(defn deactivate
-  [{:keys [::spec/ops|] :as channels}]
-  (js/console.log "cljctools.vscode.api/makef-deactivate"))
+;; (defn deactivate
+;;   [{:keys [::spec/ops|] :as channels}]
+;;   (js/console.log "cljctools.vscode.api/makef-deactivate"))
 
-(defn show-info-msg
-  [host msg]
-  (p/-show-info-msg host msg))
+;; (defn show-info-msg
+;;   [host msg]
+;;   (p/-show-info-msg host msg))
 
-(defn register-commands
-  [host opts]
-  (p/-register-commands host opts))
+;; (defn register-commands
+;;   [host opts]
+;;   (p/-register-commands host opts))
 
-(defn create-tab
-  [host opts]
-  (p/-create-tab host opts))
+;; (defn create-tab
+;;   [host opts]
+;;   (p/-create-tab host opts))
 
-(defn send-tab
-  [tab v]
-  (p/-send tab v))
+;; (defn send-tab
+;;   [tab v]
+;;   (p/-send tab v))
 
 (comment
 
