@@ -6,13 +6,14 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
+   [cljctools.csp.op.spec :as op.spec]
    [cljctools.nrepl.spec :as nrepl.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 
-(s/def ::start-server (s/keys :req-un [::out|]))
-(s/def ::stop-server (s/keys :req-un [::out|]))
-
+(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
+(defmulti op op.spec/op-dispatch-fn)
 
 (defn create-channels
   []
@@ -29,16 +30,22 @@
      ::nrepl-leave| nrepl-leave|
      ::nrepl-leave|m nrepl-leave|m}))
 
-(defn start-server
-  ([channels opts]
-   (start-server channels opts (chan 1)))
-  ([channels opts out|]
-   (put! (::ops| channels) {:op ::start-server :out out|})
-   out|))
+(defmethod op*
+  {::op.spec/op-key ::start-server} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn stop-server
-  ([channels opts]
-   (stop-server channels opts (chan 1)))
-  ([channels opts out|]
-   (put! (::ops| channels) {:op ::stop-server :out out|})
-   out|))
+(defmethod op
+  {::op.spec/op-key ::start-server}
+  [op-meta channels]
+  (put! (::ops| channels) op-meta))
+
+(defmethod op*
+  {::op.spec/op-key ::stop-server} [_]
+  (s/keys :req []
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::stop-server}
+  [op-meta channels]
+  (put! (::ops| channels) op-meta))

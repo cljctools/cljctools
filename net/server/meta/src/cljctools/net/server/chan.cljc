@@ -6,15 +6,12 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
+   [cljctools.csp.op.spec :as op.spec]
    [cljctools.net.server.spec :as server.spec]))
 
-(s/def ::start-server (s/keys :req-un [::out|]))
-(s/def ::stop-server (s/keys :req-un [::out|]))
-
-(s/def ::ws-connected (s/keys :req []))
-(s/def ::ws-closed (s/keys :req [::server.spec/num-code ::server.spec/reason-text]))
-(s/def ::ws-error (s/keys :req [] :req-un [::error]))
-
+(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
+(defmulti op op.spec/op-dispatch-fn)
 
 (defn create-channels
   []
@@ -26,37 +23,74 @@
         ws-recv|m (mult ws-recv|)]
     {::ops| ops|
      ::ops|m ops|m
-     :ws-evt| ws-evt|
-     :ws-evt|m ws-evt|m
-     :ws-recv| ws-recv|
-     :ws-recv|m ws-recv|m}))
+     ::ws-evt| ws-evt|
+     ::ws-evt|m ws-evt|m
+     ::ws-recv| ws-recv|
+     ::ws-recv|m ws-recv|m}))
 
-(defn start-server
-  ([channels opts]
-   (start-server channels opts (chan 1)))
-  ([channels opts out|]
-   (put! (::ops| channels) {:op ::start-server :out out|})
-   out|))
+(defmethod op*
+  {::op.spec/op-key ::start-server} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn stop-server
-  ([channels opts]
-   (stop-server channels opts (chan 1)))
-  ([channels opts out|]
-   (put! (::ops| channels) {:op ::stop-server :out out|})
-   out|))
+(defmethod op
+  {::op.spec/op-key ::start-server}
+  [op-meta channels]
+  (put! (::ops| channels) op-meta))
 
-(defn ws-connected
-  [to|]
-  (put! to| {:op ::ws-connected}))
+(defmethod op*
+  {::op.spec/op-key ::stop-server} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn ws-closed
-  [to| num-code reason-text]
-  (put! to| {:op ::ws-closed ::server.spec/num-code num-code ::server.spec/reason-text reason-text}))
+(defmethod op
+  {::op.spec/op-key ::stop-server}
+  [op-meta channels]
+  (put! (::ops| channels) op-meta))
 
-(defn ws-error
-  [to| error]
-  (put! to| {:op ::ws-error :error error}))
+(defmethod op*
+  {::op.spec/op-key ::ws-connected} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn ws-recv
-  [to| value]
+(defmethod op
+  {::op.spec/op-key ::ws-connected}
+  [op-meta to|]
+  (put! to|
+        (merge op-meta
+               {})))
+
+(defmethod op*
+  {::op.spec/op-key ::ws-closed} [_]
+  (s/keys :req [::server.spec/num-code ::server.spec/reason-text]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::ws-closed}
+  [op-meta to| num-code reason-text]
+  (put! to|
+        (merge op-meta
+               {::server.spec/num-code num-code
+                ::server.spec/reason-text reason-text})))
+
+(defmethod op*
+  {::op.spec/op-key ::ws-error} [_]
+  (s/keys :req [::server.spec/error]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::ws-error}
+  [op-meta to| error]
+  (put! to|
+        (merge op-meta
+               {::server.spec/error error})))
+
+(defmethod op*
+  {::op.spec/op-key ::ws-recv} [_]
+  (s/keys :req []
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::ws-recv}
+  [op-meta to| value]
   (put! to| value))

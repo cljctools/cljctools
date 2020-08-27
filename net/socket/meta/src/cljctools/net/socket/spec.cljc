@@ -6,3 +6,4 @@
 (s/def ::url string?)
 (s/def ::num-code int?)
 (s/def ::reason-text string?)
+(s/def ::error any?)

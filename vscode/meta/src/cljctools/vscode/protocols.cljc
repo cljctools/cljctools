@@ -1,4 +1,4 @@
-(ns cljctools.vscode.impl.protocols)
+(ns cljctools.vscode.protocols)
 
 (defprotocol Connect
   (-connect [_])

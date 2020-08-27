@@ -17,4 +17,7 @@
 (s/def ::info-msg string?)
 
 (s/def ::filepath string? )
-(s/def ::ns symbol?)
+(s/def ::dirpath string?)
+(s/def ::ns-symbol symbol?)
+(s/def ::filenames (s/coll-of string?))
+(s/def ::file-content string?)

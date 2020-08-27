@@ -6,22 +6,15 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
-   [cljctools.vscode.spec :as vscode.spec]))
+   [cljctools.csp.op.spec :as op.spec]
+   [cljctools.vscode.spec :as vscode.spec]
+   [cljctools.net.socket.spec :as socket.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 
-(s/def ::out| some?)
-(s/def ::value some?)
-
-(s/def ::extension-activate (s/keys :req [::vscode.spec/context] :req-un [::out|]))
-(s/def ::extension-deactivate (s/keys :req [] :req-un [::out|]))
-(s/def ::register-commands (s/keys :req [::vscode.spec/cmd-ids] :req-un [::out|]))
-(s/def ::extension-cmd (s/keys :req [::vscode.spec/cmd-id]))
-(s/def ::show-info-msg (s/keys :req [::vscode.spec/info-msg]))
-
-(s/def ::tab-create (s/keys :req []))
-(s/def ::tab-disposed (s/keys :req [::vscode.spec/tab-id]))
-
+(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
+(defmulti op op.spec/op-dispatch-fn)
 
 (defn create-channels
   []
@@ -55,103 +48,164 @@
      ::cmd| cmd|
      ::cmd|m cmd|m}))
 
+(defmethod op*
+  {::op.spec/op-key ::extension-activate} [_]
+  (s/keys :req [:cljctools.vscode.impl/context]
+          :req-un []))
 
-(defn extension-activate
-  ([channels context]
-   (extension-activate channels context (chan 1)))
-  ([{:keys [::ops|] :as channels} context out|]
-   (put! ops| {:op ::extension-activate :cljctools.vscode.impl/context context :out| out|})
-   out|))
+(defmethod op
+  {::op.spec/op-key ::extension-activate}
+  [op-meta channels context]
+  (put! (::ops| channels) (merge op-meta
+                                 {:cljctools.vscode.impl/context context})))
 
-(defn extension-deactivate
-  ([channels context]
-   (extension-deactivate channels context (chan 1)))
-  ([{:keys [::ops|] :as channels} context out|]
-   (put! ops| {:op ::extension-deactivate :out| out|})
-   out|))
+(defmethod op*
+  {::op.spec/op-key ::extension-deactivate} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn tab-create
-  ([channels opts]
-   (tab-create channels opts (chan 1)))
-  ([channels opts out|]
-   (put! (::ops| channels) (merge {:op ::tab-create :out| out|} opts))
-   out|))
+(defmethod op
+  {::op.spec/op-key ::extension-deactivate}
+  [op-meta channels]
+  (put! (::ops| channels) (merge op-meta
+                                 {})))
 
-(defn tab-recv
-  [to| value tab-id]
-  (put! to| (merge {::vscode.spec/tab-id tab-id} value)))
+(defmethod op*
+  {::op.spec/op-key ::register-commands} [_]
+  (s/keys :req [::vscode.spec/cmd-ids]
+          :req-un []))
 
-(defn tab-send
-  [channels value tab-id]
+(defmethod op
+  {::op.spec/op-key ::register-commands}
+  [op-meta channels cmd-ids]
+  (put! (::ops| channels) (merge op-meta
+                                 {::vscode.spec/cmd-ids cmd-ids})))
+
+(defmethod op*
+  {::op.spec/op-key ::cmd} [_]
+  (s/keys :req [::vscode.spec/cmd-id]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::cmd}
+  [op-meta to| cmd-id]
+  (put! to| (merge op-meta
+                   {::vscode.spec/cmd-id cmd-id})))
+
+
+(defmethod op*
+  {::op.spec/op-key ::show-info-msg} [_]
+  (s/keys :req [::vscode.spec/info-msg]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::show-info-msg}
+  [op-meta channels text]
+  (put! (::ops| channels) (merge op-meta
+                                 {::vscode.spec/info-msg text})))
+
+(defmethod op*
+  {::op.spec/op-key ::tab-create} [_]
+  (s/keys :req []
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::tab-create}
+  [op-meta channels tab-create-opts]
+  (put! (::ops| channels) (merge op-meta
+                                 tab-create-opts)))
+
+(defmethod op*
+  {::op.spec/op-key ::tab-disposed} [_]
+  (s/keys :req [::vscode.spec/tab-id]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::tab-disposed}
+  [op-meta to| tab-id]
+  (put! to| (merge op-meta
+                   {::vscode.spec/tab-id tab-id})))
+
+(defmethod op*
+  {::op.spec/op-key ::tab-send} [_]
+  (s/keys :req [::vscode.spec/tab-id]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::tab-send}
+  [op-meta channels value tab-id]
   (put! (::tab-send| channels) (merge {::vscode.spec/tab-id tab-id} value)))
 
-(defn tab-disposed
-  [to| tab-id]
-  (put! to| {:op ::tab-disposed ::vscode.spec/tab-id tab-id}))
 
-(defn register-commands
-  ([channels cmd-ids]
-   (register-commands channels cmd-ids (chan 1)))
-  ([channels cmd-ids out|]
-   (put! (::ops| channels) {:op ::register-commands ::vscode.spec/cmd-ids cmd-ids :out| out|})
+(defmethod op*
+  {::op.spec/op-key ::tab-recv} [_]
+  (s/keys :req [::vscode.spec/tab-id]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::tab-recv}
+  [op-meta to| value tab-id]
+  (put! to| (merge {::vscode.spec/tab-id tab-id} value)))
+
+
+(defmethod op*
+  {::op.spec/op-key ::read-dir
+   ::op.spec/op-type ::op.spec/request} [_]
+  (s/keys :req [::vscode.spec/dirpath]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::read-dir
+   ::op.spec/op-type ::op.spec/request}
+  ([op-meta channels dirpath]
+   (op op-meta channels dirpath (chan 1)))
+  ([op-meta channels dirpath out|]
+   (put! (::ops| channels) (merge op-meta
+                                  {::vscode.spec/dirpath dirpath
+                                   ::op.spec/out| out|}))
    out|))
 
-(defn extension-cmd
-  [to| cmd-id]
-  (put! to| {:op ::extension-cmd ::vscode.spec/cmd-id cmd-id}))
 
-(defn show-info-msg
-  [channels text]
-  (put! (::ops| channels) {:op ::show-info-msg ::vscode.spec/info-msg text}))
+(defmethod op*
+  {::op.spec/op-key ::read-dir
+   ::op.spec/op-type ::op.spec/response} [_]
+  (s/keys :req [::vscode.spec/filenames]
+          :req-un []))
 
-(comment
-  (def ^:const OP :op)
-  (s/def ::out| any?)
-  (def ^:const TOPIC :topic)
-
-  (def op-specs
-    {::extension-activate (s/keys :req-un [::op #_::out|])
-     ::extension-deactivate (s/keys :req-un [::op #_::out|])
-     ::tab-disposed (s/keys :req-un [::op #_::out|])
-     ::cmd (s/keys :req-un [::op #_::out|])})
-
-  (def ch-specs
-    {::ops| #{::extension-activate
-              ::extension-deactivate}
-     ::evt| #{::extension-activate
-              ::extension-deactivate}
-     ::tab-state| #{::tab-disposed}
-     ::cmd| #{::cmd}})
-
-  (def op-keys (set (keys op-specs)))
-  (def ch-keys (set (keys ch-specs)))
-
-  (s/def ::op op-keys)
-
-  (s/def ::ch-exists ch-keys)
-  (s/def ::op-exists (fn [v] (op-keys (if (keyword? v) v (OP v)))))
-  (s/def ::ops-exist (fn [v] (subset? (set v) op-keys)))
-  (s/def ::ch-op-exists (s/cat :ch ::ch-exists :op ::op-exists))
+(defmethod op
+  {::op.spec/op-key ::read-dir
+   ::op.spec/op-type ::op.spec/response}
+  [op-meta out| filenames]
+  (put! out| (merge op-meta
+                    {::vscode.spec/filenames filenames})))
 
 
-  (defmacro op
-    [chkey opkey]
-    (s/assert ::ch-exists  chkey)
-    (s/assert ::op-exists  opkey)
-    `~opkey)
+(defmethod op*
+  {::op.spec/op-key ::read-file
+   ::op.spec/op-type ::op.spec/request} [_]
+  (s/keys :req [::vscode.spec/filepath]
+          :req-un []))
 
-  (defmacro ops
-    [ops]
-    (s/assert ::ops-exist  ops)
-    `~ops)
+(defmethod op
+  {::op.spec/op-key ::read-file
+   ::op.spec/op-type ::op.spec/request}
+  ([op-meta channels filepath]
+   (op op-meta channels filepath (chan 1)))
+  ([op-meta channels filepath out|]
+   (put! (::ops| channels) (merge op-meta
+                                  {::vscode.spec/filepath filepath
+                                   ::op.spec/out| out|}))
+   out|))
 
+(defmethod op*
+  {::op.spec/op-key ::read-file
+   ::op.spec/op-type ::op.spec/response} [_]
+  (s/keys :req [::vscode.spec/file-content]
+          :req-un []))
 
-  (defmacro vl
-    [chkey v]
-    (s/assert ::ch-exists  chkey)
-    (when-not (symbol? (OP v))
-      (s/assert ::op-exists  (OP v)))
-    `~v)
-
-  ;;
-  )
+(defmethod op
+  {::op.spec/op-key ::read-file
+   ::op.spec/op-type ::op.spec/response}
+  [op-meta out| file-content]
+  (put! out| (merge op-meta
+                    {::vscode.spec/file-content file-content})))

@@ -1,97 +1,120 @@
 (ns cljctools.net.socket.chan
-  (:refer-clojure :exclude [send])
   #?(:cljs (:require-macros [cljctools.net.socket.chan]))
   (:require
+   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
+                                     pub sub unsub mult tap untap mix admix unmix
+                                     timeout to-chan  sliding-buffer dropping-buffer
+                                     pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
+   [cljctools.csp.op.spec :as op.spec]
    [cljctools.net.socket.spec :as socket.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 
-(s/def ::connect (s/keys :req []))
-(s/def ::disconnect (s/keys :req []))
-
-(s/def ::connected (s/keys :req []))
-(s/def ::closed (s/keys :req [::socket.spec/num-code ::socket.spec/reason-text]))
-(s/def ::error (s/keys :req [] :req-un [::error]))
+(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
+(defmulti op op.spec/op-dispatch-fn)
 
 (defn create-channels
   []
-  (let [send| (chan 10)
+  (let [ops| (chan 10)
+        ops|m (mult ops|)
+        send| (chan 10)
         send|m (mult send|)
         recv| (chan (sliding-buffer 10))
         recv|m (mult recv|)
         evt| (chan (sliding-buffer 10))
         evt|m (mult evt|)]
-    {:send| send|
-     :send|m send|m
-     :recv| recv|
-     :recv|m recv|m
-     :evt| evt|
-     :evt|m evt|m}))
+    {::ops| ops|
+     ::ops|m ops|m
+     ::send| send|
+     ::send|m send|m
+     ::recv| recv|
+     ::recv|m recv|m
+     ::evt| evt|
+     ::evt|m evt|m}))
 
-(defn connected
-  [to|]
-  (put! to| {:op ::connected}))
+(defmethod op*
+  {::op.spec/op-key ::send} [_]
+  (s/keys :req []
+          :req-un []))
 
-(defn closed
-  [to| num-code reason-text]
-  (put! to| {:op ::closed ::socket.spec/num-code num-code ::socket.spec/reason-text reason-text}))
-
-(defn error
-  [to| error]
-  (put! to| {:op ::error :error error}))
-
-(defn recv
-  [to| value]
-  (put! to| value))
-
-(defn connect
-  [channels]
-  (put! channels {:op ::connect}))
-
-(defn disconnect
-  [channels]
-  (put! channels {:op ::disconnect}))
-
-(defn send
-  [channels value]
+(defmethod op
+  {::op.spec/op-key ::send}
+  [op-meta channels value]
   (put! (::send| channels) value))
 
+(defmethod op*
+  {::op.spec/op-key ::recv} [_]
+  (s/keys :req []
+          :req-un []))
 
-(comment
-
-  (do (clojure.spec.alpha/check-asserts true))
-
-  (def ^:const OP :op)
-  (s/def ::out| any?)
-
-  (def op-specs
-    {:hello (s/keys :req-un [::op #_::out|])})
-
-  (def ch-specs
-    {:some| #{:hello}})
-
-  (def op-keys (set (keys op-specs)))
-  (def ch-keys (set (keys ch-specs)))
+(defmethod op
+  {::op.spec/op-key ::recv}
+  [op-meta to| value]
+  (put! to| value))
 
 
-  (s/def ::op op-keys)
+(defmethod op*
+  {::op.spec/op-key ::connect} [_]
+  (s/keys :req []
+          :req-un []
+          :opt [::socket.spec/url]))
 
-  (s/def ::ch-exists ch-keys)
-  (s/def ::op-exists (fn [v] (op-keys (if (keyword? v) v (OP v)))))
-  (s/def ::ch-op-exists (s/cat :ch ::ch-exists :op ::op-exists))
+(defmethod op
+  {::op.spec/op-key ::connect}
+  ([op-meta channels]
+   (op op-meta channels nil))
+  ([op-meta channels opts]
+   (put! (::ops| channels)
+         (merge op-meta
+                opts))))
 
-  (defmacro op
-    [chkey opkey]
-    (s/assert ::ch-exists  chkey)
-    (s/assert ::op-exists  opkey)
-    `~opkey)
+(defmethod op*
+  {::op.spec/op-key ::disconnect} [_]
+  (s/keys :req []
+          :req-un []))
 
-  (defmacro vl
-    [chkey v]
-    (s/assert ::ch-exists  chkey)
-    `~v)
-  
+(defmethod op
+  {::op.spec/op-key ::disconnect}
+  [op-meta channels]
+  (put! (::ops| channels)
+        (merge op-meta
+               {})))
 
-  ;;
-  )
+(defmethod op*
+  {::op.spec/op-key ::connected} [_]
+  (s/keys :req []
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::connected}
+  [op-meta to|]
+  (put! to|
+        (merge op-meta
+               {})))
+
+(defmethod op*
+  {::op.spec/op-key ::closed} [_]
+  (s/keys :req [::socket.spec/num-code ::socket.spec/reason-text]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::closed}
+  [op-meta to| num-code reason-text]
+  (put! to|
+        (merge op-meta
+               {::socket.spec/num-code num-code
+                ::socket.spec/reason-text reason-text})))
+
+(defmethod op*
+  {::op.spec/op-key ::error} [_]
+  (s/keys :req [::socket.spec/error]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::error}
+  [op-meta to| error]
+  (put! to|
+        (merge op-meta
+               {::socket.spec/error error})))

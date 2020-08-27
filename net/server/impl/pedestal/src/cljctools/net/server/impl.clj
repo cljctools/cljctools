@@ -9,7 +9,8 @@
    [io.pedestal.http.body-params :as body-params]
    [io.pedestal.http.jetty.websockets :as pedestal.ws]
    [cognitect.transit :as transit]
-
+   
+   [cljctools.csp.op.spec :as op.spec]
    [cljctools.net.server.spec :as server.spec]
    [cljctools.net.server.chan :as server.chan])
   (:import
@@ -23,9 +24,11 @@
   [opts]
   (let [routes #{["/" :get (fn [_] {:body (clojure-version) :status 200}) :route-name :root]
                  ["/echo" :get #(hash-map :body (pr-str %) :status 200) :route-name :echo]}
-        {:keys [service-map ws-paths host port]
-         :or {port 8080
-              host "0.0.0.0"}} opts]
+        {:keys [::server.spec/service-map
+                ::server.spec/ws-paths
+                ::server.spec/host
+                ::server.spec/port]} opts]
+    (println opts)
     (merge
      {:env :prod
               ;; You can bring your own non-default interceptors. Make
@@ -76,8 +79,7 @@
                 ::server.chan/ws-evt|m
                 ::server.chan/ws-recv|
                 ::server.chan/ws-recv|m]} channels
-        {:keys [::server.spec/with-websocket-endpoint?]} opts
-        server-ops|t (tap server-ops|m (chan 10))
+        ops|t (tap ops|m (chan 10))
         ws-recv|t (tap ws-recv|m (chan 10))
         ws-evt|t (tap ws-evt|m (chan 10))
         ws-clients (atom {})
@@ -95,21 +97,40 @@
                          data))
         ws-paths {"/ws" {:on-connect (pedestal.ws/start-ws-connection
                                       (fn [ws-session send|]
-                                        (println ::ws-connected)
-                                        (server.chan/ws-connected (::server.chan/ws-evt| channels))
+                                        #_(println  ::ws-connected)
+                                        (server.chan/op
+                                         {::op.spec/op-key ::server.chan/ws-connected}
+                                         (::server.chan/ws-evt| channels))
                                         (swap! ws-clients assoc ws-session send|)))
                          :on-text (fn [msg]
-                                    (server.chan/ws-recv (::server.chan/ws-recv| channels) (read-string msg)))
+                                    #_(println  ::ws-recv)
+                                    (server.chan/op
+                                     {::op.spec/op-key ::server.chan/ws-recv}
+                                     (::server.chan/ws-recv| channels)
+                                     (read-string msg)))
                          :on-binary (fn [payload offset length]
-                                      (server.chan/ws-recv (::server.chan/ws-recv| channels) (transit-read payload)))
+                                      #_(println  ::ws-recv)
+                                      (server.chan/op
+                                       {::op.spec/op-key ::server.chan/ws-recv}
+                                       (::server.chan/ws-recv| channels)
+                                       (transit-read payload)))
                          :on-error (fn [error]
-                                     (println ::ws-error)
-                                     (server.chan/ws-error (::server.chan/ws-evt| channels) error))
+                                     #_(println ::ws-error)
+                                     (server.chan/op
+                                      {::op.spec/op-key ::server.chan/ws-error}
+                                      (::server.chan/ws-evt| channels)
+                                      error))
                          :on-close (fn [num-code reason-text]
-                                     (println ::ws-closed)
-                                     (server.chan/ws-closed (::server.chan/ws-evt| channels) num-code reason-text))}}
+                                     #_(println ::ws-closed)
+                                     (server.chan/op
+                                      {::op.spec/op-key ::server.chan/ws-closed}
+                                      (::server.chan/ws-evt| channels)
+                                      num-code reason-text))}}
         service (create-service (merge
-                                 (when with-websocket-endpoint? {:ws-paths ws-paths})
+                                 (when (::server.spec/with-websocket-endpoint? opts)
+                                   {::server.spec/ws-paths ws-paths})
+                                 {::server.spec/port 8080
+                                  ::server.spec/host "0.0.0.0"}
                                  opts))
         broadcast (fn [data]
                     (doseq [[^Session session send|] @ws-clients]
@@ -117,6 +138,7 @@
                         (transit-write data send|))))
         state (atom {::server nil})
         start-server (fn []
+                       (println (format "Starting http server on %s:%s" (::http/host service) (::http/port service)))
                        (let [server (-> service ;; start with production configuration
                                         http/default-interceptors
                                         http/dev-interceptors
@@ -127,42 +149,43 @@
                       (http/stop (::server @state)))]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|t ws-recv|t])]
+        (when-let [[v port] (alts! [ops|t ws-recv|t ws-evt|t])]
           (condp = port
             ops|t
-            (condp = (:op v)
-              ::server.chan/start-server
-              (let [{:keys [out|]} v]
-                (start-server)
-                (put! out| (merge v {:op-status :complete})))
+            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              ::server.chan/stop-server
-              (let [{:keys [out|]} v]
-                (stop-server)
-                (put! out| (merge v {:op-status :complete})))
+              {::op.spec/op-key ::server.chan/start-server}
+              (let [{:keys []} v]
+                (println ::start-server)
+                (start-server))
 
-              ::server.chan/broadcast
+              {::op.spec/op-key ::server.chan/stop-server}
+              (let [{:keys []} v]
+                (stop-server))
+
+              {::op.spec/op-key ::server.chan/broadcast}
               (let []
                 (broadcast v)))
-
+            
             ws-recv|t
             (let []
               (println ::ws-recv|t v)
               #_(broadcast {:data v}))
 
             ws-evt|t
-            (condp = (:op v)
-              ::server.chan/ws-connected
-              (let []
-                (println ::ops ::ws-connected))
+            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              ::server.chan/ws-closed
+              {::op.spec/op-key ::server.chan/ws-connected}
               (let []
-                (println ::ops ::ws-closed))
+                (println  ::ws-connected))
 
-              ::server.chan/ws-error
+              {::op.spec/op-key ::server.chan/ws-closed}
               (let []
-                (println ::ops ::ws-error)))))
+                (println  ::ws-closed))
+
+              {::op.spec/op-key ::server.chan/ws-error}
+              (let []
+                (println  ::ws-error)))))
         (recur))
       (println "; proc-ops go-block exiting"))
     #_(reify

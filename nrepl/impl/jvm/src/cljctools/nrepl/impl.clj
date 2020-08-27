@@ -1,11 +1,9 @@
-(ns cljctools.nrepl.api
+(ns cljctools.nrepl.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
-   [cljctools.nrepl.protocols :as p]
-   [cljctools.nrepl.spec :as sp]
    [nrepl.server]
    [nrepl.misc]
    [nrepl.middleware]
@@ -13,6 +11,7 @@
    [cider.nrepl]
    #_[cider.piggieback]
 
+   [cljctools.csp.op.spec :as op.spec]
    [cljctools.nrepl.spec :as nrepl.spec]
    [cljctools.nrepl.chan :as nrepl.chan]))
 
@@ -78,7 +77,7 @@
 
 
 (defn create-proc-ops
-  [channels ctx opts]
+  [channels opts]
   (let [{:keys [::nrepl.chan/ops|
                 ::nrepl.chan/ops|m
                 ::nrepl.chan/nrepl-enter|
@@ -92,7 +91,7 @@
         nrepl-handler (create-nrepl-handler* (merge
                                               opts
                                               {::nrepl.spec/middleware
-                                               (concat middlewares
+                                               (concat middleware
                                                        [middleware-enter])}))
         state (atom {::server nil})
         start-server (fn []
@@ -112,16 +111,15 @@
         (when-let [[v port] (alts! [ops|t nrepl-enter|t])]
           (condp = port
             ops|t
-            (condp = (:op v)
-              ::nrepl.chan/start-server
-              (let [{:keys [out|]} v]
-                (start-server)
-                (put! out| (merge v {:op-status :complete})))
+            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              ::nrepl.chan/stop-server
-              (let [{:keys [out|]} v]
-                (stop-server)
-                (put! out| (merge v {:op-status :complete}))))
+              {::op.spec/op-key ::nrepl.chan/start-server}
+              (let [{:keys []} v]
+                (start-server))
+
+              {::op.spec/op-key ::nrepl.chan/stop-server}
+              (let [{:keys []} v]
+                (stop-server)))
 
             nrepl-enter|t
             (let [{:keys [msg]} v]
