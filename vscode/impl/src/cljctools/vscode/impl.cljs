@@ -230,14 +230,13 @@
            ::vscode.spec/tab-id
            ::vscode.spec/tab-title
            ::vscode.spec/tab-view-column
-           ::vscode.spec/tab-script-filepath
            ::vscode.spec/tab-html-filepath
-           ::vscode.spec/tab-script-replace]
+           ::vscode.spec/tab-html-replacements]
     :or {tab-id (random-uuid)
          tab-title "Default title"
-         tab-script-filepath "resources/out/tabapp.js"
+         tab-html-replacements {"/out/tabapp.js" "resources/out/tabapp.js"
+                                "./css/style.css" "./css/style.css"}
          tab-html-filepath "resources/index.html"
-         tab-script-replace "/out/tabapp.js"
          tab-view-column vscode.ViewColumn.Two}}]
   (let [{:keys [on-message on-dispose on-state-change]
          :or {on-message (fn [msg]
@@ -264,16 +263,20 @@
                                                      (on-message msg)))
               (.onDidChangeViewState panel (fn [panel]
                                              (on-state-change {::vscode.spec/tab-active? panel.active}))))
-        script-uri (as-> nil o
-                     (.join path context.extensionPath tab-script-filepath)
-                     (vscode.Uri.file o)
-                     (.asWebviewUri panel.webview o)
-                     (.toString o))
+        replacements-uris (into {}
+                                (mapv (fn [[k filepath]]
+                                        [k (as-> nil o
+                                             (.join path context.extensionPath filepath)
+                                             (vscode.Uri.file o)
+                                             (.asWebviewUri panel.webview o)
+                                             (.toString o))])
+                                      tab-html-replacements))
         html (as-> nil o
                (.join path context.extensionPath tab-html-filepath)
                (.readFileSync fs o)
                (.toString o)
-               (string/replace o tab-script-replace script-uri))
+               (reduce (fn [html [match replacement]]
+                         (string/replace html match replacement)) o replacements-uris))
         lookup opts]
     (set! panel.webview.html html)
     (reify

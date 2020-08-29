@@ -50,8 +50,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::extension-activate} [_]
-  (s/keys :req [:cljctools.vscode.impl/context]
-          :req-un []))
+  (s/keys :req [:cljctools.vscode.impl/context]))
 
 (defmethod op
   {::op.spec/op-key ::extension-activate}
@@ -61,8 +60,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::extension-deactivate} [_]
-  (s/keys :req []
-          :req-un []))
+  (s/keys :req []))
 
 (defmethod op
   {::op.spec/op-key ::extension-deactivate}
@@ -72,8 +70,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::register-commands} [_]
-  (s/keys :req [::vscode.spec/cmd-ids]
-          :req-un []))
+  (s/keys :req [::vscode.spec/cmd-ids]))
 
 (defmethod op
   {::op.spec/op-key ::register-commands}
@@ -83,8 +80,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::cmd} [_]
-  (s/keys :req [::vscode.spec/cmd-id]
-          :req-un []))
+  (s/keys :req [::vscode.spec/cmd-id]))
 
 (defmethod op
   {::op.spec/op-key ::cmd}
@@ -95,8 +91,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::show-info-msg} [_]
-  (s/keys :req [::vscode.spec/info-msg]
-          :req-un []))
+  (s/keys :req [::vscode.spec/info-msg]))
 
 (defmethod op
   {::op.spec/op-key ::show-info-msg}
@@ -106,8 +101,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::tab-create} [_]
-  (s/keys :req []
-          :req-un []))
+  (s/keys :req []))
 
 (defmethod op
   {::op.spec/op-key ::tab-create}
@@ -117,8 +111,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::tab-disposed} [_]
-  (s/keys :req [::vscode.spec/tab-id]
-          :req-un []))
+  (s/keys :req [::vscode.spec/tab-id]))
 
 (defmethod op
   {::op.spec/op-key ::tab-disposed}
@@ -128,8 +121,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::tab-send} [_]
-  (s/keys :req [::vscode.spec/tab-id]
-          :req-un []))
+  (s/keys :req [::vscode.spec/tab-id]))
 
 (defmethod op
   {::op.spec/op-key ::tab-send}
@@ -139,8 +131,7 @@
 
 (defmethod op*
   {::op.spec/op-key ::tab-recv} [_]
-  (s/keys :req [::vscode.spec/tab-id]
-          :req-un []))
+  (s/keys :req [::vscode.spec/tab-id]))
 
 (defmethod op
   {::op.spec/op-key ::tab-recv}
@@ -151,8 +142,7 @@
 (defmethod op*
   {::op.spec/op-key ::read-dir
    ::op.spec/op-type ::op.spec/request} [_]
-  (s/keys :req [::vscode.spec/dirpath]
-          :req-un []))
+  (s/keys :req [::vscode.spec/dirpath]))
 
 (defmethod op
   {::op.spec/op-key ::read-dir
@@ -169,8 +159,7 @@
 (defmethod op*
   {::op.spec/op-key ::read-dir
    ::op.spec/op-type ::op.spec/response} [_]
-  (s/keys :req [::vscode.spec/filenames]
-          :req-un []))
+  (s/keys :req [::vscode.spec/filenames]))
 
 (defmethod op
   {::op.spec/op-key ::read-dir
@@ -183,8 +172,7 @@
 (defmethod op*
   {::op.spec/op-key ::read-file
    ::op.spec/op-type ::op.spec/request} [_]
-  (s/keys :req [::vscode.spec/filepath]
-          :req-un []))
+  (s/keys :req [::vscode.spec/filepath]))
 
 (defmethod op
   {::op.spec/op-key ::read-file
@@ -200,8 +188,7 @@
 (defmethod op*
   {::op.spec/op-key ::read-file
    ::op.spec/op-type ::op.spec/response} [_]
-  (s/keys :req [::vscode.spec/file-content]
-          :req-un []))
+  (s/keys :req [::vscode.spec/file-content]))
 
 (defmethod op
   {::op.spec/op-key ::read-file

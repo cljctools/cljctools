@@ -6,6 +6,7 @@
 
 (s/def ::with-websocket-endpoint? boolean?)
 (s/def ::service-map any?)
+(s/def ::routes set?)
 (s/def ::ws-paths any?)
 (s/def ::host any?)
 (s/def ::port any?)

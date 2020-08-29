@@ -6,7 +6,8 @@
                                      pipeline pipeline-async]]
    [io.pedestal.http :as http]
    [io.pedestal.http.route :as route]
-   [io.pedestal.http.body-params :as body-params]
+   [io.pedestal.http.body-params :as http.body-params]
+   [io.pedestal.http.content-negotiation :as http.content-negotiation]
    [io.pedestal.http.jetty.websockets :as pedestal.ws]
    [cognitect.transit :as transit]
    
@@ -20,15 +21,29 @@
    java.net.URI
    java.nio.ByteBuffer))
 
+(def default-routes #{["/" :get (fn [_] {:body (clojure-version) :status 200}) :route-name :root]
+                      ["/echo" :get #(hash-map :body (pr-str %) :status 200) :route-name :echo]})
+
+(def supported-types
+  ["text/html" "application/edn"  "text/plain" "application/transit+json"])
+
+(def content-negotiation-interceptor
+  (http.content-negotiation/negotiate-content supported-types))
+
+(def common-interceptors [(http.body-params/body-params)
+                          http/html-body
+                          content-negotiation-interceptor])
+
 (defn create-service
   [opts]
-  (let [routes #{["/" :get (fn [_] {:body (clojure-version) :status 200}) :route-name :root]
-                 ["/echo" :get #(hash-map :body (pr-str %) :status 200) :route-name :echo]}
-        {:keys [::server.spec/service-map
+  (let [{:keys [::server.spec/service-map
                 ::server.spec/ws-paths
                 ::server.spec/host
-                ::server.spec/port]} opts]
-    (println opts)
+                ::server.spec/routes
+                ::server.spec/port]
+         :or {routes default-routes
+              port 8080
+              host "0.0.0.0"}} opts]
     (merge
      {:env :prod
               ;; You can bring your own non-default interceptors. Make
@@ -51,9 +66,10 @@
 
               ;; Either :jetty, :immutant or :tomcat (see comments in project.clj)
       ::http/type :jetty
-      ::http/container-options (if ws-paths
-                                 {:context-configurator #(pedestal.ws/add-ws-endpoints % ws-paths)}
-                                 {})
+      ::http/container-options (merge
+                                {}
+                                (when ws-paths
+                                  {:context-configurator #(pedestal.ws/add-ws-endpoints % ws-paths)}))
       ::http/host host
       ::http/port port}
      {:env :dev
@@ -129,8 +145,6 @@
         service (create-service (merge
                                  (when (::server.spec/with-websocket-endpoint? opts)
                                    {::server.spec/ws-paths ws-paths})
-                                 {::server.spec/port 8080
-                                  ::server.spec/host "0.0.0.0"}
                                  opts))
         broadcast (fn [data]
                     (doseq [[^Session session send|] @ws-clients]

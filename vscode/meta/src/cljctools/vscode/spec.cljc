@@ -6,9 +6,8 @@
 
 (s/def ::tab-id (s/or :uuid uuid? :string string?))
 (s/def ::tab-title string?)
-(s/def ::tab-script-filepath string?)
 (s/def ::tab-html-filepath string?)
-(s/def ::tab-script-replace string?)
+(s/def ::tab-html-replacements (s/map-of string? string?))
 (s/def ::tab-view-column any?)
 (s/def ::tab-active? boolean?)
 (s/def ::tabs (s/map-of some? some?))
