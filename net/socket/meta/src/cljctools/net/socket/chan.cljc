@@ -59,7 +59,10 @@
   {::op.spec/op-key ::connect} [_]
   (s/keys :req []
           :req-un []
-          :opt [::socket.spec/url]))
+          :opt [::socket.spec/url
+                ::socket.spec/host
+                ::socket.spec/port
+                ::socket.spec/path]))
 
 (defmethod op
   {::op.spec/op-key ::connect}
@@ -118,3 +121,26 @@
   (put! to|
         (merge op-meta
                {::socket.spec/error error})))
+
+
+(defmethod op*
+  {::op.spec/op-key ::timeout} [_]
+  (s/keys :req [::socket.spec/timeout]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::timeout}
+  [op-meta to|]
+  (put! to|
+        (merge op-meta)))
+
+(defmethod op*
+  {::op.spec/op-key ::ready} [_]
+  (s/keys :req [::socket.spec/ready]
+          :req-un []))
+
+(defmethod op
+  {::op.spec/op-key ::ready}
+  [op-meta to|]
+  (put! to|
+        (merge op-meta)))

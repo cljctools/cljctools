@@ -320,6 +320,7 @@
     (go
       (loop []
         (when-let [[v port] (alts! [ops|t tab-evt|t tab-send|t])]
+          
           (condp = port
             ops|t
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
@@ -363,7 +364,7 @@
                                              ::op.spec/op-type ::op.spec/response}
                                             out| filenames)))))
             tab-evt|t
-            (condp = (:op v)
+            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
               {::op.spec/op-key ::vscode.chan/tab-disposed}
               (let [{:keys [::vscode.spec/tab-id]} v]
                 (swap! state update ::vscode.spec/tabs dissoc tab-id)))

@@ -7,8 +7,7 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
    [cljctools.csp.op.spec :as op.spec]
-   [cljctools.vscode.spec :as vscode.spec]
-   [cljctools.net.socket.spec :as socket.spec]))
+   [cljctools.vscode.spec :as vscode.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 
