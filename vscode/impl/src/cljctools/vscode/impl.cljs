@@ -47,7 +47,7 @@
   [vscode msg]
   (.. vscode.window (showInformationMessage msg)))
 
-(defn register-command*
+(defn register-command
   [{:keys [::vscode.spec/cmd-id
            ::vscode
            ::context
@@ -59,14 +59,14 @@
                           (on-cmd cmd-id #_args))))]
     (.. context.subscriptions (push disposable))))
 
-(defn register-commands*
+(defn register-commands
   [{:keys [::vscode.spec/cmd-ids
            ::vscode
            ::context
            ::on-cmd] :as ops}]
   (let []
     (doseq [cmd-id cmd-ids]
-      (register-command* {::vscode.spec/cmd-id cmd-id
+      (register-command {::vscode.spec/cmd-id cmd-id
                           ::vscode vscode
                           ::context context
                           ::on-cmd on-cmd}))))
@@ -345,7 +345,7 @@
                               (::vscode.chan/cmd| channels)
                               cmd-id))]
                 (println ::cmd-ids cmd-ids)
-                (register-commands* {::vscode.spec/cmd-ids cmd-ids
+                (register-commands {::vscode.spec/cmd-ids cmd-ids
                                      ::vscode vscode
                                      ::context (::context @state)
                                      ::on-cmd on-cmd})
@@ -412,32 +412,6 @@
       (-lookup [_ k] (-lookup _ k nil))
       (-lookup [_ k not-found] (-lookup @state k not-found)))))
 
-
-;; (defn activate
-;;   [{:keys [::spec/ops|] :as channels} context]
-;;   (reset! *context* context)
-;;   (prn "vscode.api makef-activate")
-;;   (put! ops| {:op ::spec/extension-activate :context context}))
-
-;; (defn deactivate
-;;   [{:keys [::spec/ops|] :as channels}]
-;;   (js/console.log "cljctools.vscode.api/makef-deactivate"))
-
-;; (defn show-info-msg
-;;   [host msg]
-;;   (p/-show-info-msg host msg))
-
-;; (defn register-commands
-;;   [host opts]
-;;   (p/-register-commands host opts))
-
-;; (defn create-tab
-;;   [host opts]
-;;   (p/-create-tab host opts))
-
-;; (defn send-tab
-;;   [tab v]
-;;   (p/-send tab v))
 
 (comment
 
