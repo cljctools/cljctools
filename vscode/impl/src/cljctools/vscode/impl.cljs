@@ -291,9 +291,7 @@
       (-lookup [_ k not-found] (-lookup lookup k not-found)))))
 
 
-
-; repl only
-(def ^:dynamic *context* (atom nil))
+(def ^:dynamic *context* nil)
 
 (defn create-proc-ops
   [channels opts]
@@ -329,7 +327,7 @@
                ::op.spec/op-type ::op.spec/request}
               (let [{:keys [::context ::op.spec/out|]} v]
                 (println ::extension-activate)
-                (reset! *context* context)
+                (set! *context* context)
                 (swap! state assoc ::context context)
                 (vscode.chan/op
                  {::op.spec/op-key ::vscode.chan/extension-activate
