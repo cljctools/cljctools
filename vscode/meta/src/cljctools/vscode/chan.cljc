@@ -48,14 +48,32 @@
      ::cmd|m cmd|m}))
 
 (defmethod op*
-  {::op.spec/op-key ::extension-activate} [_]
+  {::op.spec/op-key ::extension-activate
+   ::op.spec/op-type ::op.spec/request} [_]
   (s/keys :req [:cljctools.vscode.impl/context]))
 
+
 (defmethod op
-  {::op.spec/op-key ::extension-activate}
-  [op-meta channels context]
-  (put! (::ops| channels) (merge op-meta
-                                 {:cljctools.vscode.impl/context context})))
+  {::op.spec/op-key ::extension-activate
+   ::op.spec/op-type ::op.spec/request}
+  ([op-meta channels context]
+   (op op-meta channels context (chan 1)))
+  ([op-meta channels context out|]
+   (put! (::ops| channels) (merge op-meta
+                                  {:cljctools.vscode.impl/context context
+                                   ::op.spec/out| out|}))
+   out|))
+
+(defmethod op*
+  {::op.spec/op-key ::extension-activate
+   ::op.spec/op-type ::op.spec/response} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::extension-activate
+   ::op.spec/op-type ::op.spec/response}
+  [op-meta out|]
+  (put! out| op-meta))
 
 (defmethod op*
   {::op.spec/op-key ::extension-deactivate} [_]
@@ -68,14 +86,32 @@
                                  {})))
 
 (defmethod op*
-  {::op.spec/op-key ::register-commands} [_]
+  {::op.spec/op-key ::register-commands
+   ::op.spec/op-type ::op.spec/request} [_]
   (s/keys :req [::vscode.spec/cmd-ids]))
 
 (defmethod op
-  {::op.spec/op-key ::register-commands}
-  [op-meta channels cmd-ids]
-  (put! (::ops| channels) (merge op-meta
-                                 {::vscode.spec/cmd-ids cmd-ids})))
+  {::op.spec/op-key ::register-commands
+   ::op.spec/op-type ::op.spec/request}
+  ([op-meta channels cmd-ids]
+   (op op-meta channels cmd-ids (chan 1)))
+  ([op-meta channels cmd-ids out|]
+   (put! (::ops| channels) (merge op-meta
+                                  {::vscode.spec/cmd-ids cmd-ids
+                                   ::op.spec/out| out|}))
+   out|))
+
+(defmethod op*
+  {::op.spec/op-key ::register-commands
+   ::op.spec/op-type ::op.spec/response} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::register-commands
+   ::op.spec/op-type ::op.spec/response}
+  [op-meta out|]
+  (put! out| op-meta))
+
 
 (defmethod op*
   {::op.spec/op-key ::cmd} [_]

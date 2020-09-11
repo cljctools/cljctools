@@ -325,25 +325,36 @@
             ops|t
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              {::op.spec/op-key ::vscode.chan/extension-activate}
-              (let [{:keys [::context]} v]
+              {::op.spec/op-key ::vscode.chan/extension-activate
+               ::op.spec/op-type ::op.spec/request}
+              (let [{:keys [::context ::op.spec/out|]} v]
                 (println ::extension-activate)
                 (reset! *context* context)
                 (swap! state assoc ::context context)
+                (vscode.chan/op
+                 {::op.spec/op-key ::vscode.chan/extension-activate
+                  ::op.spec/op-type ::op.spec/response}
+                 out|)
                 (put! evt| (dissoc v ::context)))
 
-              {::op.spec/op-key ::vscode.chan/register-commands}
-              (let [{:keys [::vscode.spec/cmd-ids]} v
+              {::op.spec/op-key ::vscode.chan/register-commands
+               ::op.spec/op-type ::op.spec/request}
+              (let [{:keys [::vscode.spec/cmd-ids ::op.spec/out|]} v
                     on-cmd (fn [cmd-id #_args]
                              (prn ::cmd cmd-id)
                              (vscode.chan/op
                               {::op.spec/op-key ::vscode.chan/cmd}
                               (::vscode.chan/cmd| channels)
                               cmd-id))]
+                (println ::cmd-ids cmd-ids)
                 (register-commands* {::vscode.spec/cmd-ids cmd-ids
                                      ::vscode vscode
                                      ::context (::context @state)
-                                     ::on-cmd on-cmd}))
+                                     ::on-cmd on-cmd})
+                (vscode.chan/op
+                 {::op.spec/op-key ::vscode.chan/register-commands
+                  ::op.spec/op-type ::op.spec/response}
+                 out|))
 
               {::op.spec/op-key ::vscode.chan/show-info-msg}
               (let [{:keys [::vscode.spec/info-msg]} v]
