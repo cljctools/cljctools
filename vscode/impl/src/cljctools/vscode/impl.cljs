@@ -72,14 +72,14 @@
                           ::context context
                           ::on-cmd on-cmd}))))
 
-(defn read-workspace-file
-  [filepath callback]
-  (let []
-    (as-> nil o
-      (.join path vscode.workspace.rootPath filepath)
-      (vscode.Uri.file o)
-      (.readFile vscode.workspace.fs o)
-      (.then o callback))))
+#_(defn read-workspace-file
+    [filepath callback]
+    (let []
+      (as-> nil o
+        (.join path vscode.workspace.rootPath filepath)
+        (vscode.Uri.file o)
+        (.readFile vscode.workspace.fs o)
+        (.then o callback))))
 
 ; https://stackoverflow.com/a/41029103/10589291
 
@@ -105,7 +105,7 @@
 
 (defn show-workspaceFolder-pick
   ([opts]
-   (show-workspace-folder-pick opts (chan 1)))
+   (show-workspaceFolder-pick opts (chan 1)))
   ([opts out|]
    (->
     (vscode.window.showWorkspaceFolderPick (clj->js (merge
@@ -117,8 +117,75 @@
              (put! out| workspaceFolder))))
    out|))
 
-(defn select-workspace-folder
-  []
+(defn find-files
+  ([workspaceFolder glob-include?]
+   (find-files workspaceFolder glob-include? nil))
+  ([workspaceFolder glob-include? glob-exclude?]
+   (find-files workspaceFolder glob-include? glob-exclude? (chan 1)))
+  ([workspaceFolder glob-include? glob-exclude? out|]
+   (->
+    (vscode.workspace.findFiles
+     (vscode.RelativePattern.  workspaceFolder
+                               glob-include?
+                               glob-exclude?))
+    (.then (fn [uris]
+             (put! out| uris))))
+   out|))
+
+(defn select-workspaceFolder
+  [{:as opts}]
+  (go
+    (let [workspaceFolders vscode.workspace.workspaceFolders
+          workspaceFolder-count (count workspaceFolders)]
+      (cond
+        (= workspaceFolder-count 1)
+        (first workspaceFolders)
+
+        (> workspaceFolder-count 1)
+        (let [workspaceFolder (<! (show-workspaceFolder-pick {}))]
+          workspaceFolder)
+
+        :else
+        (do nil)))))
+
+(defn read-file
+  ([workspaceFolder relative-filepath]
+   (read-file workspaceFolder relative-filepath (chan 1)))
+  ([workspaceFolder relative-filepath out|]
+   (as-> nil x
+     (vscode.Uri.joinPath
+      (.. workspaceFolder -uri)
+      relative-filepath)
+     (.readFile vscode.workspace.fs x)
+     #_(.stat vscode.workspace.fs x)
+     (.then x (fn [buffer]
+                (put! out| buffer))))
+   out|))
+
+(comment
+
+  (def c1| (chan 1))
+  (def c2| (chan 2))
+  (def cs| (a/map + [c1| c2|]))
+
+  (go-loop []
+    (let [vs (<! cs|)]
+      (println vs))
+    (recur))
+
+  (put! c1| 1)
+  (put! c2| 2)
+
+  (a/pipe (chan 1) (chan 1))
+
+  (as-> 3 x
+    (inc x)
+    (do (prn x) (dec x))
+    (prn x)
+    x)
+
+
+  ;;
   )
 
 (comment
@@ -135,12 +202,44 @@
   (vscode.RelativePattern.  (aget vscode.workspace.workspaceFolders 0)
                             "deathstar.edn")
 
+
+  (as-> nil x
+    (vscode.Uri.joinPath
+     (.. (aget vscode.workspace.workspaceFolders 0) -uri)
+     "deathstar.edn")
+    (.readFile vscode.workspace.fs x)
+    #_(.stat vscode.workspace.fs x)
+    (.then x (fn [result]
+               (println result))))
+  
+  (go
+    (let [buffer (<! (read-file
+                      (aget vscode.workspace.workspaceFolders 0)
+                      "deathstar.edn"))]
+      (->> buffer
+           (.toString)
+           (read-string)
+           (apply merge)
+           (println))))
+
+
+  (fs.existsSync (path.join (.. (aget vscode.workspace.workspaceFolders 0) -uri -fsPath)
+                            "deathstar.edn"))
+  (fs.readFileSync (path.join (.. (aget vscode.workspace.workspaceFolders 0) -uri -fsPath)
+                              "deathstar.edn"))
+
+
   (->
    (vscode.workspace.findFiles
     (vscode.RelativePattern.  (aget vscode.workspace.workspaceFolders 0)
-                              "deathstar.edn"))
+                              "{deathstar.edn,something.else}"))
    (.then (fn [uris]
             (println (count uris)))))
+
+  (go
+    (let [uris (<! (find-files (aget vscode.workspace.workspaceFolders 0)
+                               "{deathstar.edn,something.else}"))]
+      (println (count uris))))
 
   (go
     (let [uris (<p! (vscode.workspace.findFiles
@@ -149,6 +248,10 @@
 
       (println (count uris))))
 
+  (go
+    (let [folder (<! (select-workspaceFolder {}))]
+
+      (println folder)))
 
 
   (fs.existsSync (path.join (.. (aget vscode.workspace.workspaceFolders 0) -uri -fsPath)
