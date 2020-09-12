@@ -148,9 +148,9 @@
         :else
         (do nil)))))
 
-(defn read-file
+(defn read-workspaceFolder-file
   ([workspaceFolder relative-filepath]
-   (read-file workspaceFolder relative-filepath (chan 1)))
+   (read-workspaceFolder-file workspaceFolder relative-filepath (chan 1)))
   ([workspaceFolder relative-filepath out|]
    (as-> nil x
      (vscode.Uri.joinPath
@@ -159,7 +159,11 @@
      (.readFile vscode.workspace.fs x)
      #_(.stat vscode.workspace.fs x)
      (.then x (fn [buffer]
-                (put! out| buffer))))
+                (put! out| buffer)))
+     (.catch x (fn [error]
+                 (js/console.warn error.message)
+                 (close! out|)
+                 #_(put! out| (ex-info error.message {} error)))))
    out|))
 
 (comment
@@ -183,7 +187,7 @@
     (do (prn x) (dec x))
     (prn x)
     x)
-
+  
 
   ;;
   )
@@ -211,16 +215,24 @@
     #_(.stat vscode.workspace.fs x)
     (.then x (fn [result]
                (println result))))
-  
+
   (go
-    (let [buffer (<! (read-file
+    (let [buffer (<! (read-workspaceFolder-file
                       (aget vscode.workspace.workspaceFolders 0)
-                      "deathstar.edn"))]
-      (->> buffer
-           (.toString)
-           (read-string)
-           (apply merge)
-           (println))))
+                      "deathst1ar.edn"))]
+      (if buffer
+        (->> buffer
+             (.toString)
+             (read-string)
+             (apply merge)
+             (println))
+        (println "no file"))
+      #_(when-not (ex-data buffer)
+          (->> buffer
+               (.toString)
+               (read-string)
+               (apply merge)
+               (println)))))
 
 
   (fs.existsSync (path.join (.. (aget vscode.workspace.workspaceFolders 0) -uri -fsPath)
