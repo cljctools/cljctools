@@ -4,6 +4,7 @@
                                      pub sub unsub mult tap untap mix admix unmix
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
+   [cljs.core.async.interop :refer-macros [<p!]]
    [goog.string :refer [format]]
    [goog.object]
    [clojure.string :as string]
@@ -102,12 +103,62 @@
         (reduce {} (.getKeys goog/object obj)))
     obj))
 
+(defn show-workspaceFolder-pick
+  ([opts]
+   (show-workspace-folder-pick opts (chan 1)))
+  ([opts out|]
+   (->
+    (vscode.window.showWorkspaceFolderPick (clj->js (merge
+                                                     {:ignoreFocusOut true
+                                                      :placeHolder "Select player profile to use"}
+                                                     opts)))
+    (.then (fn [workspaceFolder]
+             (println (.-name workspaceFolder))
+             (put! out| workspaceFolder))))
+   out|))
+
+(defn select-workspace-folder
+  []
+  )
+
 (comment
 
   vscode.workspace.rootPath
 
   vscode.workspace.workspaceFile
   vscode.workspace.workspaceFolders
+  (count vscode.workspace.workspaceFolders)
+
+  (vscode.workspace.getConfiguration "files.exclude")
+  (vscode.workspace.getConfiguration "search.exclude")
+
+  (vscode.RelativePattern.  (aget vscode.workspace.workspaceFolders 0)
+                            "deathstar.edn")
+
+  (->
+   (vscode.workspace.findFiles
+    (vscode.RelativePattern.  (aget vscode.workspace.workspaceFolders 0)
+                              "deathstar.edn"))
+   (.then (fn [uris]
+            (println (count uris)))))
+
+  (go
+    (let [uris (<p! (vscode.workspace.findFiles
+                     (vscode.RelativePattern.  (aget vscode.workspace.workspaceFolders 0)
+                                               "deathstar.edn")))]
+
+      (println (count uris))))
+
+
+
+  (fs.existsSync (path.join (.. (aget vscode.workspace.workspaceFolders 0) -uri -fsPath)
+                            "deathstar.edn"))
+
+  (->
+   (vscode.window.showWorkspaceFolderPick #js {:ignoreFocusOut true
+                                               :placeHolder "Select player profile to use"})
+   (.then (fn [workspaceFolder]
+            (println (.-name workspaceFolder)))))
 
   (as-> nil o
     (.join path vscode.workspace.rootPath ".vscode")
