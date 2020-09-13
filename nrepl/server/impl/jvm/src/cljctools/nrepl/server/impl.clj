@@ -1,4 +1,4 @@
-(ns cljctools.nrepl.impl
+(ns cljctools.nrepl.server.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
@@ -12,8 +12,8 @@
    #_[cider.piggieback]
 
    [cljctools.csp.op.spec :as op.spec]
-   [cljctools.nrepl.spec :as nrepl.spec]
-   [cljctools.nrepl.chan :as nrepl.chan]))
+   [cljctools.nrepl.server.spec :as nrepl.server.spec]
+   [cljctools.nrepl.server.chan :as nrepl.server.chan]))
 
 
 ; how to create a var dynamically
@@ -42,7 +42,7 @@
 
 (defn create-nrepl-handler*
   [opts]
-  (let [{:keys [::nrepl.spec/middleware]} opts]
+  (let [{:keys [::nrepl.server.spec/middleware]} opts]
     (apply nrepl.server/default-handler (concat
                                          (map
                                           cider-resolve-or-fail
@@ -78,19 +78,19 @@
 
 (defn create-proc-ops
   [channels opts]
-  (let [{:keys [::nrepl.chan/ops|
-                ::nrepl.chan/ops|m
-                ::nrepl.chan/nrepl-enter|
-                ::nrepl.chan/nrepl-enter|m]} channels
-        {:keys [::nrepl.spec/middleware
-                ::nrepl.spec/host
-                ::nrepl.spec/port]} opts
+  (let [{:keys [::nrepl.server.chan/ops|
+                ::nrepl.server.chan/ops|m
+                ::nrepl.server.chan/nrepl-enter|
+                ::nrepl.server.chan/nrepl-enter|m]} channels
+        {:keys [::nrepl.server.spec/middleware
+                ::nrepl.server.spec/host
+                ::nrepl.server.spec/port]} opts
         ops|t (tap ops|m (chan 10))
         nrepl-enter|t (tap nrepl-enter|m (chan (sliding-buffer 10)))
         middleware-enter (create-nrepl-enter-middleware* {::to| nrepl-enter|})
         nrepl-handler (create-nrepl-handler* (merge
                                               opts
-                                              {::nrepl.spec/middleware
+                                              {::nrepl.server.spec/middleware
                                                (concat middleware
                                                        [middleware-enter])}))
         state (atom {::server nil})
@@ -113,11 +113,11 @@
             ops|t
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              {::op.spec/op-key ::nrepl.chan/start-server}
+              {::op.spec/op-key ::nrepl.server.chan/start-server}
               (let [{:keys []} v]
                 (start-server))
 
-              {::op.spec/op-key ::nrepl.chan/stop-server}
+              {::op.spec/op-key ::nrepl.server.chan/stop-server}
               (let [{:keys []} v]
                 (stop-server)))
 

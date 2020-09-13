@@ -1,5 +1,5 @@
-(ns cljctools.nrepl.chan
-  #?(:cljs (:require-macros [cljctools.nrepl.chan]))
+(ns cljctools.nrepl.server.chan
+  #?(:cljs (:require-macros [cljctools.nrepl.server.chan]))
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix
@@ -7,7 +7,7 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
    [cljctools.csp.op.spec :as op.spec]
-   [cljctools.nrepl.spec :as nrepl.spec]))
+   [cljctools.nrepl.server.spec :as nrepl.server.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 

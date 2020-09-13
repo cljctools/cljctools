@@ -1,5 +1,5 @@
-(ns cljctools.nrepl.spec
-  #?(:cljs (:require-macros [cljctools.nrepl.spec]))
+(ns cljctools.nrepl.server.spec
+  #?(:cljs (:require-macros [cljctools.nrepl.server.spec]))
   (:require
    [clojure.spec.alpha :as s]))
 
