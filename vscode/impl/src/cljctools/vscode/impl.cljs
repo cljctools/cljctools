@@ -166,31 +166,6 @@
                  #_(put! out| (ex-info error.message {} error)))))
    out|))
 
-(comment
-
-  (def c1| (chan 1))
-  (def c2| (chan 2))
-  (def cs| (a/map + [c1| c2|]))
-
-  (go-loop []
-    (let [vs (<! cs|)]
-      (println vs))
-    (recur))
-
-  (put! c1| 1)
-  (put! c2| 2)
-
-  (a/pipe (chan 1) (chan 1))
-
-  (as-> 3 x
-    (inc x)
-    (do (prn x) (dec x))
-    (prn x)
-    x)
-  
-
-  ;;
-  )
 
 (comment
 

@@ -1,4 +1,4 @@
-(ns pad.selfhost1
+(ns cljctools.pad.selfhost1
   (:require [cljs.js :as cljs]
             [cljs.env :as env]
             [shadow.cljs.bootstrap.node :as boot]
