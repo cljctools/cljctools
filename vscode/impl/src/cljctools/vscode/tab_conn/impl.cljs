@@ -20,8 +20,7 @@
 
 (defn create-proc-conn
   [channels opts]
-  (let [{:keys [::tab-conn.chan/send| ::tab-conn.chan/send|m ]} channels
-        send|t (tap send|m (chan 10))]
+  (let [{:keys [::tab-conn.chan/send|]} channels]
     (.addEventListener js/window "message"
                        (fn [ev]
                          #_(println ev.data)
@@ -31,7 +30,7 @@
                           (read-string ev.data))))
     (go
       (loop []
-        (when-let [v (<! send|t)]
+        (when-let [v (<! send|)]
           (.postMessage vscode (pr-str v)))
         (recur))
       (println "; proc-conn go-block exiting"))

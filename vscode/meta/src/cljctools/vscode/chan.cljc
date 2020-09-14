@@ -18,34 +18,24 @@
 (defn create-channels
   []
   (let [ops| (chan 10)
-        ops|m (mult ops|)
         evt| (chan 10)
         evt|m (mult evt|)
-        evt|x (mix evt|)
         tab-send| (chan 10)
-        tab-send|m (mult tab-send|)
         tab-recv| (chan 10)
-        tab-recv|m (mult tab-recv|)
         tab-evt| (chan (sliding-buffer 10))
         tab-evt|m (mult tab-evt|)
 
         cmd| (chan (sliding-buffer 10))
-        cmd|m  (mult cmd|)
         ;; host|p (pub (tap host|m (chan 10)) spec/TOPIC (fn [_] 10))
         ]
     {::ops| ops|
-     ::ops|m ops|m
      ::evt| evt|
      ::evt|m evt|m
-     ::evt|x evt|x
      ::tab-recv| tab-recv|
-     ::tab-recv|m tab-recv|m
      ::tab-send| tab-send|
-     ::tab-send|m tab-send|m
      ::tab-evt| tab-evt|
      ::tab-evt|m tab-evt|m
-     ::cmd| cmd|
-     ::cmd|m cmd|m}))
+     ::cmd| cmd|}))
 
 (defmethod op*
   {::op.spec/op-key ::extension-activate

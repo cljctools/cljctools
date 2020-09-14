@@ -90,12 +90,10 @@
 (defn create-proc-ops
   [channels opts]
   (let [{:keys [::server.chan/ops|
-                ::server.chan/ops|m
                 ::server.chan/ws-evt|
                 ::server.chan/ws-evt|m
                 ::server.chan/ws-recv|
                 ::server.chan/ws-recv|m]} channels
-        ops|t (tap ops|m (chan 10))
         ws-recv|t (tap ws-recv|m (chan 10))
         ws-evt|t (tap ws-evt|m (chan 10))
         ws-clients (atom {})
@@ -163,9 +161,9 @@
                       (http/stop (::server @state)))]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|t ws-recv|t ws-evt|t])]
+        (when-let [[v port] (alts! [ops| ws-recv|t ws-evt|t])]
           (condp = port
-            ops|t
+            ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
               {::op.spec/op-key ::server.chan/start-server}
@@ -180,7 +178,7 @@
               {::op.spec/op-key ::server.chan/broadcast}
               (let []
                 (broadcast v)))
-            
+
             ws-recv|t
             (let []
               (println ::ws-recv|t v)

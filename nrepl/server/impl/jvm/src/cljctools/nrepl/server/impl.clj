@@ -79,14 +79,10 @@
 (defn create-proc-ops
   [channels opts]
   (let [{:keys [::nrepl.server.chan/ops|
-                ::nrepl.server.chan/ops|m
-                ::nrepl.server.chan/nrepl-enter|
-                ::nrepl.server.chan/nrepl-enter|m]} channels
+                ::nrepl.server.chan/nrepl-enter|]} channels
         {:keys [::nrepl.server.spec/middleware
                 ::nrepl.server.spec/host
                 ::nrepl.server.spec/port]} opts
-        ops|t (tap ops|m (chan 10))
-        nrepl-enter|t (tap nrepl-enter|m (chan (sliding-buffer 10)))
         middleware-enter (create-nrepl-enter-middleware* {::to| nrepl-enter|})
         nrepl-handler (create-nrepl-handler* (merge
                                               opts
@@ -108,9 +104,9 @@
                       (swap! state assoc ::server nil))]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|t nrepl-enter|t])]
+        (when-let [[v port] (alts! [ops| nrepl-enter|])]
           (condp = port
-            ops|t
+            ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
               {::op.spec/op-key ::nrepl.server.chan/start-server}
@@ -121,9 +117,9 @@
               (let [{:keys []} v]
                 (stop-server)))
 
-            nrepl-enter|t
+            nrepl-enter|
             (let [{:keys [msg]} v]
-              (println ::nrepl-enter|t (select-keys msg [:op :code :stderr])))))
+              (println ::nrepl-enter| (select-keys msg [:op :code :stderr])))))
         (recur))
       (println "; proc-ops go-block exiting"))
     #_(reify

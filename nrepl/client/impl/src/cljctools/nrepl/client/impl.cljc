@@ -17,17 +17,18 @@
 
 (defn create-proc-ops
   [channels opts]
-  (let [{:keys [::net.socket.chan/evt|m
+  (let [{:keys [::nrepl.client.chan/ops|
+                ::net.socket.chan/evt|m
                 ::net.socket.chan/send|
-                ::net.socket.chan/recv|m]} channels
+                ::net.socket.chan/recv|]} channels
         nrepl-op-id-key :id
         encode #(nrepl.bencode.impl/encode %)
         decode #(nrepl.bencode.impl/decode %)
         xform-relevant-nrepl-value? (comp
                                      (map (fn [v] (encode v)))
                                      (filter (fn [v] (get v nrepl-op-id-key))))
-        recv|t (tap recv|m (chan (sliding-buffer 10) xform-relevant-nrepl-value?))
-        recv|p (cljctools.nrepl.client.impl.async/pub recv|t nrepl-op-id-key (fn [_] (sliding-buffer 10)))
+        recv|* (pipe recv| (chan (sliding-buffer 10) xform-relevant-nrepl-value?))
+        recv|p (cljctools.nrepl.client.impl.async/pub recv|* nrepl-op-id-key (fn [_] (sliding-buffer 10)))
         nrepl-op (fn [opts]
                    (let [{:keys [::nrepl.client.spec/done-keys
                                  ::nrepl.client.spec/result-keys
@@ -78,10 +79,10 @@
                                               exinfo)))))))]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|t])]
+        (when-let [[v port] (alts! [ops|])]
           (condp = port
 
-            ops|t
+            ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
               {::op.spec/op-key  ::nrepl.client.chan/eval

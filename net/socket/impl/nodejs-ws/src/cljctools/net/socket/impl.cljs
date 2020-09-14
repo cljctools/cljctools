@@ -20,21 +20,19 @@
 
 (defn create-proc-ops
   [channels opts]
-  (let [{:keys [::socket.chan/ops|m
+  (let [{:keys [::socket.chan/ops|
                 ::socket.chan/evt|m
                 ::socket.chan/recv|
-                ::socket.chan/send|m]} channels
-        send|t (tap send|m (chan (dropping-buffer 1024)))
+                ::socket.chan/send|]} channels
         send|xout (chan 10)
         send|x (mix send|xout)
         pause-sending (fn []
-                        (toggle send|x {send|t {:pause true}}))
+                        (toggle send|x {send| {:pause true}}))
         resume-sending (fn []
-                         (toggle send|x {send|t {:pause false}}))
+                         (toggle send|x {send| {:pause false}}))
         _ (do
-            (admix send|x send|t)
+            (admix send|x send|)
             (pause-sending))
-        ops|t (tap ops|m (chan 10))
         evt|t (tap evt|m (chan 10))
         socket (atom nil)
         state (atom opts)
@@ -86,12 +84,12 @@
                  (.send ws (transit-write v))))]
     (go
       (loop []
-        (when-let [[v port] (alts! [send|t ops|t evt|t])]
+        (when-let [[v port] (alts! [send| ops| evt|t])]
           (condp = port
-            send|t
+            send|
             (send v)
 
-            ops|t
+            ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
               {::op.spec/op-key  ::socket.chan/connect}
@@ -102,7 +100,7 @@
               {::op.spec/op-key  ::socket.chan/disconnect}
               (let []
                 (disconnect)))
-            
+
             evt|t
             (do nil)))
         (recur))

@@ -16,13 +16,11 @@
 (defn create-channels
   []
   (let [ops| (chan 10)
-        ops|m (mult ops|)
         ws-evt| (chan (sliding-buffer 50))
         ws-evt|m (mult ws-evt|)
         ws-recv| (chan (sliding-buffer 50))
         ws-recv|m (mult ws-recv|)]
     {::ops| ops|
-     ::ops|m ops|m
      ::ws-evt| ws-evt|
      ::ws-evt|m ws-evt|m
      ::ws-recv| ws-recv|

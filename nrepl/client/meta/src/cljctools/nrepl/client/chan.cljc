@@ -17,10 +17,8 @@
 
 (defn create-channels
   []
-  (let [ops| (chan 10)
-        ops|m (mult ops|)]
-    {::ops| ops|
-     ::ops|m ops|m}))
+  (let [ops| (chan 10)]
+    {::ops| ops|}))
 
 
 (defmethod op*

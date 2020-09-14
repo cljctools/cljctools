@@ -18,17 +18,11 @@
 (defn create-channels
   []
   (let [ops| (chan 10)
-        ops|m (mult ops|)
         nrepl-enter| (chan (sliding-buffer 10))
-        nrepl-enter|m (mult nrepl-enter|)
-        nrepl-leave| (chan (sliding-buffer 10))
-        nrepl-leave|m (mult nrepl-leave|)]
+        nrepl-leave| (chan (sliding-buffer 10))]
     {::ops| ops|
-     ::ops|m ops|m
      ::nrepl-enter| nrepl-enter|
-     ::nrepl-enter|m nrepl-enter|m
-     ::nrepl-leave| nrepl-leave|
-     ::nrepl-leave|m nrepl-leave|m}))
+     ::nrepl-leave| nrepl-leave|}))
 
 (defmethod op*
   {::op.spec/op-key ::start-server} [_]

@@ -436,16 +436,12 @@
 
 (defn create-proc-ops
   [channels opts]
-  (let [{:keys [::vscode.chan/ops|m
+  (let [{:keys [::vscode.chan/ops|
                 ::vscode.chan/evt|
                 ::vscode.chan/tab-evt|m
-                ::vscode.chan/tab-send|m]} channels
-        ops|t (tap ops|m (chan 10))
+                ::vscode.chan/tab-send|]} channels
         tab-evt|t (tap tab-evt|m (chan (sliding-buffer 10)))
-        tab-send|t (tap tab-send|m (chan 10))
-        release #(do
-                   (untap ops|m  ops|t)
-                   (close! ops|t))
+        release #(do)
         state (->
                {::vscode.spec/tabs {}}
                (merge (select-keys opts [::context]))
@@ -458,10 +454,10 @@
                                                         #_(put! ops| (p/-vl-texteditor-changed ops|i data)))))))
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|t tab-evt|t tab-send|t])]
+        (when-let [[v port] (alts! [ops| tab-evt|t tab-send|])]
           
           (condp = port
-            ops|t
+            ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
               {::op.spec/op-key ::vscode.chan/extension-activate
@@ -487,9 +483,9 @@
                               cmd-id))]
                 (println ::cmd-ids cmd-ids)
                 (register-commands {::vscode.spec/cmd-ids cmd-ids
-                                     ::vscode vscode
-                                     ::context (::context @state)
-                                     ::on-cmd on-cmd})
+                                    ::vscode vscode
+                                    ::context (::context @state)
+                                    ::on-cmd on-cmd})
                 (vscode.chan/op
                  {::op.spec/op-key ::vscode.chan/register-commands
                   ::op.spec/op-type ::op.spec/response}
@@ -519,7 +515,7 @@
               (let [{:keys [::vscode.spec/tab-id]} v]
                 (swap! state update ::vscode.spec/tabs dissoc tab-id)))
 
-            tab-send|t
+            tab-send|
             (let [{:keys [::vscode.spec/tab-id]} v
                   tab (get-in @state [::vscode.spec/tabs tab-id])]
               (vscode.p/-send tab v)))

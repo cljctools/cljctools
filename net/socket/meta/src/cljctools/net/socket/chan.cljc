@@ -18,19 +18,13 @@
 (defn create-channels
   []
   (let [ops| (chan 10)
-        ops|m (mult ops|)
-        send| (chan 10)
-        send|m (mult send|)
+        send| (chan (dropping-buffer 1024))
         recv| (chan (sliding-buffer 10))
-        recv|m (mult recv|)
         evt| (chan (sliding-buffer 10))
         evt|m (mult evt|)]
     {::ops| ops|
-     ::ops|m ops|m
      ::send| send|
-     ::send|m send|m
      ::recv| recv|
-     ::recv|m recv|m
      ::evt| evt|
      ::evt|m evt|m}))
 
