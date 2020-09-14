@@ -26,6 +26,7 @@
         tab-evt|m (mult tab-evt|)
 
         cmd| (chan (sliding-buffer 10))
+        cmd|m (mult cmd|)
         ;; host|p (pub (tap host|m (chan 10)) spec/TOPIC (fn [_] 10))
         ]
     {::ops| ops|
@@ -35,7 +36,8 @@
      ::tab-send| tab-send|
      ::tab-evt| tab-evt|
      ::tab-evt|m tab-evt|m
-     ::cmd| cmd|}))
+     ::cmd| cmd|
+     ::cmd|m cmd|m}))
 
 (defmethod op*
   {::op.spec/op-key ::extension-activate
