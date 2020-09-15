@@ -7,8 +7,10 @@
 
 
 (s/def ::op-key keyword?)
+(s/def ::op-uuid uuid?)
 (s/def ::op-type #{nil ::request ::response})
-(s/def ::op-meta (s/keys :req [::op-key]
+(s/def ::op-meta (s/keys :req [::op-key
+                               ::op-uuid]
                          :opt [::op-type]))
 (s/def ::op-error any?)
 (s/def ::out| some?)
