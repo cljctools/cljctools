@@ -7,7 +7,7 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
    [cljctools.csp.op.spec :as op.spec]
-   [cljctools.rrsocket.spec :as rsocket.spec]))
+   [cljctools.rsocket.spec :as rsocket.spec]))
 
 (do (clojure.spec.alpha/check-asserts true))
 
