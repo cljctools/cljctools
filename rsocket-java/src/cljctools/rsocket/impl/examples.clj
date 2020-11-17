@@ -79,7 +79,8 @@
         (Mono/just (DefaultPayload/create (format "echo %s" (.getDataUtf8 payload)))))
       (requestStream [_ payload]
         (println (format "requestStream %s answers to: %s" name (.getDataUtf8 payload)))
-        (-> (Flux/interval (Duration/ofMillis 100))
+        (-> #_(Flux/interval (Duration/ofMillis 1))
+            (Flux/range 0 10)
             (.map (reify Function
                     (apply [_ a-long]
                       (DefaultPayload/create (format "interval %s" a-long)))))))))
@@ -87,7 +88,7 @@
   (defn request-response
     [client name text]
     (-> client
-        (.requestResponse (Mono/just (DefaultPayload/create (format "%s asks: ping" name))))
+        (.requestResponse (Mono/just (DefaultPayload/create (format "%s asks '%s'" name text))))
         (.doOnSubscribe (reify Consumer
                           (accept [_ s]
                             (println (format "%s : executing request" name)))))
@@ -98,6 +99,20 @@
         (.subscribe)
         #_(.repeat 0)
         #_(.blockLast)))
+
+  (defn request-stream
+    [client name text]
+    (-> client
+        (.requestStream (Mono/just (DefaultPayload/create (format "%s asks '%s'" name text))))
+        #_(.map (reify Function
+                  (apply [_ payload]
+                    (.getDataUtf8 payload))))
+        #_(.log)
+        (.doOnNext (reify Consumer
+                     (accept [_ payload]
+                       (println (format "request-stream %s receives: %s" name (.getDataUtf8 payload)))
+                       (.release payload))))
+        (.subscribe)))
 
   ;; accepting side
 
@@ -128,7 +143,8 @@
   (request-response connecting-client "connecting" "ping")
   (request-response @accepting-client "accepting" "ping")
 
-
+  (request-stream connecting-client "connecting" "stream?")
+  (request-stream @accepting-client "accepting" "stream?")
 
 
   ;;
