@@ -11,130 +11,84 @@
 
 (do (clojure.spec.alpha/check-asserts true))
 
-(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
-(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
-(defmulti op op.spec/op-dispatch-fn)
+(def ^:const op-meta-keys [::rsocket.spec/op-key ::rsocket.spec/op-type])
+
+(def op-spec-dispatch-fn (fn [value] (vec (select-keys op-meta op-meta-keys))))
+(def op-spec-retag-fn (fn [generated-value dispatch-tag] (merge generated-value dispatch-tag)))
+(def op-dispatch-fn (fn [op-meta & args] (vec (select-keys op-meta op-meta-keys))  ))
+
+(defmulti op-spec op-spec-dispatch-fn)
+#_(s/def ::op (s/multi-spec op-spec op-spec-retag-fn))
+(defmulti op op-dispatch-fn)
+
+(defmulti ^{:private true} op* op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op-spec-retag-fn))
 
 (defn create-channels
   []
-  (let [ops| (chan 10)
-        send| (chan (dropping-buffer 1024))
-        recv| (chan (sliding-buffer 10))
-        evt| (chan (sliding-buffer 10))
-        evt|m (mult evt|)]
-    {::ops| ops|
-     ::send| send|
-     ::recv| recv|
-     ::evt| evt|
-     ::evt|m evt|m}))
+  (let [ops| (chan 10)]
+    {::ops| ops|}))
 
 (defmethod op*
-  {::op.spec/op-key ::send} [_]
+  {::rsocket.spec/op-key ::rsocket.spec/request-response} [_]
   (s/keys :req []
           :req-un []))
 
 (defmethod op
-  {::op.spec/op-key ::send}
+  {::rsocket.spec/op-key ::rsocket.spec/request-response}
+  ([op-meta channels value]
+   (op op-meta channels value (chan 1)))
+  ([op-meta channels value out|]
+   (put! (::ops| channels) (merge
+                            op-meta
+                            value
+                            {::op.spec/out| out|}))
+   out|))
+
+
+(defmethod op*
+  {::rsocket.spec/op-key ::rsocket.spec/fire-and-forget} [_]
+  (s/keys :req []
+          :req-un []))
+
+(defmethod op
+  {::rsocket.spec/op-key ::rsocket.spec/fire-and-forget}
   [op-meta channels value]
-  (put! (::send| channels) value))
+  (put! (::ops| channels) (merge
+                           op-meta
+                           value)))
+
 
 (defmethod op*
-  {::op.spec/op-key ::recv} [_]
+  {::rsocket.spec/op-key ::rsocket.spec/request-stream} [_]
   (s/keys :req []
           :req-un []))
 
 (defmethod op
-  {::op.spec/op-key ::recv}
-  [op-meta to| value]
-  (put! to| value))
-
-
-(defmethod op*
-  {::op.spec/op-key ::connect} [_]
-  (s/keys :req []
-          :req-un []
-          :opt [::rsocket.spec/url
-                ::rsocket.spec/host
-                ::rsocket.spec/port
-                ::rsocket.spec/path]))
-
-(defmethod op
-  {::op.spec/op-key ::connect}
-  ([op-meta channels]
-   (op op-meta channels nil))
-  ([op-meta channels opts]
-   (put! (::ops| channels)
-         (merge op-meta
-                opts))))
+  {::rsocket.spec/op-key ::rsocket.spec/request-stream}
+  ([op-meta channels value]
+   (op op-meta channels value (chan 64)))
+  ([op-meta channels value out|]
+   (put! (::ops| channels) (merge
+                            op-meta
+                            value
+                            {::op.spec/out| out|}))
+   out|))
 
 (defmethod op*
-  {::op.spec/op-key ::disconnect} [_]
+  {::rsocket.spec/op-key ::rsocket.spec/request-channel} [_]
   (s/keys :req []
           :req-un []))
 
 (defmethod op
-  {::op.spec/op-key ::disconnect}
-  [op-meta channels]
-  (put! (::ops| channels)
-        (merge op-meta
-               {})))
-
-(defmethod op*
-  {::op.spec/op-key ::connected} [_]
-  (s/keys :req []
-          :req-un []))
-
-(defmethod op
-  {::op.spec/op-key ::connected}
-  [op-meta to|]
-  (put! to|
-        (merge op-meta
-               {})))
-
-(defmethod op*
-  {::op.spec/op-key ::closed} [_]
-  (s/keys :req [::rsocket.spec/num-code ::rsocket.spec/reason-text]
-          :req-un []))
-
-(defmethod op
-  {::op.spec/op-key ::closed}
-  [op-meta to| num-code reason-text]
-  (put! to|
-        (merge op-meta
-               {::rsocket.spec/num-code num-code
-                ::rsocket.spec/reason-text reason-text})))
-
-(defmethod op*
-  {::op.spec/op-key ::error} [_]
-  (s/keys :req [::rsocket.spec/error]
-          :req-un []))
-
-(defmethod op
-  {::op.spec/op-key ::error}
-  [op-meta to| error]
-  (put! to|
-        (merge op-meta
-               {::rsocket.spec/error error})))
-
-
-(defmethod op*
-  {::op.spec/op-key ::timeout} [_]
-  (s/keys :req [::rsocket.spec/timeout]
-          :req-un []))
-
-(defmethod op
-  {::op.spec/op-key ::timeout}
-  [op-meta to|]
-  (put! to|
-        (merge op-meta)))
-
-(defmethod op*
-  {::op.spec/op-key ::ready} [_]
-  (s/keys :req [::rsocket.spec/ready]
-          :req-un []))
-
-(defmethod op
-  {::op.spec/op-key ::ready}
-  [op-meta to|]
-  (put! to|
-        (merge op-meta)))
+  {::rsocket.spec/op-key ::rsocket.spec/request-channel}
+  ([op-meta channels value]
+   (op op-meta channels value (chan 64) (chan 64)))
+  ([op-meta channels value  out| send|]
+   (put! (::ops| channels) (merge
+                            op-meta
+                            value
+                            {::op.spec/out| out|
+                             ::op.spec/send| send|}))
+   {::op.spec/out| out|
+    ::op.spec/send| send|}))

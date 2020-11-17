@@ -14,6 +14,7 @@
                                ::op-uuid]))
 (s/def ::op-error any?)
 (s/def ::out| some?)
+(s/def ::send| some?)
 
 (def ^:const op-meta-keys [::op-key ::op-type])
 

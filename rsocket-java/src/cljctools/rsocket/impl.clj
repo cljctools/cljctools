@@ -10,8 +10,8 @@
    [cljctools.cljc.core :as cljc.core]
 
    [cljctools.rsocket.spec :as rsocket.spec]
-   [cljctools.rsocket.chan :as rsocket.chan])
-
+   [cljctools.rsocket.chan :as rsocket.chan]
+   [cljctools.rsocket.protocols :as rsocket.protocols])
   (:import
    io.rsocket.Payload
    io.rsocket.RSocket
@@ -25,6 +25,37 @@
    java.time.Duration))
 
 
+(defn create-proc-rsocket
+  [channels opts]
+  (let [{:keys [::rsocket.chan/ops|
+                ::rsocket.chan/evt|m
+                ::rsocket.chan/send|
+                ::rsocket.chan/recv|]} channels
+        rsocket (atom nil)]
+    (go
+      (loop []
+        (when-let [[v port] (alts! [ops|])]
+          (condp = port
+
+            ops|
+            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
+
+              {::op.spec/op-key  ::rsocket.chan/connect}
+              (let [])))
+          
+          )))
+    ))
+
+
+(comment
+  
+  
+  
+  ;;
+  )
+
+
+
 (defn create-proc-ops
   [channels opts]
   (let [{:keys [::rsocket.chan/ops|
@@ -33,7 +64,4 @@
                 ::rsocket.chan/recv|]} channels]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|])]
-          
-          
-          )))))
+        (when-let [[v port] (alts! [ops|])])))))
