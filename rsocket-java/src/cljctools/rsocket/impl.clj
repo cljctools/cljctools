@@ -40,8 +40,11 @@
             ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              {::op.spec/op-key  ::rsocket.chan/connect}
-              (let [])))
+              {::rsocket.spec/op-key ::rsocket.spec/request-response}
+              (let []
+                
+                
+                )))
           
           )))
     ))

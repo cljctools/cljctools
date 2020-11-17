@@ -13,7 +13,7 @@
 
 (def ^:const op-meta-keys [::rsocket.spec/op-key ::rsocket.spec/op-type])
 
-(def op-spec-dispatch-fn (fn [value] (vec (select-keys op-meta op-meta-keys))))
+(def op-spec-dispatch-fn (fn [value] (vec (select-keys value))))
 (def op-spec-retag-fn (fn [generated-value dispatch-tag] (merge generated-value dispatch-tag)))
 (def op-dispatch-fn (fn [op-meta & args] (vec (select-keys op-meta op-meta-keys))  ))
 

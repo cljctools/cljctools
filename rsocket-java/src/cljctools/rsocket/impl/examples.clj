@@ -21,6 +21,7 @@
    io.rsocket.util.DefaultPayload
    java.time.Duration
    reactor.core.publisher.Mono
+   reactor.core.publisher.Flux
    reactor.util.retry.Retry
    java.util.function.Function
    java.util.function.Consumer))
@@ -61,6 +62,72 @@
                        (.release payload))))
         (.repeat 10)
         (.blockLast)))
+
+
+
+  ;;
+  )
+
+
+(comment
+
+  (defn make-rsocket-recv
+    [name]
+    (reify RSocket
+      (requestResponse [_ payload]
+        (println (format "requestResponse %s answers to: %s" name (.getDataUtf8 payload)))
+        (Mono/just (DefaultPayload/create (format "echo %s" (.getDataUtf8 payload)))))
+      (requestStream [_ payload]
+        (println (format "requestStream %s answers to: %s" name (.getDataUtf8 payload)))
+        (-> (Flux/interval (Duration/ofMillis 100))
+            (.map (reify Function
+                    (apply [_ a-long]
+                      (DefaultPayload/create (format "interval %s" a-long)))))))))
+
+  (defn request-response
+    [client name text]
+    (-> client
+        (.requestResponse (Mono/just (DefaultPayload/create (format "%s asks: ping" name))))
+        (.doOnSubscribe (reify Consumer
+                          (accept [_ s]
+                            (println (format "%s : executing request" name)))))
+        (.doOnNext (reify Consumer
+                     (accept [_ payload]
+                       (println (format "requestResponse %s receives: %s" name (.getDataUtf8 payload)))
+                       (.release payload))))
+        (.subscribe)
+        #_(.repeat 0)
+        #_(.blockLast)))
+
+  ;; accepting side
+
+  (def accepting-client (atom nil))
+  (def accepting-server (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
+                             (RSocketServer/create
+                              (reify SocketAcceptor
+                                (accept [_ setup rsocket-send]
+                                  (reset! accepting-client (RSocketClient/from rsocket-send))
+                                  (Mono/just (make-rsocket-recv "accepting")))))
+                             (.bind (TcpServerTransport/create "localhost" 7000))
+                             (.doOnNext (reify Consumer
+                                          (accept [_ cc]
+                                            (println (format "server started on address %s" (.address cc))))))
+                             (.subscribe)))
+
+  ;; connecting side
+
+  (def connecting-source
+    (-> (RSocketConnector/create)
+        (.acceptor (SocketAcceptor/with (make-rsocket-recv "connecting")))
+        (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+        (.connect (TcpClientTransport/create "localhost" 7000))
+        (.block)))
+
+  (def connecting-client (RSocketClient/from connecting-source))
+
+  (request-response connecting-client "connecting" "ping")
+  (request-response @accepting-client "accepting" "ping")
+
 
 
 
