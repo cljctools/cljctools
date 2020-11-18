@@ -7,3 +7,5 @@
 (s/def ::port int?)
 
 (s/def ::connection-side #{::accepting ::initiating})
+
+(s/def ::transport #{::tcp ::websocket})
