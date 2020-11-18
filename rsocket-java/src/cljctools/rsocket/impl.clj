@@ -22,16 +22,64 @@
    io.rsocket.transport.netty.client.TcpClientTransport
    io.rsocket.transport.netty.server.TcpServerTransport
    io.rsocket.util.DefaultPayload
-   java.time.Duration))
+   java.time.Duration
+   reactor.core.publisher.Mono
+   reactor.core.publisher.Flux
+   reactor.core.publisher.MonoSink
+   reactor.core.publisher.FluxSink
+   reactor.util.retry.Retry
+   java.util.function.Function
+   java.util.function.Consumer))
 
 
-(defn create-proc-rsocket
+(defn create-proc-ops
   [channels opts]
-  (let [{:keys [::rsocket.chan/ops|
-                ::rsocket.chan/evt|m
-                ::rsocket.chan/send|
-                ::rsocket.chan/recv|]} channels
-        rsocket (atom nil)]
+  (let [{:keys [::rsocket.chan/ops|]} channels
+
+        rsocket-responder
+        (reify RSocket
+          (requestResponse
+            [_ payload]
+            (do (.getDataUtf8 payload))
+            (let [out| (chan 1)]
+              (Mono/create
+               (reify Consumer
+                 (accept [_ ^MonoSink sink]
+                   (take! out| (fn [v]
+                                 (.success sink v))))))))
+          (fireAndForget
+            [_ payload]
+            (do (.getDataUtf8 payload))
+            (let [out| (chan 64)]
+              (Mono/empty)))
+          (requestStream
+            [_ payload]
+            (do (.getDataUtf8 payload))
+            (let [out| (chan 64)]
+              (Flux/create
+               (reify Consumer
+                 (accept [_ ^FluxSink emitter]
+                   (go (loop []
+                         (when-let [v (<! out|)]
+                           (.next emitter v)
+                           (recur)))))))))
+          (requestChannel
+            [_ payloads]
+            (let [out| (chan 64)
+                  send| (chan 64)]
+              (-> (Flux/from payloads)
+                  (.doOnNext
+                   (reify Consumer
+                     (accept [_ payload]
+                       (put! out| (.getDataUtf8 payload))
+                       (.release payload)))))
+              (Flux/create
+               (reify Consumer
+                 (accept [_ ^FluxSink emitter]
+                   (go (loop []
+                         (when-let [v (<! send|)]
+                           (.next emitter v)
+                           (recur))))))))))]
     (go
       (loop []
         (when-let [[v port] (alts! [ops|])]
@@ -40,14 +88,10 @@
             ops|
             (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
 
-              {::rsocket.spec/op-key ::rsocket.spec/request-response}
-              (let []
-                
-                
-                )))
-          
-          )))
-    ))
+              {::op.spec/op-key ::request-response
+               ::op.spec/op-type ::op.spec/request-response
+               ::op.spec/op-orient ::op.spec/request}
+              (let []))))))))
 
 
 (comment

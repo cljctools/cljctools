@@ -3,4 +3,5 @@
   (:require
    [clojure.spec.alpha :as s]))
 
-(s/def ::url string?)
+(s/def ::host string?)
+(s/def ::port int?)
