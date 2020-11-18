@@ -53,7 +53,7 @@
                (reify Consumer
                  (accept [_ sink]
                    (take! out| (fn [value]
-                                 (.success sink (pr-str value)))))))))
+                                 (.success sink (pr-str (dissoc value ::op.spec/out|))))))))))
           (fireAndForget
             [_ payload]
             (let [value (read-string (.getDataUtf8 payload))]
@@ -204,8 +204,53 @@
 
 
 (comment
-  
-  
-  
+
+  (def accepting-channels (rsocket.chan/create-channels))
+  (def initiating-channels (rsocket.chan/create-channels))
+
+  (def accepting (create-proc-ops accepting-channels
+                                  {::rsocket.spec/connection-side ::rsocket.spec/accepting
+                                   ::rsocket.spec/host "localhost"
+                                   ::rsocket.spec/port 7000}))
+
+  (def initiating (create-proc-ops initiating-channels
+                                   {::rsocket.spec/connection-side ::rsocket.spec/initiating
+                                    ::rsocket.spec/host "localhost"
+                                    ::rsocket.spec/port 7000}))
+
+  (def accepting-ops| (chan 10))
+  (def initiating-ops| (chan 10))
+
+  (pipe (::rsocket.chan/requests| accepting-channels) accepting-ops|)
+  (pipe (::rsocket.chan/requests| initiating-channels) initiating-ops|)
+
+  (go (loop []
+        (when-let [value (<! accepting-ops|)]
+          (let [{:keys [::op.spec/out|]} value]
+            (println (format "accepting side receives request:"))
+            (println value)
+            (put! out| ::accepting-sends-any-kind-of-value))
+          (recur))))
+
+  (go (loop []
+        (when-let [value (<! initiating-ops|)]
+          (let [{:keys [::op.spec/out|]} value]
+            (println (format "initiating side receives request:"))
+            (println value)
+            (put! out| ::intiating-sends-any-kind-of-value))
+          (recur))))
+
+  (go
+    (let [out| (chan 1)]
+      (put! (::rsocket.chan/ops| accepting-channels) {::op.spec/op-key ::hello-from-accepting
+                                                      ::op.spec/op-type ::op.spec/request-response
+                                                      ::op.spec/op-orient ::op.spec/request
+                                                      ::op.spec/out| out|})
+      (println (<! out|))))
+
+
+
+
+
   ;;
   )
