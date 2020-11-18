@@ -133,12 +133,15 @@
           (condp = port
 
             ops|
-            (condp = (select-keys v [::op.spec/op-key ::op.spec/op-type])
+            (condp = (select-keys v [::op.spec/op-type ::op.spec/op-orient])
 
-              {::op.spec/op-key ::request-response
-               ::op.spec/op-type ::op.spec/request-response
+              {::op.spec/op-type ::op.spec/request-response
                ::op.spec/op-orient ::op.spec/request}
-              (let []))))))))
+              (let [])
+
+              ;; default
+              ;; deafult means fire-and-forget, for any value 
+              (do :fire-and-forget))))))))
 
 
 (comment
