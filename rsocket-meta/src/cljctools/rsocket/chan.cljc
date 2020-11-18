@@ -35,7 +35,10 @@
    (op channels value (chan 1)))
   ([channels data out|]
    (put! (::ops| channels) (merge
-                            {::op.spec/op-type ::op.spec/request-response}
+                            {::op.spec/op-type ::op.spec/request-response
+                             ::op.spec/op-orient ::op.spec/request
+                             ::op.spec/
+                             }
                             value
                             {::op.spec/out| out|}))
    out|))

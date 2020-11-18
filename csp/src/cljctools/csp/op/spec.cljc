@@ -14,12 +14,12 @@
                                ::request-stream
                                ::request-channel}))
 
-(s/def ::op-kind (s/nillable #{::request
+(s/def ::op-orient (s/nillable #{::request
                                ::response}))
 
 (s/def ::op-data any?)
 
-(s/def ::op-map (s/keys :req [::op-key ::op-type ::op-kind]
+(s/def ::op-map (s/keys :req [::op-key ::op-type ::op-orient]
                         :opt [::op-uuid ::op-data]))
 
 
@@ -27,7 +27,7 @@
 (s/def ::out| some?)
 (s/def ::send| some?)
 
-(def ^:const op-dispatch-keys [::op-key ::op-type ::op-kind])
+(def ^:const op-dispatch-keys [::op-key ::op-type ::op-orient])
 
 (def op-spec-dispatch-fn (fn [op-map] (select-keys op-map op-dispatch-keys)))
 (def op-spec-retag-fn (fn [generated-value dispatch-tag] (merge generated-value dispatch-tag)))
