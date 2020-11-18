@@ -20,6 +20,50 @@
   (let [ops| (chan 10)]
     {::ops| ops|}))
 
+(defn rr-request
+  [channels value]
+  (op
+   {::op.spec/op-key ::request-response
+    ::op.spec/op-type ::op.spec/request-response
+    ::op.spec/op-orient ::op.spec/request}
+   channels
+   value))
+
+(defn rr-response
+  [out| value]
+  (op
+   {::op.spec/op-key ::request-response
+    ::op.spec/op-type ::op.spec/request-response
+    ::op.spec/op-orient ::op.spec/response}
+   out|
+   value))
+
+(defn fnf
+  [channels value]
+  (op
+   {::op.spec/op-key ::fire-and-forget
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   value))
+
+(defn request-stream
+  [channels value]
+  (op
+   {::op.spec/op-key ::request-stream
+    ::op.spec/op-type ::op.spec/request-stream}
+   channels
+   value))
+
+(defn request-channel
+  [channels value]
+  (op
+   {::op.spec/op-key ::request-channel
+    ::op.spec/op-type ::op.spec/request-channel}
+   channels
+   value))
+
+
+
 (defmethod op*
   {::op.spec/op-key ::request-response
    ::op.spec/op-type ::op.spec/request-response
@@ -79,6 +123,7 @@
 (defmethod op
   {::op.spec/op-key ::request-stream
    ::op.spec/op-type ::op.spec/request-stream}
+  [op-meta channels value]
   (put! (::ops| channels) (merge
                            op-meta
                            value)))
@@ -93,6 +138,11 @@
 (defmethod op
   {::op.spec/op-key ::request-channel
    ::op.spec/op-type ::op.spec/request-channel}
+  [op-meta channels value]
   (put! (::ops| channels) (merge
                            op-meta
                            value)))
+
+
+
+
