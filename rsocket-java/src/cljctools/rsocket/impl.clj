@@ -34,30 +34,36 @@
 
 (defn create-proc-ops
   [channels opts]
-  (let [{:keys [::rsocket.chan/ops|]} channels
+  (let [{:keys [::rsocket.chan/ops|
+                ::rsocket.chan/requests|]} channels
 
         rsocket-response
         (reify RSocket
           (requestResponse
             [_ payload]
-            (do (.getDataUtf8 payload))
-            (.release payload)
-            (let [out| (chan 1)]
+            (let [value (read-string (.getDataUtf8 payload))
+                  out| (chan 1)]
+              (.release payload)
+              (put! requests| (merge value
+                                     {::op.spec/out| out|}))
               (Mono/create
                (reify Consumer
                  (accept [_ ^MonoSink sink]
-                   (take! out| (fn [v]
-                                 (.success sink v))))))))
+                   (take! out| (fn [value]
+                                 (.success sink (pr-str value)))))))))
           (fireAndForget
             [_ payload]
-            (do (.getDataUtf8 payload))
-            (let [out| (chan 64)]
+            (let [value (read-string (.getDataUtf8 payload))]
+              (.release payload)
+              (put! requests| value)
               (Mono/empty)))
           (requestStream
             [_ payload]
-            (do (.getDataUtf8 payload))
-            (.release payload)
-            (let [out| (chan 64)]
+            (let [value (read-string (.getDataUtf8 payload))
+                  out| (chan 64)]
+              (put! requests| (merge value
+                                     {::op.spec/out| out|}))
+              (.release payload)
               (Flux/create
                (reify Consumer
                  (accept [_ ^FluxSink emitter]
@@ -67,14 +73,26 @@
                            (recur)))))))))
           (requestChannel
             [_ payloads]
-            (let [out| (chan 64)
-                  send| (chan 64)]
+            (let [value (read-string (.getDataUtf8 payload))
+                  out| (chan 64)
+                  send| (chan 64)
+                  first-value? (atom true)]
+              (put! requests| (merge value
+                                     {::op.spec/out| out|}))
+              (.release payload)
               (-> (Flux/from payloads)
                   (.doOnNext
                    (reify Consumer
                      (accept [_ payload]
-                       (put! out| (.getDataUtf8 payload))
-                       (.release payload)))))
+                       (let [value (read-string (.getDataUtf8 payload))]
+                         (.release payload)
+                         (if @first-value?
+                           (do
+                             (put! requests| (merge value
+                                                    {::op.spec/out| out|
+                                                     ::op.spec/send| send|})))
+                           (do
+                             (put! out| value))))))))
               (Flux/create
                (reify Consumer
                  (accept [_ ^FluxSink emitter]
@@ -153,23 +171,23 @@
               {::op.spec/op-type ::op.spec/request-response
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|]} value]
-                (request-response value out|))
+                (request-response (dissoc value ::op.spec/out|)  out|))
 
               {::op.spec/op-type ::op.spec/request-response
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|]} value]
-                (request-response value out|))
+                (request-response (dissoc value ::op.spec/out|) out|))
 
               {::op.spec/op-type ::op.spec/request-stream
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|]} value]
-                (request-stream  value out|))
+                (request-stream  (dissoc value ::op.spec/out|) out|))
 
               {::op.spec/op-type ::op.spec/request-channel
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|
                             ::op.spec/send|]} value]
-                (request-channel value out| send|))
+                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|))
 
               ;; default
               ;; deafult means fire-and-forget, for any value 

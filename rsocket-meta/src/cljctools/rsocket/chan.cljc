@@ -17,9 +17,10 @@
 
 (defn create-channels
   []
-  (let [ops| (chan 10)]
-    {::ops| ops|}))
-
+  (let [ops| (chan 10)
+        requests| (chan 10)]
+    {::ops| ops|
+     ::requests| requests|}))
 
 (comment
 
