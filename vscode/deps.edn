@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {github.com.cljctools/vscode.meta {:local/root "../meta"}}}
+ :deps {github.cljctools/vscode.meta {:local/root "../meta"}}}
