@@ -7,7 +7,6 @@
 
 
 (s/def ::op-key keyword?)
-(s/def ::op-uuid uuid?)
 
 (s/def ::op-type (s/nillable #{::request-response
                                ::fire-and-forget
@@ -15,11 +14,11 @@
                                ::request-channel}))
 
 (s/def ::op-orient (s/nillable #{::request
-                               ::response}))
+                                 ::response}))
 
 
-(s/def ::op-meta (s/keys :req [::op-key ::op-type]
-                         :opt [::op-uuid ::op-orient]))
+(s/def ::op-meta (s/keys :req []
+                         :opt [::op-key ::op-type ::op-orient]))
 
 
 (s/def ::op-error any?)
