@@ -36,11 +36,12 @@
   [channels opts]
   (let [{:keys [::rsocket.chan/ops|]} channels
 
-        rsocket-responder
+        rsocket-response
         (reify RSocket
           (requestResponse
             [_ payload]
             (do (.getDataUtf8 payload))
+            (.release payload)
             (let [out| (chan 1)]
               (Mono/create
                (reify Consumer
@@ -55,6 +56,7 @@
           (requestStream
             [_ payload]
             (do (.getDataUtf8 payload))
+            (.release payload)
             (let [out| (chan 64)]
               (Flux/create
                (reify Consumer
@@ -79,7 +81,52 @@
                    (go (loop []
                          (when-let [v (<! send|)]
                            (.next emitter v)
-                           (recur))))))))))]
+                           (recur))))))))))
+
+        client (atom nil)
+
+        create-server (fn []
+                        (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
+                             (RSocketServer/create
+                              (reify SocketAcceptor
+                                (accept [_ setup rsocket-requester]
+                                  (reset! client (RSocketClient/from rsocket-request))
+                                  (Mono/just (make-rsocket-recv "accepting")))))
+                             (.bind (TcpServerTransport/create "localhost" 7000))
+                             (.doOnNext (reify Consumer
+                                          (accept [_ cc]
+                                            (println (format "server started on address %s" (.address cc))))))
+                             (.subscribe)))
+
+        create-client (fn []
+                        (let [source
+                              (-> (RSocketConnector/create)
+                                  (.acceptor (SocketAcceptor/with (make-rsocket-recv "connecting")))
+                                  (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+                                  (.connect (TcpClientTransport/create "localhost" 7000))
+                                  (.block))]
+                          (RSocketClient/from source)))
+
+        request-response (fn [value out|]
+                           (-> @client
+                               (.requestResponse (Mono/just (DefaultPayload/create value)))
+                               (.doOnNext (reify Consumer
+                                            (accept [_ payload]
+                                              (put! payload out|)
+                                              (.release payload))))
+                               (.subscribe)))
+        fire-and-forget (fn [value]
+                          (-> @client
+                              (.fireAndForget (Mono/just (DefaultPayload/create value)))
+                              (.subscribe)))
+        request-stream (fn [value out|]
+                         (-> @client
+                             (.requestStream (Mono/just (DefaultPayload/create value)))
+                             (.doOnNext (reify Consumer
+                                          (accept [_ payload]
+                                            (put! payload out|)
+                                            (.release payload))))
+                             (.subscribe)))]
     (go
       (loop []
         (when-let [[v port] (alts! [ops|])]
