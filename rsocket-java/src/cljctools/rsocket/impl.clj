@@ -36,6 +36,9 @@
   [channels opts]
   (let [{:keys [::rsocket.chan/ops|
                 ::rsocket.chan/requests|]} channels
+        {:keys [::rsocket.spec/connection-side
+                ::rsocket.spec/host
+                ::rsocket.spec/port]} opts
 
         rsocket-response
         (reify RSocket
@@ -109,8 +112,8 @@
                               (reify SocketAcceptor
                                 (accept [_ setup rsocket-requester]
                                   (reset! client (RSocketClient/from rsocket-request))
-                                  (Mono/just (make-rsocket-recv "accepting")))))
-                             (.bind (TcpServerTransport/create "localhost" 7000))
+                                  (Mono/just rsocket-response))))
+                             (.bind (TcpServerTransport/create host port))
                              (.doOnNext (reify Consumer
                                           (accept [_ cc]
                                             (println (format "server started on address %s" (.address cc))))))
@@ -121,9 +124,11 @@
                               (-> (RSocketConnector/create)
                                   (.acceptor (SocketAcceptor/with (make-rsocket-recv "connecting")))
                                   (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
-                                  (.connect (TcpClientTransport/create "localhost" 7000))
+                                  (.connect (TcpClientTransport/create host port))
                                   (.block))]
                           (RSocketClient/from source)))
+
+        (def connection (atom nil))
 
         request-response (fn [value out|]
                            (-> @client
@@ -160,6 +165,10 @@
                                              (put! payload out|)
                                              (.release payload))))
                               (.subscribe)))]
+    (when (= connection-side ::rsocket.spec/accepting)
+      (reset! connection (create-server)))
+    (when (= connection-side ::rsocket.spec/initiating)
+      (reset! connection (create-client)))
     (go
       (loop []
         (when-let [[value port] (alts! [ops|])]
@@ -201,15 +210,3 @@
   
   ;;
   )
-
-
-
-(defn create-proc-ops
-  [channels opts]
-  (let [{:keys [::rsocket.chan/ops|
-                ::rsocket.chan/evt|m
-                ::rsocket.chan/send|
-                ::rsocket.chan/recv|]} channels]
-    (go
-      (loop []
-        (when-let [[v port] (alts! [ops|])])))))

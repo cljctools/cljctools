@@ -5,3 +5,5 @@
 
 (s/def ::host string?)
 (s/def ::port int?)
+
+(s/def ::connection-side #{::accepting ::initiating})
