@@ -18,8 +18,8 @@
                                ::response}))
 
 
-(s/def ::op-meta (s/keys :req [::op-key ::op-type ::op-orient]
-                         :opt [::op-uuid]))
+(s/def ::op-meta (s/keys :req [::op-key ::op-type]
+                         :opt [::op-uuid ::op-orient]))
 
 
 (s/def ::op-error any?)

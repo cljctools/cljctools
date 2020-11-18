@@ -30,12 +30,12 @@
   {::op.spec/op-key ::request-response
    ::op.spec/op-type ::op.spec/request-response
    ::op.spec/op-orient ::op.spec/request}
-  ([op-meta channels data]
-   (op op-map channels data (chan 1)))
-  ([op-meta channels data out|]
+  ([op-meta channels value]
+   (op op-map channels value (chan 1)))
+  ([op-meta channels value out|]
    (put! (::ops| channels) (merge
                             op-meta
-                            data
+                            value
                             {::op.spec/out| out|}))
    out|))
 
@@ -49,10 +49,10 @@
   {::op.spec/op-key ::request-response
    ::op.spec/op-type ::op.spec/request-response
    ::op.spec/op-orient ::op.spec/response}
-  [op-meta out| data]
+  [op-meta out| value]
   (put! out| (merge
               op-meta
-              data)))
+              value)))
 
 
 
@@ -64,57 +64,35 @@
 (defmethod op
   {::op.spec/op-key ::fire-and-forget
    ::op.spec/op-type ::op.spec/fire-and-forget}
-  [op-meta out| data]
-  (put! out| (merge
-              op-meta
-              data)))
-
-
-
-
-(defmethod op*
-  {::rsocket.spec/op-key ::rsocket.spec/fire-and-forget} [_]
-  (s/keys :req []
-          :req-un []))
-
-(defmethod op
-  {::rsocket.spec/op-key ::rsocket.spec/fire-and-forget}
   [op-meta channels value]
   (put! (::ops| channels) (merge
                            op-meta
                            value)))
 
 
-(defmethod op*
-  {::rsocket.spec/op-key ::rsocket.spec/request-stream} [_]
-  (s/keys :req []
-          :req-un []))
-
-(defmethod op
-  {::rsocket.spec/op-key ::rsocket.spec/request-stream}
-  ([op-meta channels value]
-   (op op-meta channels value (chan 64)))
-  ([op-meta channels value out|]
-   (put! (::ops| channels) (merge
-                            op-meta
-                            value
-                            {::op.spec/out| out|}))
-   out|))
 
 (defmethod op*
-  {::rsocket.spec/op-key ::rsocket.spec/request-channel} [_]
-  (s/keys :req []
-          :req-un []))
+  {::op.spec/op-key ::request-stream
+   ::op.spec/op-type ::op.spec/request-stream} [_]
+  (s/keys :req [::op.spec/out|]))
 
 (defmethod op
-  {::rsocket.spec/op-key ::rsocket.spec/request-channel}
-  ([op-meta channels value]
-   (op op-meta channels value (chan 64) (chan 64)))
-  ([op-meta channels value  out| send|]
-   (put! (::ops| channels) (merge
-                            op-meta
-                            value
-                            {::op.spec/out| out|
-                             ::op.spec/send| send|}))
-   {::op.spec/out| out|
-    ::op.spec/send| send|}))
+  {::op.spec/op-key ::request-stream
+   ::op.spec/op-type ::op.spec/request-stream}
+  (put! (::ops| channels) (merge
+                           op-meta
+                           value)))
+
+
+
+(defmethod op*
+  {::op.spec/op-key ::request-channel
+   ::op.spec/op-type ::op.spec/request-channel} [_]
+  (s/keys :req [::op.spec/out| ::op.spec/send|]))
+
+(defmethod op
+  {::op.spec/op-key ::request-channel
+   ::op.spec/op-type ::op.spec/request-channel}
+  (put! (::ops| channels) (merge
+                           op-meta
+                           value)))
