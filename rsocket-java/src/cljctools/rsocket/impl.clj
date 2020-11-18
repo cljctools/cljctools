@@ -126,22 +126,55 @@
                                           (accept [_ payload]
                                             (put! payload out|)
                                             (.release payload))))
-                             (.subscribe)))]
+                             (.subscribe)))
+        request-channel (fn [value out| send|]
+                          (-> @client
+                              (.requestChannel (Flux/create
+                                                (reify Consumer
+                                                  (accept [_ ^FluxSink emitter]
+                                                    (.next emitter value)
+                                                    (go (loop []
+                                                          (when-let [v (<! send|)]
+                                                            (.next emitter v)
+                                                            (recur))))))))
+                              (.doOnNext (reify Consumer
+                                           (accept [_ payload]
+                                             (put! payload out|)
+                                             (.release payload))))
+                              (.subscribe)))]
     (go
       (loop []
-        (when-let [[v port] (alts! [ops|])]
+        (when-let [[value port] (alts! [ops|])]
           (condp = port
 
             ops|
-            (condp = (select-keys v [::op.spec/op-type ::op.spec/op-orient])
+            (condp = (select-keys value [::op.spec/op-type ::op.spec/op-orient])
 
               {::op.spec/op-type ::op.spec/request-response
                ::op.spec/op-orient ::op.spec/request}
-              (let [])
+              (let [{:keys [::op.spec/out|]} value]
+                (request-response value out|))
+
+              {::op.spec/op-type ::op.spec/request-response
+               ::op.spec/op-orient ::op.spec/request}
+              (let [{:keys [::op.spec/out|]} value]
+                (request-response value out|))
+
+              {::op.spec/op-type ::op.spec/request-stream
+               ::op.spec/op-orient ::op.spec/request}
+              (let [{:keys [::op.spec/out|]} value]
+                (request-stream  value out|))
+
+              {::op.spec/op-type ::op.spec/request-channel
+               ::op.spec/op-orient ::op.spec/request}
+              (let [{:keys [::op.spec/out|
+                            ::op.spec/send|]} value]
+                (request-channel value out| send|))
 
               ;; default
               ;; deafult means fire-and-forget, for any value 
-              (do :fire-and-forget))))))))
+              (let []
+                (fire-and-forget value)))))))))
 
 
 (comment
