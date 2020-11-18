@@ -29,13 +29,25 @@
   (let [ops| (chan 10)]
     {::ops| ops|}))
 
+
+(defn request-response
+  ([channels data]
+   (op channels value (chan 1)))
+  ([channels data out|]
+   (put! (::ops| channels) (merge
+                            {::op.spec/op-type ::op.spec/request-response}
+                            value
+                            {::op.spec/out| out|}))
+   out|))
+
+
 (defmethod op*
-  {::rsocket.spec/op-key ::rsocket.spec/request-response} [_]
+  {::op.spec/op-key ::op.spec/request-response} [_]
   (s/keys :req []
           :req-un []))
 
 (defmethod op
-  {::rsocket.spec/op-key ::rsocket.spec/request-response}
+  {::op.spec/op-key ::op.spec/request-response}
   ([op-meta channels value]
    (op op-meta channels value (chan 1)))
   ([op-meta channels value out|]
