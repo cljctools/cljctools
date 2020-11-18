@@ -8,12 +8,12 @@
 
 (s/def ::op-key keyword?)
 
-(s/def ::op-type (s/nillable #{::request-response
+(s/def ::op-type (s/nilable #{::request-response
                                ::fire-and-forget
                                ::request-stream
                                ::request-channel}))
 
-(s/def ::op-orient (s/nillable #{::request
+(s/def ::op-orient (s/nilable #{::request
                                  ::response}))
 
 

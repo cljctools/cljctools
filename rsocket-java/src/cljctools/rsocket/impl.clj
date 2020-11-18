@@ -51,7 +51,7 @@
                                      {::op.spec/out| out|}))
               (Mono/create
                (reify Consumer
-                 (accept [_ ^MonoSink sink]
+                 (accept [_ sink]
                    (take! out| (fn [value]
                                  (.success sink (pr-str value)))))))))
           (fireAndForget
@@ -69,20 +69,16 @@
               (.release payload)
               (Flux/create
                (reify Consumer
-                 (accept [_ ^FluxSink emitter]
+                 (accept [_ emitter]
                    (go (loop []
                          (when-let [v (<! out|)]
                            (.next emitter v)
                            (recur)))))))))
           (requestChannel
             [_ payloads]
-            (let [value (read-string (.getDataUtf8 payload))
-                  out| (chan 64)
+            (let [out| (chan 64)
                   send| (chan 64)
                   first-value? (atom true)]
-              (put! requests| (merge value
-                                     {::op.spec/out| out|}))
-              (.release payload)
               (-> (Flux/from payloads)
                   (.doOnNext
                    (reify Consumer
@@ -98,7 +94,7 @@
                              (put! out| value))))))))
               (Flux/create
                (reify Consumer
-                 (accept [_ ^FluxSink emitter]
+                 (accept [_ emitter]
                    (go (loop []
                          (when-let [v (<! send|)]
                            (.next emitter v)
@@ -106,29 +102,31 @@
 
         client (atom nil)
 
-        create-server (fn []
-                        (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
-                             (RSocketServer/create
-                              (reify SocketAcceptor
-                                (accept [_ setup rsocket-requester]
-                                  (reset! client (RSocketClient/from rsocket-request))
-                                  (Mono/just rsocket-response))))
-                             (.bind (TcpServerTransport/create host port))
-                             (.doOnNext (reify Consumer
-                                          (accept [_ cc]
-                                            (println (format "server started on address %s" (.address cc))))))
-                             (.subscribe)))
+        create-connection-accepting (fn []
+                                      (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
+                                           (RSocketServer/create
+                                            (reify SocketAcceptor
+                                              (accept [_ setup rsocket-request]
+                                                (reset! client (RSocketClient/from rsocket-request))
+                                                (Mono/just rsocket-response))))
+                                           (.bind (TcpServerTransport/create host port))
+                                           (.doOnNext (reify Consumer
+                                                        (accept [_ cc]
+                                                          (println (format "server started on address %s" (.address cc))))))
+                                           (.subscribe)))
 
-        create-client (fn []
-                        (let [source
-                              (-> (RSocketConnector/create)
-                                  (.acceptor (SocketAcceptor/with (make-rsocket-recv "connecting")))
-                                  (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
-                                  (.connect (TcpClientTransport/create host port))
-                                  (.block))]
-                          (RSocketClient/from source)))
+        create-connection-initiating (fn []
+                                       (let [source
+                                             (-> (RSocketConnector/create)
+                                                 (.acceptor (SocketAcceptor/with rsocket-response))
+                                                 (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+                                                 (.connect (TcpClientTransport/create host port))
+                                                 (.block))]))
 
-        (def connection (atom nil))
+        create-cleint-initiating (fn [source]
+                                   (RSocketClient/from source))
+
+        connection (atom nil)
 
         request-response (fn [value out|]
                            (-> @client
@@ -154,7 +152,7 @@
                           (-> @client
                               (.requestChannel (Flux/create
                                                 (reify Consumer
-                                                  (accept [_ ^FluxSink emitter]
+                                                  (accept [_ emitter]
                                                     (.next emitter value)
                                                     (go (loop []
                                                           (when-let [v (<! send|)]
@@ -166,9 +164,10 @@
                                              (.release payload))))
                               (.subscribe)))]
     (when (= connection-side ::rsocket.spec/accepting)
-      (reset! connection (create-server)))
+      (reset! connection (create-connection-accepting)))
     (when (= connection-side ::rsocket.spec/initiating)
-      (reset! connection (create-client)))
+      (reset! connection (create-connection-initiating))
+      (reset! client (create-cleint-initiating @connection)))
     (go
       (loop []
         (when-let [[value port] (alts! [ops|])]
