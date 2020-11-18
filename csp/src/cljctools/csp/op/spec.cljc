@@ -17,21 +17,20 @@
 (s/def ::op-orient (s/nillable #{::request
                                ::response}))
 
-(s/def ::op-data any?)
 
-(s/def ::op-map (s/keys :req [::op-key ::op-type ::op-orient]
-                        :opt [::op-uuid ::op-data]))
+(s/def ::op-meta (s/keys :req [::op-key ::op-type ::op-orient]
+                         :opt [::op-uuid]))
 
 
 (s/def ::op-error any?)
 (s/def ::out| some?)
 (s/def ::send| some?)
 
-(def ^:const op-dispatch-keys [::op-key ::op-type ::op-orient])
+(def ^:const op-meta-keys [::op-key ::op-type ::op-orient])
 
-(def op-spec-dispatch-fn (fn [op-map] (select-keys op-map op-dispatch-keys)))
+(def op-spec-dispatch-fn (fn [value] (select-keys value op-meta-keys)))
 (def op-spec-retag-fn (fn [generated-value dispatch-tag] (merge generated-value dispatch-tag)))
-(def op-dispatch-fn (fn [op-map & args] (select-keys op-map op-dispatch-keys)))
+(def op-dispatch-fn (fn [op-meta & args] (select-keys op-meta op-meta-keys)))
 
 (defmulti op-spec op-spec-dispatch-fn)
 #_(s/def ::op (s/multi-spec op-spec op-spec-retag-fn))

@@ -11,54 +11,65 @@
 
 (do (clojure.spec.alpha/check-asserts true))
 
-(def ^:const op-meta-keys [::rsocket.spec/op-key ::rsocket.spec/op-type])
-
-(def op-spec-dispatch-fn (fn [value] (vec (select-keys value))))
-(def op-spec-retag-fn (fn [generated-value dispatch-tag] (merge generated-value dispatch-tag)))
-(def op-dispatch-fn (fn [op-meta & args] (vec (select-keys op-meta op-meta-keys))  ))
-
-(defmulti op-spec op-spec-dispatch-fn)
-#_(s/def ::op (s/multi-spec op-spec op-spec-retag-fn))
-(defmulti op op-dispatch-fn)
-
-(defmulti ^{:private true} op* op-spec-dispatch-fn)
-(s/def ::op (s/multi-spec op* op-spec-retag-fn))
+(defmulti ^{:private true} op* op.spec/op-spec-dispatch-fn)
+(s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
+(defmulti op op.spec/op-dispatch-fn)
 
 (defn create-channels
   []
   (let [ops| (chan 10)]
     {::ops| ops|}))
 
+(defmethod op*
+  {::op.spec/op-key ::request-response
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request} [_]
+  (s/keys :req []))
 
-(defn request-response
-  ([channels data]
-   (op channels value (chan 1)))
-  ([channels data out|]
+(defmethod op
+  {::op.spec/op-key ::request-response
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request}
+  ([op-meta channels data]
+   (op op-map channels data (chan 1)))
+  ([op-meta channels data out|]
    (put! (::ops| channels) (merge
-                            {::op.spec/op-type ::op.spec/request-response
-                             ::op.spec/op-orient ::op.spec/request
-                             ::op.spec/
-                             }
-                            value
+                            op-meta
+                            data
                             {::op.spec/out| out|}))
    out|))
+
+(defmethod op*
+  {::op.spec/op-key ::request-response
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::request-response
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response}
+  [op-meta out| data]
+  (put! out| (merge
+              op-meta
+              data)))
+
 
 
 (defmethod op*
-  {::op.spec/op-key ::op.spec/request-response} [_]
-  (s/keys :req []
-          :req-un []))
+  {::op.spec/op-key ::fire-and-forget
+   ::op.spec/op-type ::op.spec/fire-and-forget} [_]
+  (s/keys :req []))
 
 (defmethod op
-  {::op.spec/op-key ::op.spec/request-response}
-  ([op-meta channels value]
-   (op op-meta channels value (chan 1)))
-  ([op-meta channels value out|]
-   (put! (::ops| channels) (merge
-                            op-meta
-                            value
-                            {::op.spec/out| out|}))
-   out|))
+  {::op.spec/op-key ::fire-and-forget
+   ::op.spec/op-type ::op.spec/fire-and-forget}
+  [op-meta out| data]
+  (put! out| (merge
+              op-meta
+              data)))
+
+
 
 
 (defmethod op*
