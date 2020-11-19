@@ -67,22 +67,26 @@
                   out| (chan 64)]
               (put! requests| (merge value
                                      {::op.spec/out| out|}))
-              (Flowable.create
+              (Flowable.
                (fn [subscriber]
                  (let [cancelled (volatile! false)]
                    (.onSubscribe
                     subscriber
-                    (clj->js {"cancel" (fn []
-                                         (vreset! cancelled true))
-                              "request" (fn [n]
-                                          (go (loop []
-                                                (when-let [value (<! out|)]
-                                                  (.onNext subscriber
-                                                           (clj->js
-                                                            {"data" (pr-str (dissoc value ::op.spec/out|))
-                                                             "metadata" ""}))
-                                                  (recur)))
-                                              (.onComplete subscriber)))})))))))
+                    (clj->js
+                     {"cancel" (fn []
+                                 (vreset! cancelled true)
+                                 (println "cancelled" @cancelled))
+                      "request" (fn [n]
+                                  (go (loop []
+                                        (when-not @cancelled
+                                          (when-let [value (<! out|)]
+                                            (.onNext subscriber
+                                                     (clj->js
+                                                      {"data" (pr-str (dissoc value ::op.spec/out|))
+                                                       "metadata" ""}))
+                                            (recur))))
+                                      (when-not @cancelled
+                                        (.onComplete subscriber))))})))))))
           "requestChannel"
           (fn [payloads]
             (let [out| (chan 64)
@@ -107,7 +111,7 @@
                                       (put! out| value)))))
                      "onSubscribe" (fn [subscription]
                                      (.request subscription MAX_STREAM_ID))})))
-              (Flowable.create
+              (Flowable.
                (fn [subscriber]
                  (let [cancelled (volatile! false)]
                    (.onSubscribe
@@ -116,14 +120,16 @@
                                          (vreset! cancelled true))
                               "request" (fn [n]
                                           (go (loop []
-                                                (when-let [value (<! out|)]
-                                                  (.onNext subscriber
-                                                           (clj->js
-                                                            {"data" (pr-str (dissoc value ::op.spec/out|))
-                                                             "metadata" ""}))
-                                                  (recur)))
-                                              (.onComplete subscriber)))})))))))})
-
+                                                (when-not @cancelled
+                                                  (when-let [value (<! out|)]
+                                                    (.onNext subscriber
+                                                             (clj->js
+                                                              {"data" (pr-str (dissoc value ::op.spec/out|))
+                                                               "metadata" ""}))
+                                                    (recur))))
+                                              (when-not @cancelled
+                                                (.onComplete subscriber))))})))))))})
+        
         client (atom nil)
         connection (atom nil)
 
@@ -199,7 +205,9 @@
         request-stream
         (fn [value out|]
           (-> @client
-              (.requestStream (pr-str value))
+              (.requestStream (clj->js
+                               {"data" (pr-str value)
+                                "metadata" ""}))
               (.subscribe
                (clj->js {"onComplete" (fn []
                                         #_(println ::onComplete))
@@ -214,7 +222,7 @@
         (fn [value out| send|]
           (-> @client
               (.requestChannel
-               (Flowable.create
+               (Flowable.
                 (fn [subscriber]
                   (let [cancelled (volatile! false)]
                     (.onSubscribe subscriber

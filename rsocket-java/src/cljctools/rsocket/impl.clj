@@ -210,7 +210,8 @@
               (.requestStream (Mono/just (DefaultPayload/create (pr-str value))))
               (.doOnNext (reify Consumer
                            (accept [_ payload]
-                             (put! payload out|)
+                             (let [value (read-string (.getDataUtf8 payload))]
+                               (put! out| value))
                              (.release payload))))
               (.subscribe)))
 
