@@ -269,12 +269,7 @@
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|
                             ::op.spec/send|]} value]
-                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|))
-
-              ;; default
-              ;; deafult means fire-and-forget, for any value 
-              (let []
-                (fire-and-forget value)))))))))
+                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|)))))))))
 
 
 (comment
