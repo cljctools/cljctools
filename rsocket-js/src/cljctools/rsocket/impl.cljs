@@ -142,8 +142,8 @@
                                                    (clj->js {"host" host
                                                              "port" port}))
                                ::rsocket.spec/websocket (RSocketWebSocketServer.
-                                                         (clj->js clj->js {"host" host
-                                                                           "port" port})))}))
+                                                         (clj->js {"host" host
+                                                                   "port" port})))}))
               (.start)))
 
         create-connection-initiating
@@ -160,9 +160,9 @@
                             ::rsocket.spec/tcp (RSocketTcpClient. (clj->js {"host" host
                                                                             "port" port}))
                             ::rsocket.spec/websocket (RSocketWebSocketClient.
-                                                      (clj->js clj->js {"url" (str "ws://" host ":" port)
-                                                                        "wsCreator" (fn [url]
-                                                                                      (WebSocket. url))})))}))
+                                                      (clj->js {"url" (str "ws://" host ":" port)
+                                                                "wsCreator" (fn [url]
+                                                                              (WebSocket. url))})))}))
            (.connect)
            (.then
             (fn [socket-request]

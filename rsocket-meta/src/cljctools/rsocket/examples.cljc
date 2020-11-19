@@ -25,7 +25,7 @@
 
   (do
 
-    (def transport ::rsocket.spec/tcp #_::rsocket.spec/websocket)
+    (def transport #_::rsocket.spec/tcp ::rsocket.spec/websocket)
     
     (def accepting-channels (rsocket.chan/create-channels))
     (def initiating-channels (rsocket.chan/create-channels))
