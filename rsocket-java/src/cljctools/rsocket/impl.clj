@@ -101,7 +101,8 @@
                            (do
                              (put! requests| (merge value
                                                     {::op.spec/out| out|
-                                                     ::op.spec/send| send|})))
+                                                     ::op.spec/send| send|}))
+                             (reset! first-value? false))
                            (do
                              (put! out| value))))))))
               (Flux/create
@@ -115,106 +116,120 @@
         client (atom nil)
         connection (atom nil)
 
-        create-connection-accepting-tcp (fn []
-                                          (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
-                                               (RSocketServer/create
-                                                (reify SocketAcceptor
-                                                  (accept [_ setup rsocket-request]
-                                                    (reset! client (RSocketClient/from rsocket-request))
-                                                    (Mono/just rsocket-response))))
-                                               (.bind (TcpServerTransport/create host port))
-                                               (.doOnNext (reify Consumer
-                                                            (accept [_ cc]
-                                                              (println (format "server started on address %s" (.address cc))))))
-                                               (.subscribe)))
+        create-connection-accepting-tcp
+        (fn []
+          (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
+               (RSocketServer/create
+                (reify SocketAcceptor
+                  (accept [_ setup rsocket-request]
+                    (reset! client (RSocketClient/from rsocket-request))
+                    (Mono/just rsocket-response))))
+               (.bind (TcpServerTransport/create host port))
+               (.doOnNext (reify Consumer
+                            (accept [_ cc]
+                              (println (format "server started on address %s" (.address cc))))))
+               (.subscribe)))
 
-        create-connection-accepting-ws (fn []
-                                         (let [connection-acceptor
-                                               (-> (RSocketServer/create
-                                                    (reify SocketAcceptor
-                                                      (accept [_ setup rsocket-request]
-                                                        (reset! client (RSocketClient/from rsocket-request))
-                                                        (Mono/just rsocket-response))))
-                                                   (.payloadDecoder PayloadDecoder/ZERO_COPY)
-                                                   (.asConnectionAcceptor))]
-                                           (-> (HttpServer/create)
-                                               (.host host)
-                                               (.port port)
-                                               (.route
-                                                (reify Consumer
-                                                  (accept [_ routes]
-                                                    (.get routes "/"
-                                                          (reify BiFunction
-                                                            (apply [_ req res]
-                                                              (.sendWebsocket res (reify BiFunction
-                                                                                    (apply [_ in  out]
-                                                                                      (-> connection-acceptor
-                                                                                          (.apply (WebsocketDuplexConnection. in))
-                                                                                          (.then (.neverComplete out))))))))))))
-                                               (.bindNow))))
+        create-connection-accepting-ws
+        (fn []
+          (let [connection-acceptor
+                (-> (RSocketServer/create
+                     (reify SocketAcceptor
+                       (accept [_ setup rsocket-request]
+                         (reset! client (RSocketClient/from rsocket-request))
+                         (Mono/just rsocket-response))))
+                    (.payloadDecoder PayloadDecoder/ZERO_COPY)
+                    (.asConnectionAcceptor))]
+            (-> (HttpServer/create)
+                (.host host)
+                (.port port)
+                (.route
+                 (reify Consumer
+                   (accept [_ routes]
+                     (.get routes "/"
+                           (reify BiFunction
+                             (apply [_ req res]
+                               (.sendWebsocket res (reify BiFunction
+                                                     (apply [_ in  out]
+                                                       (-> connection-acceptor
+                                                           (.apply (WebsocketDuplexConnection. in))
+                                                           (.then (.neverComplete out))))))))))))
+                (.bindNow))))
 
-        create-connection-initiating-tcp (fn []
-                                           (-> (RSocketConnector/create)
-                                               (.acceptor (SocketAcceptor/with rsocket-response))
-                                               (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
-                                               (.connect (TcpClientTransport/create host port))
-                                               (.block)))
+        create-connection-initiating-tcp
+        (fn []
+          (-> (RSocketConnector/create)
+              (.acceptor (SocketAcceptor/with rsocket-response))
+              (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+              (.connect (TcpClientTransport/create host port))
+              (.block)))
 
-        create-cleint-initiating-tcp (fn [rsocket-request]
-                                       (RSocketClient/from rsocket-request))
-
-
-        create-connection-initiating-ws (fn
-                                          []
-                                          (-> (RSocketConnector/create)
-                                              (.acceptor (SocketAcceptor/with rsocket-response))
-                                              (.keepAlive (Duration/ofMinutes 10)  (Duration/ofMinutes 10))
-                                              (.payloadDecoder PayloadDecoder/ZERO_COPY)
-                                              (.connect (WebsocketClientTransport/create host port))
-                                              (.block)))
-
-        create-cleint-initiating-ws (fn [rsocket-request]
-                                      (RSocketClient/from rsocket-request))
+        create-cleint-initiating-tcp
+        (fn [rsocket-request]
+          (RSocketClient/from rsocket-request))
 
 
-        request-response (fn [value out|]
-                           (-> @client
-                               (.requestResponse (Mono/just (DefaultPayload/create (pr-str value))))
-                               (.doOnNext (reify Consumer
-                                            (accept [_ payload]
-                                              (let [value (read-string (.getDataUtf8 payload))]
-                                                (println (str connection-side " request-response value:"))
-                                                (println value)
-                                                (put! out| value))
-                                              (.release payload))))
-                               (.subscribe)))
-        fire-and-forget (fn [value]
-                          (-> @client
-                              (.fireAndForget (Mono/just (DefaultPayload/create (pr-str value))))
-                              (.subscribe)))
-        request-stream (fn [value out|]
-                         (-> @client
-                             (.requestStream (Mono/just (DefaultPayload/create (pr-str value))))
-                             (.doOnNext (reify Consumer
-                                          (accept [_ payload]
-                                            (put! payload out|)
-                                            (.release payload))))
-                             (.subscribe)))
-        request-channel (fn [value out| send|]
-                          (-> @client
-                              (.requestChannel (Flux/create
-                                                (reify Consumer
-                                                  (accept [_ emitter]
-                                                    (.next emitter (pr-str value))
-                                                    (go (loop []
-                                                          (when-let [value (<! send|)]
-                                                            (.next emitter (pr-str value))
-                                                            (recur))))))))
-                              (.doOnNext (reify Consumer
-                                           (accept [_ payload]
-                                             (put! (read-string (.getDataUtf8 payload)) out|)
-                                             (.release payload))))
-                              (.subscribe)))]
+        create-connection-initiating-ws
+        (fn
+          []
+          (-> (RSocketConnector/create)
+              (.acceptor (SocketAcceptor/with rsocket-response))
+              (.keepAlive (Duration/ofMinutes 10)  (Duration/ofMinutes 10))
+              (.payloadDecoder PayloadDecoder/ZERO_COPY)
+              (.connect (WebsocketClientTransport/create host port))
+              (.block)))
+
+        create-cleint-initiating-ws
+        (fn [rsocket-request]
+          (RSocketClient/from rsocket-request))
+
+
+        request-response
+        (fn [value out|]
+          (-> @client
+              (.requestResponse (Mono/just (DefaultPayload/create (pr-str value))))
+              (.doOnNext (reify Consumer
+                           (accept [_ payload]
+                             (let [value (read-string (.getDataUtf8 payload))]
+                               (println (str connection-side " request-response value:"))
+                               (println value)
+                               (put! out| value))
+                             (.release payload))))
+              (.subscribe)))
+
+        fire-and-forget
+        (fn [value]
+          (-> @client
+              (.fireAndForget (Mono/just (DefaultPayload/create (pr-str value))))
+              (.subscribe)))
+
+
+        request-stream
+        (fn [value out|]
+          (-> @client
+              (.requestStream (Mono/just (DefaultPayload/create (pr-str value))))
+              (.doOnNext (reify Consumer
+                           (accept [_ payload]
+                             (put! payload out|)
+                             (.release payload))))
+              (.subscribe)))
+
+        request-channel
+        (fn [value out| send|]
+          (-> @client
+              (.requestChannel (Flux/create
+                                (reify Consumer
+                                  (accept [_ emitter]
+                                    (.next emitter (pr-str value))
+                                    (go (loop []
+                                          (when-let [value (<! send|)]
+                                            (.next emitter (pr-str value))
+                                            (recur))))))))
+              (.doOnNext (reify Consumer
+                           (accept [_ payload]
+                             (put! (read-string (.getDataUtf8 payload)) out|)
+                             (.release payload))))
+              (.subscribe)))]
     (when (= connection-side ::rsocket.spec/accepting)
       (reset! connection (condp = transport
                            ::rsocket.spec/tcp (create-connection-accepting-tcp)
