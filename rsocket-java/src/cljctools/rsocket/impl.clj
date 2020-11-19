@@ -211,7 +211,10 @@
               (.doOnNext (reify Consumer
                            (accept [_ payload]
                              (let [value (read-string (.getDataUtf8 payload))]
-                               (println "recived value ")
+                               #_(do
+                                   (println "recived value ")
+                                   (println value)
+                                   (println "---"))
                                (put! out| value))
                              (.release payload))))
               (.subscribe)))
