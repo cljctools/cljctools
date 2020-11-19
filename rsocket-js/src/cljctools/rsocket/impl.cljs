@@ -263,10 +263,9 @@
               (let [{:keys [::op.spec/out|]} value]
                 (request-response (dissoc value ::op.spec/out|)  out|))
 
-              {::op.spec/op-type ::op.spec/request-response
-               ::op.spec/op-orient ::op.spec/request}
-              (let [{:keys [::op.spec/out|]} value]
-                (request-response (dissoc value ::op.spec/out|) out|))
+              {::op.spec/op-type ::op.spec/fire-and-forget}
+              (let [{:keys []} value]
+                (fire-and-forget value))
 
               {::op.spec/op-type ::op.spec/request-stream
                ::op.spec/op-orient ::op.spec/request}
