@@ -269,7 +269,8 @@
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out|
                             ::op.spec/send|]} value]
-                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|)))))))))
+                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|))))
+          (recur))))))
 
 
 (comment
