@@ -211,6 +211,7 @@
               (.doOnNext (reify Consumer
                            (accept [_ payload]
                              (let [value (read-string (.getDataUtf8 payload))]
+                               (println "recived value ")
                                (put! out| value))
                              (.release payload))))
               (.subscribe)))

@@ -80,6 +80,7 @@
                                   (go (loop []
                                         (when-not @cancelled
                                           (when-let [value (<! out|)]
+                                            #_(println "will rsocket send " value)
                                             (.onNext subscriber
                                                      (clj->js
                                                       {"data" (pr-str (dissoc value ::op.spec/out|))
