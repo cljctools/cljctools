@@ -173,8 +173,8 @@
            (RSocketClient.
             (clj->js
              {"setup" {"dataMimeType"  "text/plain"
-                       "keepAlive" 1000000
-                       "lifetime" 100000
+                       "keepAlive" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 1000000000
+                       "lifetime" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 100000000
                        "metadataMimeType" "text/plain"}
               "responder" rsocket-response
               "transport" (condp = transport
