@@ -1,4 +1,4 @@
 {:paths ["src"]
- :deps {bidi {:mvn/version "2.1.6"}
+ :deps {bidi/bidi {:mvn/version "2.1.6"}
         clj-commons/pushy {:mvn/version "0.3.10"}
         github.cljctools/browser-router-meta {:local/root  "../browser-router-meta"}}}

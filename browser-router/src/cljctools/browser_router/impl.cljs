@@ -25,26 +25,26 @@
            goog.history.Html5History))
 
 
-(defn parse-url [url]
-  (merge
-   {:url url}
-   (bidi/match-route routes url)))
-
 (defn create-proc-ops
   [channels state opts]
   (let [{:keys [::browser-router.chan/ops|
                 ::browser-router.chan/evt|]} channels
         {:keys [::browser-router.spec/routes]} opts
-        history (pushy/pushy
-                 (fn [pushed]
-                   #_(println "pushed" pushed)
-                   (let [{:keys [url route-params handler]} pushed
-                         value  {::browser-router.spec/url url
-                                 ::browser-router.spec/route-params route-params
-                                 ::browser-router.spec/route-key handler}]
-                     (put! evt| value)
-                     (when state
-                       (swap! state merge value)))) parse-url)]
+
+        on-pushed (fn [pushed]
+                    #_(println "pushed" pushed)
+                    (let [{:keys [url route-params handler]} pushed
+                          value  {::browser-router.spec/url url
+                                  ::browser-router.spec/route-params route-params
+                                  ::browser-router.spec/route-key handler}]
+                      (put! evt| value)
+                      (when state
+                        (swap! state merge value))))
+        on-parse-url (fn [url]
+                       (merge
+                        {:url url}
+                        (bidi/match-route routes url)))
+        history (pushy/pushy on-pushed  on-parse-url)]
     (do
       (pushy/start! history))
     (go
@@ -61,3 +61,30 @@
                 (pushy/set-token! history history-token)))))
         (recur))
       (pushy/stop! history))))
+
+
+(comment
+
+  (def channels (browser-router.chan/create-channels))
+  (def state (atom {}))
+
+  (def routes ["/" {"" ::page-events
+                    "game/" {[::game-id ""] ::page-game}}])
+
+  (def router (create-proc-ops channels state {::browser-router.spec/routes routes}))
+
+  (browser-router.chan/op
+   {::op.spec/op-key ::browser-router.chan/set-token
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   {::browser-router.spec/history-token "foo"})
+  
+  (browser-router.chan/op
+   {::op.spec/op-key ::browser-router.chan/set-token
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   {::browser-router.spec/history-token "/game/bar"})
+
+
+  ;;
+  )
