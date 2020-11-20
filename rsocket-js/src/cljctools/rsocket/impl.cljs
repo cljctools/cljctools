@@ -55,6 +55,9 @@
                 ::rsocket.spec/host
                 ::rsocket.spec/port
                 ::rsocket.spec/transport]} opts
+
+        connected| (chan 1)
+
         rsocket-response
         (clj->js
          {"requestResponse"
@@ -191,6 +194,7 @@
               (do (-> socket-request
                       (.connectionStatus)
                       (.subscribe (fn [status]
+                                    (close! connected|)
                                     (println (format "conn status: %s" status.kind))))))))))
 
         request-response
@@ -212,11 +216,11 @@
               (.fireAndForget (clj->js
                                {"data" (pr-str value)
                                 "metadata" ""}))
-              (.subscribe
-               (clj->js {"onComplete" (fn []
-                                        #_(println ::onComplete))
-                         "onError" (fn [error]
-                                     (println ::onError error))}))))
+              #_(.subscribe
+                 (clj->js {"onComplete" (fn []
+                                          #_(println ::onComplete))
+                           "onError" (fn [error]
+                                       (println ::onError error))}))))
         request-stream
         (fn [value out|]
           (-> @client
@@ -265,6 +269,7 @@
     (when (= connection-side ::rsocket.spec/initiating)
       (reset! client  (create-connection-initiating)))
     (go
+      (<! connected|)
       (loop []
         (when-let [[value port] (alts! [ops|])]
           (condp = port
