@@ -10,28 +10,42 @@
    [goog.object]
    [clojure.string :as string]
    [cljs.reader :refer [read-string]]
-   [cljs.nodejs :as node]
+   #_[cljs.nodejs :as node]
 
    [cljctools.csp.op.spec :as op.spec]
    [cljctools.cljc.core :as cljc.core]
 
    [cljctools.rsocket.spec :as rsocket.spec]
    [cljctools.rsocket.chan :as rsocket.chan]
-   [cljctools.rsocket.protocols :as rsocket.protocols]))
+   [cljctools.rsocket.protocols :as rsocket.protocols]
 
-(def fs (node/require "fs"))
-(def path (node/require "path"))
+   ["rsocket-core" :refer (RSocketClient RSocketServer MAX_STREAM_ID)]
+   ["rsocket-flowable" :refer (Flowable) :rename {Single FSingle}]
+   ["rsocket-websocket-client" :default RSocketWebSocketClient]))
 
-(def WebSocket (node/require "ws"))
-(def RSocketClient (.-RSocketClient (node/require "rsocket-core")))
-(def MAX_STREAM_ID (.-MAX_STREAM_ID (node/require "rsocket-core")))
-(def RSocketServer (.-RSocketServer (node/require "rsocket-core")))
-(def Flowable (.-Flowable (node/require "rsocket-flowable")))
-(def FSingle (.-Single (node/require "rsocket-flowable")))
-(def RSocketWebSocketServer (.-default (node/require "rsocket-websocket-server")))
-(def RSocketWebSocketClient (.-default (node/require "rsocket-websocket-client")))
-(def RSocketTCPServer (.-default (node/require "rsocket-tcp-server")))
-(def RSocketTcpClient (.-default (node/require "rsocket-tcp-client")))
+(declare RSocketWebSocketServer RSocketTCPServer RSocketTcpClient node-require)
+
+(when (exists? js/module)
+  (require '[cljs.nodejs])
+  (def node-require (resolve 'cljs.nodejs/require))
+  (def RSocketWebSocketServer (.-default (node-require "rsocket-websocket-server")))
+  (def RSocketTCPServer (.-default (node-require "rsocket-tcp-server")))
+  (def RSocketTcpClient (.-default (node-require "rsocket-tcp-client")))
+  (set! js/WebSocket (node-require "ws"))
+  #_(set! js/module.exports exports))
+
+#_(do
+  (def fs (node/require "fs"))
+  (def path (node/require "path"))
+  (def RSocketClient (.-RSocketClient (node/require "rsocket-core")))
+  (def MAX_STREAM_ID (.-MAX_STREAM_ID (node/require "rsocket-core")))
+  (def RSocketServer (.-RSocketServer (node/require "rsocket-core")))
+  (def Flowable (.-Flowable (node/require "rsocket-flowable")))
+  (def FSingle (.-Single (node/require "rsocket-flowable")))
+  (def RSocketWebSocketServer (.-default (node/require "rsocket-websocket-server")))
+  (def RSocketWebSocketClient (.-default (node/require "rsocket-websocket-client")))
+  (def RSocketTCPServer (.-default (node/require "rsocket-tcp-server")))
+  (def RSocketTcpClient (.-default (node/require "rsocket-tcp-client"))))
 
 (defn create-proc-ops
   [channels opts]
@@ -169,7 +183,7 @@
                             ::rsocket.spec/websocket (RSocketWebSocketClient.
                                                       (clj->js {"url" (str "ws://" host ":" port)
                                                                 "wsCreator" (fn [url]
-                                                                              (WebSocket. url))})))}))
+                                                                              (js/WebSocket. url))})))}))
            (.connect)
            (.then
             (fn [socket-request]

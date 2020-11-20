@@ -199,9 +199,11 @@
 
         fire-and-forget
         (fn [value]
-          (-> @client
-              (.fireAndForget (Mono/just (DefaultPayload/create (pr-str value))))
-              (.subscribe)))
+          (if @client
+            (-> @client
+                (.fireAndForget (Mono/just (DefaultPayload/create (pr-str value))))
+                (.subscribe))
+            (println ::fire-and-forget :warning :no-client)))
 
 
         request-stream
