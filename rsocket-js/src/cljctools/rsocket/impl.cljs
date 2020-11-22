@@ -26,13 +26,20 @@
 (declare RSocketWebSocketServer RSocketTCPServer RSocketTcpClient node-require)
 
 (when (exists? js/module)
-  (require '[cljs.nodejs])
-  (def node-require (resolve 'cljs.nodejs/require))
-  (def RSocketWebSocketServer (.-default (node-require "rsocket-websocket-server")))
-  (def RSocketTCPServer (.-default (node-require "rsocket-tcp-server")))
-  (def RSocketTcpClient (.-default (node-require "rsocket-tcp-client")))
-  (set! js/WebSocket (node-require "ws"))
+  (def RSocketWebSocketServer (.-default (js/require "rsocket-websocket-server")))
+  (def RSocketTCPServer (.-default (js/require "rsocket-tcp-server")))
+  (def RSocketTcpClient (.-default (js/require "rsocket-tcp-client")))
+  (set! js/WebSocket (js/require "ws"))
   #_(set! js/module.exports exports))
+
+#_(when (exists? js/module)
+    (require '[cljs.nodejs])
+    (def node-require (resolve 'cljs.nodejs/require))
+    (def RSocketWebSocketServer (.-default (node-require "rsocket-websocket-server")))
+    (def RSocketTCPServer (.-default (node-require "rsocket-tcp-server")))
+    (def RSocketTcpClient (.-default (node-require "rsocket-tcp-client")))
+    (set! js/WebSocket (node-require "ws"))
+    #_(set! js/module.exports exports))
 
 #_(do
   (def fs (node/require "fs"))
