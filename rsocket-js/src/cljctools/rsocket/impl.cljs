@@ -77,8 +77,8 @@
                (fn [subscriber]
                  (.onSubscribe subscriber)
                  (take! out| (fn [value]
-                               (println "sending value back")
-                               (println (dissoc value ::op.spec/out|))
+                               #_(println "sending value back")
+                               #_(println (dissoc value ::op.spec/out|))
                                (.onComplete subscriber (clj->js
                                                         {"data" (pr-str (dissoc value ::op.spec/out|))
                                                          "metadata" ""}))))))))
@@ -212,8 +212,8 @@
                                   "metadata" ""}))
               (.subscribe
                (clj->js {"onComplete" (fn [payload]
-                                        (println (type payload.data))
-                                        (println "response" payload.data)
+                                        #_(println (type payload.data))
+                                        #_(println "response" payload.data)
                                         (put! out| (read-string payload.data)))
                          "onError" (fn [error]
                                      (put! out| error))}))))
