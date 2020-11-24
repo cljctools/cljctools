@@ -276,7 +276,8 @@
     (when (= connection-side ::rsocket.spec/initiating)
       (reset! client  (create-connection-initiating)))
     (go
-      (<! connected|)
+      (when (= connection-side ::rsocket.spec/initiating)
+        (<! connected|))
       (loop []
         (when-let [[value port] (alts! [ops|])]
           (condp = port
