@@ -3,5 +3,5 @@
   (:require
    [clojure.spec.alpha :as s]))
 
-(s/def ::host string?)
-(s/def ::port int?)
+(s/def ::process some?)
+(s/def ::exit-code int?)

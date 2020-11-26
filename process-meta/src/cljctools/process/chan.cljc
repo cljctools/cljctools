@@ -15,6 +15,11 @@
 (s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
 (defmulti op op.spec/op-dispatch-fn)
 
+
+(s/def ::exit| some?)
+(s/def ::stdout| some?)
+(s/def ::stderr| some?)
+
 (defn create-channels
   []
   (let [ops| (chan 10)]

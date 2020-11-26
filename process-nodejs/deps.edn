@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {}}
+ :deps {github.cljctools/process-meta {:local/root  "../process-meta"}}}
