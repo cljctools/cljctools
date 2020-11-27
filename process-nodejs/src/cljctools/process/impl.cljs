@@ -47,7 +47,6 @@
               {::op.spec/op-key ::process.chan/start
                ::op.spec/op-type ::op.spec/fire-and-forget}
               (let [{:keys []} value]
-                (println ::start)
                 (when-not @process
                   (let [process_ (.spawn child_process cmd args child-process-options)]
                     (reset! process process_)
@@ -86,12 +85,10 @@
                ::op.spec/op-type ::op.spec/request-response
                ::op.spec/op-orient ::op.spec/request}
               (let [{:keys [::op.spec/out| ::signal]} value]
-                (println ::terminate)
                 (when @process
                   (js/global.process.kill (- (.-pid @process)) (or signal "SIGINT"))
                   (take! close| (fn [value]
                                   (reset! process nil)
-                                  (println ::take-close)
                                   (process.chan/op
                                    {::op.spec/op-key ::process.chan/terminate
                                     ::op.spec/op-type ::op.spec/request-response
@@ -101,17 +98,17 @@
               {::op.spec/op-key ::process.chan/restart
                ::op.spec/op-type ::op.spec/fire-and-forget}
               (let [{:keys []} value]
-                (println ::restart)
                 (when @process
-                  (<! (process.chan/op
-                       {::op.spec/op-key ::process.chan/terminate
-                        ::op.spec/op-type ::op.spec/request-response
-                        ::op.spec/op-orient ::op.spec/request}
-                       channels {})))
-                (process.chan/op
-                 {::op.spec/op-key ::process.chan/start
-                  ::op.spec/op-type ::op.spec/fire-and-forget}
-                 channels {}))
+                  (go
+                    (<! (process.chan/op
+                         {::op.spec/op-key ::process.chan/terminate
+                          ::op.spec/op-type ::op.spec/request-response
+                          ::op.spec/op-orient ::op.spec/request}
+                         channels {}))
+                    (process.chan/op
+                     {::op.spec/op-key ::process.chan/start
+                      ::op.spec/op-type ::op.spec/fire-and-forget}
+                     channels {}))))
 
 
               {::op.spec/op-key ::process.chan/print-logs
@@ -159,7 +156,7 @@
   
   (process.chan/print-logs scenario-compiler|| {})
 
-  (js/global.process.kill 2199 "SIGINT")
+  (js/global.process.kill 2334 "SIGINT")
 
   ;;
   )
