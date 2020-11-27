@@ -5,3 +5,5 @@
 
 (s/def ::process some?)
 (s/def ::exit-code int?)
+(s/def ::color string?)
+(s/def ::process-name string?)
