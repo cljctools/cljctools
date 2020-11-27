@@ -29,9 +29,12 @@
         exit| (chan 1)
         stdout| (chan (sliding-buffer 1024))
         stderr| (chan (sliding-buffer 1024))
+        logs (atom [])
         {:keys [::process.spec/color
-                ::process.spec/process-name] :or {color "black"
-                                                  process-name ""}} opts]
+                ::process.spec/process-name
+                ::process.spec/print-to-stdout?] :or {color "black"
+                                                      print-to-stdout? false
+                                                      process-name ""}} opts]
     (when process.stdout
       (.on process.stdout "data" (fn [buffer]
                                    #_(println "buffer")
@@ -41,13 +44,18 @@
                                          (format "%s: %s"
                                                  process-name
                                                  (.toString buffer)))))
-                                   (js/console.log (.toString buffer))
-                                   (put! stdout| (.toString buffer)))))
-
+                                   (let [text (.toString buffer)]
+                                     (when print-to-stdout?
+                                       (js/console.log text))
+                                     (swap! logs conj text)
+                                     (put! stdout| text)))))
     (when process.stderr
       (.on process.stderr "data" (fn [buffer]
-                                   (js/console.log (.toString buffer))
-                                   (put! stderr| (.toString buffer)))))
+                                   (let [text (.toString buffer)]
+                                     (when print-to-stdout?
+                                       (js/console.log text))
+                                     (swap! logs conj text)
+                                     (put! stderr| text)))))
     (.on process "close" (fn [code signal]
                            (js/console.log
                             (format "process exited with code %s, signal %s"
@@ -72,7 +80,13 @@
                                          (process.protocols/-kill-group _ "SIGINT"))
                                         ([_ signal]
                                          (js/global.process.kill (- (.-pid process)) signal)
-                                         exit|))})))
+                                         exit|))
+       `process.protocols/-print-logs (fn
+                                        ([_]
+                                         (process.protocols/-print-logs _ nil))
+                                        ([_ {:keys [::process.spec/n]}]
+                                         (str/join "\n" (if n (take-last n @logs)
+                                                            @logs))))})))
 
 (defn kill
   ([process]

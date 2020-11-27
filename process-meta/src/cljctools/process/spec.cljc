@@ -8,4 +8,6 @@
 (s/def ::signal some?)
 (s/def ::color string?)
 (s/def ::process-name string?)
+(s/def ::print-to-stdout? boolean?)
+(s/def ::n number?)
 
