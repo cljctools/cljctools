@@ -15,26 +15,125 @@
    [cljctools.cljc.core :as cljc.core]
 
    [cljctools.process.spec :as process.spec]
-   [cljctools.process.chan :as process.chan]
-   [cljctools.process.protocols :as process.protocols]))
+   [cljctools.process.chan :as process.chan]))
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
 (def child_process (js/require "child_process"))
 (def Console (.-Console (js/require "console")))
 
-(defn spawn
+(defn create-proc-ops
+  [channels opts]
+  (let [{:keys [::process.chan/ops|
+                ::process.chan/stdout|
+                ::process.chan/stderr|]} channels
+        {:keys [::process.spec/process-key
+                ::process.spec/print-to-stdout?
+                ::process.spec/cmd
+                ::process.spec/args
+                ::process.spec/child-process-options]
+         :or {print-to-stdout? false}} opts
+        close| (chan 1)
+        logs (atom [])
+        process (atom nil)]
+    (go
+      (loop []
+        (when-let [[value port] (alts! [ops|])]
+          (condp = port
+
+            ops|
+            {::op.spec/op-key ::process.chan/spawn
+             ::op.spec/op-type ::op.spec/fire-and-forget}
+            (let [{:keys []} value]
+              (when-not @process
+                (let [process_ (.spawn child_process cmd args child-process-options)]
+                  (reset! process process_)
+                  (when (.-stdout process_)
+                    (.on (.-stdout process_) "data" (fn [buffer]
+                                                      #_(println "buffer")
+                                                      #_(doseq [line (str/split-lines (.toString buffer))]
+                                                          (js/console.log
+                                                           (colors.green
+                                                            (format "%s: %s"
+                                                                    process-name
+                                                                    (.toString buffer)))))
+                                                      (let [text (.toString buffer)]
+                                                        (when print-to-stdout?
+                                                          (js/console.log text))
+                                                        (swap! logs conj text)
+                                                        (put! stdout| text)))))
+                  (when (.-stderr process_)
+                    (.on (.-stderr process_) "data" (fn [buffer]
+                                                      (let [text (.toString buffer)]
+                                                        (when print-to-stdout?
+                                                          (js/console.log text))
+                                                        (swap! logs conj text)
+                                                        (put! stderr| text))))))))
+
+
+            {::op.spec/op-key ::process.chan/terminate
+             ::op.spec/op-type ::op.spec/request-response
+             ::op.spec/op-orient ::op.spec/request}
+            (let [{:keys [::op.spec/out| ::signal]} value]
+              (when @process
+                (js/global.process.kill (- (.-pid @process)) (or signal "SIGINT"))
+                (take! close| (fn [value]
+                                (reset! process nil)
+                                (process.chan/op
+                                 {::op.spec/op-key ::process.chan/terminate
+                                  ::op.spec/op-type ::op.spec/request-response
+                                  ::op.spec/op-orient ::op.spec/response}
+                                 out| value)))))
+
+            {::op.spec/op-key ::process.chan/restart
+             ::op.spec/op-type ::op.spec/fire-and-forget}
+            (let [{:keys []} value]
+              (when @process
+                (<! (process.chan/op
+                     {::op.spec/op-key ::process.chan/terminate
+                      ::op.spec/op-type ::op.spec/request-response
+                      ::op.spec/op-orient ::op.spec/request}
+                     channels {})))
+              (process.chan/op
+               {::op.spec/op-key ::process.chan/spawn
+                ::op.spec/op-type ::op.spec/fire-and-forget}
+               channels {}))
+
+
+            {::op.spec/op-key ::process.chan/print-logs
+             ::op.spec/op-type ::op.spec/fire-and-forget}
+            (let [{:keys [::process.spec/n]} value]
+              (println (str/join "\n" (if n (take-last n @logs)
+                                          @logs))))
+
+
+             ;
+            )
+          (recur))))))
+
+
+(comment
+  
+  
+  
+  
+  ;;
+  )
+
+
+#_(defn spawn
   [cmd args cp-opts & opts]
   (let [process (.spawn child_process cmd args cp-opts)
         exit| (chan 1)
         stdout| (chan (sliding-buffer 1024))
         stderr| (chan (sliding-buffer 1024))
         logs (atom [])
-        {:keys [::process.spec/color
-                ::process.spec/process-name
-                ::process.spec/print-to-stdout?] :or {color "black"
-                                                      print-to-stdout? false
-                                                      process-name ""}} opts]
+        opts {:keys [::process.spec/color
+                     ::process.spec/process-name
+                     ::process.spec/print-to-stdout?]
+              :or {color "black"
+                   print-to-stdout? false
+                   process-name ""}}]
     (when process.stdout
       (.on process.stdout "data" (fn [buffer]
                                    #_(println "buffer")
@@ -88,13 +187,13 @@
                                          (str/join "\n" (if n (take-last n @logs)
                                                             @logs))))})))
 
-(defn kill
+#_(defn kill
   ([process]
    (process.protocols/-kill process))
   ([process signal]
    (process.protocols/-kill process signal)))
 
-(defn kill-group
+#_(defn kill-group
   ([process]
    (process.protocols/-kill-group process))
   ([process signal]

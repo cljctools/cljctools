@@ -15,13 +15,118 @@
 (s/def ::op (s/multi-spec op* op.spec/op-spec-retag-fn))
 (defmulti op op.spec/op-dispatch-fn)
 
-
-(s/def ::exit| some?)
-(s/def ::stdout| some?)
-(s/def ::stderr| some?)
-
 (defn create-channels
   []
-  (let [ops| (chan 10)]
-    {::ops| ops|}))
+  (let [ops| (chan 10)
+        stdout| (chan (sliding-buffer 1024))
+        stderr| (chan (sliding-buffer 1024))]
+    {::ops| ops|
+     ::stdout| stdout|
+     ::stderr| stderr|}))
+
+(defmethod op*
+  {::op.spec/op-key ::spawn
+   ::op.spec/op-type ::op.spec/fire-and-forget} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::spawn
+   ::op.spec/op-type ::op.spec/fire-and-forget}
+  [op-meta channels value]
+  (put! (::ops| channels) (merge op-meta
+                                 value)))
+
+
+(defmethod op*
+  {::op.spec/op-key ::terminate
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::terminate
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request}
+  ([op-meta channels value]
+   (op op-meta channels value (chan 1)))
+  ([op-meta channels value out|]
+   (put! (::ops| channels) (merge op-meta
+                                  value
+                                  {::op.spec/out| out|}))
+   out|))
+
+(defmethod op*
+  {::op.spec/op-key ::terminate
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::terminate
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response}
+  [op-meta out| value]
+  (put! out| (merge op-meta
+                    value)))
+
+
+(defmethod op*
+  {::op.spec/op-key ::restart
+   ::op.spec/op-type ::op.spec/fire-and-forget} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::restart
+   ::op.spec/op-type ::op.spec/fire-and-forget}
+  [op-meta channels value]
+  (put! (::ops| channels) (merge op-meta
+                                 value)))
+
+(defmethod op*
+  {::op.spec/op-key ::print-logs
+   ::op.spec/op-type ::op.spec/fire-and-forget} [_]
+  (s/keys :req []))
+
+(defmethod op
+  {::op.spec/op-key ::print-logs
+   ::op.spec/op-type ::op.spec/fire-and-forget}
+  [op-meta channels value]
+  (put! (::ops| channels) (merge op-meta
+                                 value)))
+
+
+
+
+(defn spawn
+  [channels opts]
+  (op
+   {::op.spec/op-key ::spawn
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   opts))
+
+(defn termiate
+  [channels opts]
+  (op
+   {::op.spec/op-key ::terminate
+    ::op.spec/op-type ::op.spec/request-response
+    ::op.spec/op-orient ::op.spec/request}
+   channels
+   opts))
+
+(defn restart
+  [channels opts]
+  (op
+   {::op.spec/op-key ::restart
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   opts))
+
+(defn print-logs
+  [channels opts]
+  (op
+   {::op.spec/op-key ::print-logs
+    ::op.spec/op-type ::op.spec/fire-and-forget}
+   channels
+   opts))
 
