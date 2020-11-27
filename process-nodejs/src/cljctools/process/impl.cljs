@@ -27,12 +27,13 @@
         exit| (chan 1)
         stdout| (chan (sliding-buffer 10))
         stderr| (chan (sliding-buffer 10))]
-    (.on process.stdout "data" (fn [data]
-                                 (put! stdout| data)))
+    #_(.on process.stdout "data" (fn [data]
+                                   #_(println data)
+                                   (put! stdout| data)))
     (.on process "close" (fn [code]
                            (put! exit| code)
                            (close! exit|)
-                           #_(println (format "process exited with code %s" code))))
+                           (println (format "process exited with code %s" code))))
     {::process.spec/process process
      ::process.chan/exit| exit|
      ::process.chan/stdout| stdout|
@@ -42,11 +43,11 @@
 
 (comment
 
-  (spawn "ls" #js [] {} #_(clj->js {"stdio" ["pipe" js/process.stdout js/process.stderr]
-                                    "detached" true}))
-  
-  (.spawn child_process "ls -a"  (clj->js {"stdio" ["inherit"]
-                                           "detached" true
+  (spawn "ls" #js [] (clj->js {"stdio" #_["pipe"] ["pipe" js/process.stdout js/process.stderr]
+                               "detached" false}))
+
+  (.spawn child_process "ls -a"  (clj->js {"stdio" ["pipe" js/process.stdout js/process.stderr]
+                                           "detached" false
                                            "shell" "/bin/bash"}))
 
   ;;
