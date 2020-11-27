@@ -119,6 +119,13 @@
   (def p (spawn "sh f dev"
                 #js [] (clj->js {"stdio" ["pipe"]
                                  "shell" "/bin/bash"
+                                 "env" (js/Object.assign
+                                        #js {}
+                                        js/global.process.env
+                                        #js {"SHADOWCLJS_NREPL_PORT" 8895
+                                             "SHADOWCLJS_HTTP_PORT" 9635
+                                             "SHADOWCLJS_DEVTOOLS_URL" "http://localhost:9635"
+                                             "SHADOWCLJS_DEVTOOLS_HTTP_PORT" 9555})
                                  "cwd" "/ctx/DeathStarGame/bin/scenario"
                                  "detached" true})))
 
@@ -126,7 +133,7 @@
   (js/global.process.kill (- (.-pid (::process.spec/process p))) "SIGINT")
   (kill-group p)
 
-  (js/global.process.kill 5429 "SIGINT")
+  (js/global.process.kill 994 "SIGINT")
 
   (go
     (<! (kill-group p))
@@ -134,6 +141,9 @@
 
   (println js/global.process.pid)
   (println js/global.process.pid)
+
+  (println (js-keys js/global.process.env))
+  (aget js/global.process.env "PWD")
 
   ;;
   )
