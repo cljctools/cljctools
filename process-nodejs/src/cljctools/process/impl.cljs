@@ -43,11 +43,11 @@
                                                  (.toString buffer)))))
                                    (js/console.log (.toString buffer))
                                    (put! stdout| (.toString buffer)))))
-    
+
     (when process.stderr
-      (.on process.stderr "error" (fn [buffer]
-                                    (js/console.log (.toString buffer))
-                                    (put! stderr| (.toString buffer)))))
+      (.on process.stderr "data" (fn [buffer]
+                                   (js/console.log (.toString buffer))
+                                   (put! stderr| (.toString buffer)))))
     (.on process "close" (fn [code signal]
                            (js/console.log
                             (format "process exited with code %s, signal %s"
@@ -116,16 +116,17 @@
   (process.protocols/-kill p)
   (kill p)
 
-  (def p (spawn "bash f dev" #js [] (clj->js {"stdio" ["pipe"]
-                                              "shell" "/bin/bash"
-                                              "cwd" "/ctx/DeathStarGame/bin/scenario"
-                                              "detached" true})))
+  (def p (spawn "sh f dev"
+                #js [] (clj->js {"stdio" ["pipe"]
+                                 "shell" "/bin/bash"
+                                 "cwd" "/ctx/DeathStarGame/bin/scenario"
+                                 "detached" true})))
 
   (.-pid (::process.spec/process p))
   (js/global.process.kill (- (.-pid (::process.spec/process p))) "SIGINT")
   (kill-group p)
 
-  (js/global.process.kill 3236 "SIGINT")
+  (js/global.process.kill 5429 "SIGINT")
 
   (go
     (<! (kill-group p))
