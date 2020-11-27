@@ -25,12 +25,12 @@
      ::stderr| stderr|}))
 
 (defmethod op*
-  {::op.spec/op-key ::spawn
+  {::op.spec/op-key ::start
    ::op.spec/op-type ::op.spec/fire-and-forget} [_]
   (s/keys :req []))
 
 (defmethod op
-  {::op.spec/op-key ::spawn
+  {::op.spec/op-key ::start
    ::op.spec/op-type ::op.spec/fire-and-forget}
   [op-meta channels value]
   (put! (::ops| channels) (merge op-meta
@@ -97,15 +97,15 @@
 
 
 
-(defn spawn
+(defn start
   [channels opts]
   (op
-   {::op.spec/op-key ::spawn
+   {::op.spec/op-key ::start
     ::op.spec/op-type ::op.spec/fire-and-forget}
    channels
    opts))
 
-(defn termiate
+(defn terminate
   [channels opts]
   (op
    {::op.spec/op-key ::terminate

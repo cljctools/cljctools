@@ -42,81 +42,125 @@
           (condp = port
 
             ops|
-            {::op.spec/op-key ::process.chan/spawn
-             ::op.spec/op-type ::op.spec/fire-and-forget}
-            (let [{:keys []} value]
-              (when-not @process
-                (let [process_ (.spawn child_process cmd args child-process-options)]
-                  (reset! process process_)
-                  (when (.-stdout process_)
-                    (.on (.-stdout process_) "data" (fn [buffer]
-                                                      #_(println "buffer")
-                                                      #_(doseq [line (str/split-lines (.toString buffer))]
-                                                          (js/console.log
-                                                           (colors.green
-                                                            (format "%s: %s"
-                                                                    process-name
-                                                                    (.toString buffer)))))
-                                                      (let [text (.toString buffer)]
-                                                        (when print-to-stdout?
-                                                          (js/console.log text))
-                                                        (swap! logs conj text)
-                                                        (put! stdout| text)))))
-                  (when (.-stderr process_)
-                    (.on (.-stderr process_) "data" (fn [buffer]
-                                                      (let [text (.toString buffer)]
-                                                        (when print-to-stdout?
-                                                          (js/console.log text))
-                                                        (swap! logs conj text)
-                                                        (put! stderr| text))))))))
+            (condp = (select-keys value [::op.spec/op-key ::op.spec/op-type ::op.spec/op-orient])
+
+              {::op.spec/op-key ::process.chan/start
+               ::op.spec/op-type ::op.spec/fire-and-forget}
+              (let [{:keys []} value]
+                (println ::start)
+                (when-not @process
+                  (let [process_ (.spawn child_process cmd args child-process-options)]
+                    (reset! process process_)
+                    (when (.-stdout process_)
+                      (.on (.-stdout process_) "data" (fn [buffer]
+                                                        #_(println "buffer")
+                                                        #_(doseq [line (str/split-lines (.toString buffer))]
+                                                            (js/console.log
+                                                             (colors.green
+                                                              (format "%s: %s"
+                                                                      process-name
+                                                                      (.toString buffer)))))
+                                                        (let [text (.toString buffer)]
+                                                          (when print-to-stdout?
+                                                            (js/console.log text))
+                                                          (swap! logs conj text)
+                                                          (put! stdout| text)))))
+                    (when (.-stderr process_)
+                      (.on (.-stderr process_) "data" (fn [buffer]
+                                                        (let [text (.toString buffer)]
+                                                          (when print-to-stdout?
+                                                            (js/console.log text))
+                                                          (swap! logs conj text)
+                                                          (put! stderr| text)))))
+                    (.on process_ "close" (fn [code signal]
+                                            (->
+                                             (format "process exited with code %s, signal %s"
+                                                     code signal)
+                                             (js/console.log))
+                                            (put! close| {::process.spec/code code
+                                                          ::process.spec/signal signal})
+                                            (close! close|)
+                                            #_(println (format "process exited with code %s" code)))))))
+
+              {::op.spec/op-key ::process.chan/terminate
+               ::op.spec/op-type ::op.spec/request-response
+               ::op.spec/op-orient ::op.spec/request}
+              (let [{:keys [::op.spec/out| ::signal]} value]
+                (println ::terminate)
+                (when @process
+                  (js/global.process.kill (- (.-pid @process)) (or signal "SIGINT"))
+                  (take! close| (fn [value]
+                                  (reset! process nil)
+                                  (println ::take-close)
+                                  (process.chan/op
+                                   {::op.spec/op-key ::process.chan/terminate
+                                    ::op.spec/op-type ::op.spec/request-response
+                                    ::op.spec/op-orient ::op.spec/response}
+                                   out| value)))))
+
+              {::op.spec/op-key ::process.chan/restart
+               ::op.spec/op-type ::op.spec/fire-and-forget}
+              (let [{:keys []} value]
+                (println ::restart)
+                (when @process
+                  (<! (process.chan/op
+                       {::op.spec/op-key ::process.chan/terminate
+                        ::op.spec/op-type ::op.spec/request-response
+                        ::op.spec/op-orient ::op.spec/request}
+                       channels {})))
+                (process.chan/op
+                 {::op.spec/op-key ::process.chan/start
+                  ::op.spec/op-type ::op.spec/fire-and-forget}
+                 channels {}))
 
 
-            {::op.spec/op-key ::process.chan/terminate
-             ::op.spec/op-type ::op.spec/request-response
-             ::op.spec/op-orient ::op.spec/request}
-            (let [{:keys [::op.spec/out| ::signal]} value]
-              (when @process
-                (js/global.process.kill (- (.-pid @process)) (or signal "SIGINT"))
-                (take! close| (fn [value]
-                                (reset! process nil)
-                                (process.chan/op
-                                 {::op.spec/op-key ::process.chan/terminate
-                                  ::op.spec/op-type ::op.spec/request-response
-                                  ::op.spec/op-orient ::op.spec/response}
-                                 out| value)))))
-
-            {::op.spec/op-key ::process.chan/restart
-             ::op.spec/op-type ::op.spec/fire-and-forget}
-            (let [{:keys []} value]
-              (when @process
-                (<! (process.chan/op
-                     {::op.spec/op-key ::process.chan/terminate
-                      ::op.spec/op-type ::op.spec/request-response
-                      ::op.spec/op-orient ::op.spec/request}
-                     channels {})))
-              (process.chan/op
-               {::op.spec/op-key ::process.chan/spawn
-                ::op.spec/op-type ::op.spec/fire-and-forget}
-               channels {}))
-
-
-            {::op.spec/op-key ::process.chan/print-logs
-             ::op.spec/op-type ::op.spec/fire-and-forget}
-            (let [{:keys [::process.spec/n]} value]
-              (println (str/join "\n" (if n (take-last n @logs)
-                                          @logs))))
+              {::op.spec/op-key ::process.chan/print-logs
+               ::op.spec/op-type ::op.spec/fire-and-forget}
+              (let [{:keys [::process.spec/n]} value]
+                (println (str/join "\n" (if n (take-last n @logs)
+                                            @logs))))
 
 
              ;
-            )
+              ))
+
+
           (recur))))))
 
 
 (comment
+
+  (def scenario-compiler|| (process.chan/create-channels))
+
+  (def scenario-compiler (create-proc-ops
+                          scenario-compiler||
+                          {::process.spec/process-key ::scenario-compiler
+                           ::process.spec/print-to-stdout? true
+                           ::process.spec/cmd "sh f dev"
+                           ::process.spec/args  #js []
+                           ::process.spec/child-process-options
+                           (clj->js {"stdio" ["pipe"]
+                                     "shell" "/bin/bash"
+                                     "env" (js/Object.assign
+                                            #js {}
+                                            js/global.process.env
+                                            #js {"SHADOWCLJS_NREPL_PORT" 8895
+                                                 "SHADOWCLJS_HTTP_PORT" 9635
+                                                 "SHADOWCLJS_DEVTOOLS_URL" "http://localhost:9635"
+                                                 "SHADOWCLJS_DEVTOOLS_HTTP_PORT" 9555})
+                                     "cwd" "/ctx/DeathStarGame/bin/scenario"
+                                     "detached" true})}))
+
+  (process.chan/start scenario-compiler|| {})
+
+  (process.chan/terminate scenario-compiler|| {})
   
+  (process.chan/restart scenario-compiler|| {})
   
-  
-  
+  (process.chan/print-logs scenario-compiler|| {})
+
+  (js/global.process.kill 2199 "SIGINT")
+
   ;;
   )
 
