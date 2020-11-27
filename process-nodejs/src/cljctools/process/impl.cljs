@@ -15,7 +15,8 @@
    [cljctools.cljc.core :as cljc.core]
 
    [cljctools.process.spec :as process.spec]
-   [cljctools.process.chan :as process.chan]))
+   [cljctools.process.chan :as process.chan]
+   [cljctools.process.protocols :as process.protocols]))
 
 (def fs (js/require "fs"))
 (def path (js/require "path"))
@@ -42,16 +43,31 @@
                                                (.toString buffer)))))
                                  (js/console.log (.toString buffer))
                                  (put! stdout| (.toString buffer))))
-    (.on process "close" (fn [code]
-                           (put! exit| code)
+    (.on process "close" (fn [code signal]
+                           (js/console.log
+                            (format "process exited with code %s, signal %s"
+                                    code signal))
+                           (put! exit| {::process.spec/code code
+                                        ::process.spec/signal signal})
                            (close! exit|)
-                           #_(js/console.log (format "process exited with code %s" code))
                            #_(println (format "process exited with code %s" code))))
-    {::process.spec/process process
-     ::process.chan/exit| exit|
-     ::process.chan/stdout| stdout|
-     ::process.chan/stderr| stderr|}))
+    (with-meta
+      {::process.spec/process process
+       ::process.chan/exit| exit|
+       ::process.chan/stdout| stdout|
+       ::process.chan/stderr| stderr|}
+      {`process.protocols/-kill (fn
+                                  ([_]
+                                   (process.protocols/-kill _ "SIGINT"))
+                                  ([_ signal]
+                                   (.kill process signal)
+                                   exit|))})))
 
+(defn kill
+  ([process]
+   (process.protocols/-kill process))
+  ([process signal]
+   (process.protocols/-kill process signal)))
 
 
 (comment
@@ -66,13 +82,23 @@
   (go
     (let [p (spawn "ls" #js [] (clj->js {"stdio" ["pipe"]
                                          "detached" true})
-                   ::process.spec/color "green"
                    ::process.spec/process-name "ls")]
       (<! (::process.chan/exit| p))
       (println "output:")
       (close! (::process.chan/stdout| p))
       (println (<! (a/into [] (::process.chan/stdout| p))))))
 
+  (def p (spawn "tail -f /dev/null" #js [] (clj->js {"stdio" ["pipe"]
+                                                     "shell" "/bin/bash"
+                                                     "detached" true})
+                ::process.spec/process-name "/dev/null"))
+  (process.protocols/-kill p)
+  (kill p)
+
+  (def p (spawn "bash f dev" #js [] (clj->js {"stdio" ["pipe"]
+                                              "shell" "/bin/bash"
+                                              "detached" true})))
+  
   ;;
   )
 

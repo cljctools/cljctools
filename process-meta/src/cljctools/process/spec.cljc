@@ -4,6 +4,8 @@
    [clojure.spec.alpha :as s]))
 
 (s/def ::process some?)
-(s/def ::exit-code int?)
+(s/def ::code int?)
+(s/def ::signal some?)
 (s/def ::color string?)
 (s/def ::process-name string?)
+
