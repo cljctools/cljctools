@@ -73,8 +73,8 @@
                                                           (put! stderr| text)))))
                     (.on process_ "close" (fn [code signal]
                                             (->
-                                             (format "process exited with code %s, signal %s"
-                                                     code signal)
+                                             (format "process %s exited with code %s, signal %s"
+                                                     process-key code signal)
                                              (js/console.log))
                                             (put! close| {::process.spec/code code
                                                           ::process.spec/signal signal})
