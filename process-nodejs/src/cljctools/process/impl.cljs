@@ -32,19 +32,22 @@
         {:keys [::process.spec/color
                 ::process.spec/process-name] :or {color "black"
                                                   process-name ""}} opts]
-    (.on process.stdout "data" (fn [buffer]
-                                 #_(println "buffer")
-                                 #_(doseq [line (str/split-lines (.toString buffer))]
-                                     (js/console.log
-                                      (colors.green
-                                       (format "%s: %s"
-                                               process-name
-                                               (.toString buffer)))))
-                                 (js/console.log (.toString buffer))
-                                 (put! stdout| (.toString buffer))))
-    (.on process.stderr "error" (fn [buffer]
-                                  (js/console.log (.toString buffer))
-                                  (put! stderr| (.toString buffer))))
+    (when process.stdout
+      (.on process.stdout "data" (fn [buffer]
+                                   #_(println "buffer")
+                                   #_(doseq [line (str/split-lines (.toString buffer))]
+                                       (js/console.log
+                                        (colors.green
+                                         (format "%s: %s"
+                                                 process-name
+                                                 (.toString buffer)))))
+                                   (js/console.log (.toString buffer))
+                                   (put! stdout| (.toString buffer)))))
+    
+    (when process.stderr
+      (.on process.stderr "error" (fn [buffer]
+                                    (js/console.log (.toString buffer))
+                                    (put! stderr| (.toString buffer)))))
     (.on process "close" (fn [code signal]
                            (js/console.log
                             (format "process exited with code %s, signal %s"
