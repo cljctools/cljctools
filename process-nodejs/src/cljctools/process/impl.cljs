@@ -51,6 +51,7 @@
                                         ::process.spec/signal signal})
                            (close! exit|)
                            #_(println (format "process exited with code %s" code))))
+    (println (format "process.pid %s" (.-pid process)))
     (with-meta
       {::process.spec/process process
        ::process.chan/exit| exit|
@@ -61,13 +62,26 @@
                                    (process.protocols/-kill _ "SIGINT"))
                                   ([_ signal]
                                    (.kill process signal)
-                                   exit|))})))
+                                   exit|))
+`process.protocols/-kill-group (fn
+                                 ([_]
+                                  (process.protocols/-kill-group _ "SIGINT"))
+                                 ([_ signal]
+                                  (println signal)
+                                  (js/process.kill (- (.-pid process)) signal)
+                                  exit|))})))
 
 (defn kill
   ([process]
    (process.protocols/-kill process))
   ([process signal]
    (process.protocols/-kill process signal)))
+
+(defn kill-group
+  ([process]
+   (process.protocols/-kill-group process))
+  ([process signal]
+   (process.protocols/-kill-group process signal)))
 
 
 (comment
@@ -97,8 +111,20 @@
 
   (def p (spawn "bash f dev" #js [] (clj->js {"stdio" ["pipe"]
                                               "shell" "/bin/bash"
+                                              "cwd" "/ctx/DeathStarGame/bin/scenario"
                                               "detached" true})))
-  
+
+  (.-pid (::process.spec/process p))
+  (js/process.kill (- (.-pid (::process.spec/process p))) "SIGINT")
+  (kill-group p)
+
+  (js/process.kill 2516)
+
+  (go
+    (<! (kill-group p))
+    (println "process exited"))
+
+
   ;;
   )
 
