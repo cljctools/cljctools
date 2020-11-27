@@ -26,35 +26,33 @@
 
 (defn spawn
   [cmd args cp-opts & opts]
-  (let [foo (.spawn child_process cmd args cp-opts)
+  (let [process (.spawn child_process cmd args cp-opts)
         exit| (chan 1)
         stdout| (chan (sliding-buffer 1024))
         stderr| (chan (sliding-buffer 1024))
         {:keys [::process.spec/color
                 ::process.spec/process-name] :or {color "black"
                                                   process-name ""}} opts]
-    (.on foo "data" (fn [buffer]
-                      #_(println "buffer")
-                      #_(doseq [line (str/split-lines (.toString buffer))]
-                          (js/console.log
-                           (colors.green
-                            (format "%s: %s"
-                                    process-name
-                                    (.toString buffer)))))
-                      (js/console.log (.toString buffer))
-                      (put! stdout| (.toString buffer))))
-    (.on foo "close" (fn [code signal]
-                       (js/console.log
-                        (format "process exited with code %s, signal %s"
-                                code signal))
-                       (put! exit| {::process.spec/code code
-                                    ::process.spec/signal signal})
-                       (close! exit|)
-                       #_(println (format "process exited with code %s" code))))
-    (println (format "process.pid %s" (.-pid foo)))
-    (println (format "js/process.pid %s" js/process.pid))
+    (.on process "data" (fn [buffer]
+                          #_(println "buffer")
+                          #_(doseq [line (str/split-lines (.toString buffer))]
+                              (js/console.log
+                               (colors.green
+                                (format "%s: %s"
+                                        process-name
+                                        (.toString buffer)))))
+                          (js/console.log (.toString buffer))
+                          (put! stdout| (.toString buffer))))
+    (.on process "close" (fn [code signal]
+                           (js/console.log
+                            (format "process exited with code %s, signal %s"
+                                    code signal))
+                           (put! exit| {::process.spec/code code
+                                        ::process.spec/signal signal})
+                           (close! exit|)
+                           #_(println (format "process exited with code %s" code))))
     (with-meta
-      {::process.spec/process foo
+      {::process.spec/process process
        ::process.chan/exit| exit|
        ::process.chan/stdout| stdout|
        ::process.chan/stderr| stderr|}
@@ -62,16 +60,13 @@
                                   ([_]
                                    (process.protocols/-kill _ "SIGINT"))
                                   ([_ signal]
-                                   (.kill foo signal)
+                                   (.kill process signal)
                                    exit|))
        `process.protocols/-kill-group (fn
                                         ([_]
                                          (process.protocols/-kill-group _ "SIGINT"))
                                         ([_ signal]
-                                         (println signal)
-                                         (println js/process.pid)
-                                         (println foo.pid)
-                                         (js/process.kill (- (.-pid foo)) signal)
+                                         (js/global.process.kill (- (.-pid process)) signal)
                                          exit|))})))
 
 (defn kill
@@ -89,10 +84,14 @@
 
 (comment
 
-  (spawn "ls" #js [] (clj->js {"stdio" #_["pipe"] ["pipe" js/process.stdout js/process.stderr]
+  (spawn "ls" #js [] (clj->js {"stdio" #_["pipe"] ["pipe"
+                                                   js/global.process.stdout
+                                                   js/global.process.stderr]
                                "detached" true}))
 
-  (.spawn child_process "ls -a"  (clj->js {"stdio" ["pipe" js/process.stdout js/process.stderr]
+  (.spawn child_process "ls -a"  (clj->js {"stdio" ["pipe"
+                                                    js/global.process.stdout
+                                                    js/global.process.stderr]
                                            "detached" false
                                            "shell" "/bin/bash"}))
 
@@ -118,25 +117,25 @@
                                               "detached" true})))
 
   (.-pid (::process.spec/process p))
-  (js/process.kill (- (.-pid (::process.spec/process p))) "SIGINT")
+  (js/global.process.kill (- (.-pid (::process.spec/process p))) "SIGINT")
   (kill-group p)
 
-  (js/process.kill 3236 "SIGINT")
+  (js/global.process.kill 3236 "SIGINT")
 
   (go
     (<! (kill-group p))
     (println "process exited"))
 
-  (println js/process.pid)
-
+  (println js/global.process.pid)
+  (println js/global.process.pid)
 
   ;;
   )
 
 (comment
 
-  (def console (Console. (clj->js {"stdout" js/process.stdout
-                                   "stderr" js/process.stderr})))
+  (def console (Console. (clj->js {"stdout" js/global.process.stdout
+                                   "stderr" js/global.process.stderr})))
 
   (.log console "3")
 
