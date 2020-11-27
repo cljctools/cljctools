@@ -22,7 +22,6 @@
 (def path (js/require "path"))
 (def child_process (js/require "child_process"))
 (def Console (.-Console (js/require "console")))
-(def colors (js/require "colors/safe"))
 
 (defn spawn
   [cmd args cp-opts & opts]
