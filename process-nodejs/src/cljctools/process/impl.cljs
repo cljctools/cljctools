@@ -32,16 +32,19 @@
         {:keys [::process.spec/color
                 ::process.spec/process-name] :or {color "black"
                                                   process-name ""}} opts]
-    (.on process "data" (fn [buffer]
-                          #_(println "buffer")
-                          #_(doseq [line (str/split-lines (.toString buffer))]
-                              (js/console.log
-                               (colors.green
-                                (format "%s: %s"
-                                        process-name
-                                        (.toString buffer)))))
-                          (js/console.log (.toString buffer))
-                          (put! stdout| (.toString buffer))))
+    (.on process.stdout "data" (fn [buffer]
+                                 #_(println "buffer")
+                                 #_(doseq [line (str/split-lines (.toString buffer))]
+                                     (js/console.log
+                                      (colors.green
+                                       (format "%s: %s"
+                                               process-name
+                                               (.toString buffer)))))
+                                 (js/console.log (.toString buffer))
+                                 (put! stdout| (.toString buffer))))
+    (.on process.stderr "error" (fn [buffer]
+                                  (js/console.log (.toString buffer))
+                                  (put! stderr| (.toString buffer))))
     (.on process "close" (fn [code signal]
                            (js/console.log
                             (format "process exited with code %s, signal %s"
@@ -69,16 +72,16 @@
                                          exit|))})))
 
 (defn kill
-  ([p]
-   (process.protocols/-kill p))
-  ([p signal]
-   (process.protocols/-kill p signal)))
+  ([process]
+   (process.protocols/-kill process))
+  ([process signal]
+   (process.protocols/-kill process signal)))
 
 (defn kill-group
-  ([p]
-   (process.protocols/-kill-group p))
-  ([p signal]
-   (process.protocols/-kill-group p signal)))
+  ([process]
+   (process.protocols/-kill-group process))
+  ([process signal]
+   (process.protocols/-kill-group process signal)))
 
 
 (comment
