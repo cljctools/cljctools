@@ -63,7 +63,7 @@
                 ::rsocket.spec/port
                 ::rsocket.spec/transport]} opts
 
-        connected| (chan 1)
+        rsocket-request-intialized| (chan 1)
 
         rsocket-response
         (clj->js
@@ -164,9 +164,9 @@
                (clj->js
                 {"getRequestHandler"
                  (fn [rsocket-request]
-                   (println "getRequestHandler")
+                   (println "--rsocket connection accepted")
                    (reset! client rsocket-request)
-                   (println @client)
+                   (close! rsocket-request-intialized|)
                    rsocket-response)
                  "transport" (condp = transport
                                ::rsocket.spec/tcp (RSocketTCPServer.
@@ -196,12 +196,12 @@
                                                                               (js/WebSocket. url))})))}))
            (.connect)
            (.then
-            (fn [socket-request]
-              (reset! client socket-request)
-              (do (-> socket-request
+            (fn [rsocket-request]
+              (reset! client rsocket-request)
+              (do (-> rsocket-request
                       (.connectionStatus)
                       (.subscribe (fn [status]
-                                    (close! connected|)
+                                    (close! rsocket-request-intialized|)
                                     (println (format "conn status: %s" status.kind))))))))))
 
         request-response
@@ -276,8 +276,7 @@
     (when (= connection-side ::rsocket.spec/initiating)
       (reset! client  (create-connection-initiating)))
     (go
-      (when (= connection-side ::rsocket.spec/initiating)
-        (<! connected|))
+      (<! rsocket-request-intialized|)
       (loop []
         (when-let [[value port] (alts! [ops|])]
           (condp = port
