@@ -99,7 +99,7 @@
                     (clj->js
                      {"cancel" (fn []
                                  (vreset! cancelled true)
-                                 (println "cancelled" @cancelled))
+                                 (println ::cancelled @cancelled))
                       "request" (fn [n]
                                   (go (loop []
                                         (when-not @cancelled
@@ -121,9 +121,9 @@
                   (.subscribe
                    (clj->js
                     {"onComplete" (fn []
-                                    (println "onComplete"))
+                                    (println ::onComplete))
                      "onError" (fn [error]
-                                 (println "onError"))
+                                 (println ::onError))
                      "onNext" (fn [payload]
                                 (let [value (read-string payload.data)]
                                   (if @first-value?
@@ -164,7 +164,7 @@
                (clj->js
                 {"getRequestHandler"
                  (fn [rsocket-request]
-                   (println "--rsocket connection accepted")
+                   (println ::rsocket-connection-accepted)
                    (reset! client rsocket-request)
                    (close! rsocket-request-intialized|)
                    rsocket-response)
@@ -202,7 +202,7 @@
                       (.connectionStatus)
                       (.subscribe (fn [status]
                                     (close! rsocket-request-intialized|)
-                                    (println (format "conn status: %s" status.kind))))))))))
+                                    (println ::connection-status status.kind)))))))))
 
         request-response
         (fn [value out|]
@@ -271,7 +271,6 @@
                          "onSubscribe" (fn [subscription]
                                          (.request subscription MAX_STREAM_ID))}))))]
     (when (= connection-side ::rsocket.spec/accepting)
-      (println ::rsocket.spec/accepting)
       (reset! connection (create-connection-accepting)))
     (when (= connection-side ::rsocket.spec/initiating)
       (reset! client  (create-connection-initiating)))
