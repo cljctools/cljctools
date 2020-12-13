@@ -1,9 +1,10 @@
 (ns cljctools.rsocket.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
-                                     pub sub unsub mult tap untap mix admix unmix pipe
+                                     pub sub unsub mult tap untap mix admix unmix pipe toggle
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
+   [clojure.core.async.impl.protocols :refer [closed?]]
    [cljs.core.async.interop :refer-macros [<p!]]
    [goog.string.format :as format]
    [goog.string :refer [format]]
@@ -63,7 +64,12 @@
                 ::rsocket.spec/port
                 ::rsocket.spec/transport]} opts
 
-        rsocket-request-intialized| (chan 1)
+        ops*| (chan (sliding-buffer 5))
+        ops*|mx (mix ops*|)
+        toggle-pause (fn [pause?]
+                       (toggle ops*|mx {ops| {:pause pause?}}))
+        _ (admix ops*|mx ops|)
+        _ (toggle-pause true)
 
         rsocket-response
         (clj->js
@@ -155,7 +161,7 @@
                                               (when-not @cancelled
                                                 (.onComplete subscriber))))})))))))})
 
-        client (atom nil)
+        clients (atom {})
         connection (atom nil)
 
         create-connection-accepting
@@ -164,9 +170,21 @@
                (clj->js
                 {"getRequestHandler"
                  (fn [rsocket-request]
-                   (println ::rsocket-connection-accepted)
-                   (reset! client rsocket-request)
-                   (close! rsocket-request-intialized|)
+                   (-> rsocket-request
+                       (.connectionStatus)
+                       (.subscribe (fn [status]
+                                     (cond
+                                       (= (.-kind status) "CONNECTED")
+                                       (do
+                                         (println ::accepting-side :rsocket-connected)
+                                         (swap! clients assoc rsocket-request rsocket-request)
+                                         (toggle-pause false))
+                                       (= (.-kind status) "CLOSED")
+                                       (do
+                                         (println ::accepting-side :rsocket-disconnected)
+                                         (swap! clients dissoc rsocket-request)
+                                         (when (empty? @clients)
+                                           (toggle-pause true)))))))
                    rsocket-response)
                  "transport" (condp = transport
                                ::rsocket.spec/tcp (RSocketTCPServer.
@@ -174,7 +192,10 @@
                                                              "port" port}))
                                ::rsocket.spec/websocket (RSocketWebSocketServer.
                                                          (clj->js {"host" host
-                                                                   "port" port})))}))
+                                                                   "port" port})))
+                 "errorHandler" (fn [error]
+                                  (println ::error)
+                                  (println error))}))
               (.start)))
 
         create-connection-initiating
@@ -195,92 +216,118 @@
                                                                 "wsCreator" (fn [url]
                                                                               (js/WebSocket. url))})))}))
            (.connect)
-           (.then
-            (fn [rsocket-request]
-              (reset! client rsocket-request)
-              (do (-> rsocket-request
-                      (.connectionStatus)
-                      (.subscribe (fn [status]
-                                    (close! rsocket-request-intialized|)
-                                    (println ::connection-status status.kind)))))))))
+           (.subscribe
+            (clj->js
+             {"onComplete" (fn [rsocket-request]
+                             (do (-> rsocket-request
+                                     (.connectionStatus)
+                                     (.subscribe (fn [status]
+                                                   (cond
+                                                     (= (.-kind status) "CONNECTED")
+                                                     (do
+                                                       (println ::initiating-side :rsocket-connected)
+                                                       (swap! clients assoc rsocket-request rsocket-request)
+                                                       (toggle-pause false))
+                                                     (= (.-kind status) "CLOSED")
+                                                     (do
+                                                       (println ::initiating-side :rsocket-disconnected)
+                                                       (swap! clients dissoc rsocket-request)
+                                                       (when (empty? @clients)
+                                                         (toggle-pause true)))))))))
+              "onError" (fn [error]
+                          (println ::initiating-side-error)
+                          (println error))
+              "onSubscribe" (fn [cancel]
+                              #_(cancel))}))
+           #_(.then
+              (fn [rsocket-request]
+                (reset! client rsocket-request)
+                (do (-> rsocket-request
+                        (.connectionStatus)
+                        (.subscribe (fn [status]
+                                      (close! rsocket-request-intialized|)
+                                      (println ::connection-status status.kind)))))))))
 
         request-response
         (fn [value out|]
-          (-> @client
-              (.requestResponse (clj->js
-                                 {"data" (pr-str value)
-                                  "metadata" ""}))
-              (.subscribe
-               (clj->js {"onComplete" (fn [payload]
-                                        #_(println (type payload.data))
-                                        #_(println "response" payload.data)
-                                        (put! out| (read-string payload.data)))
-                         "onError" (fn [error]
-                                     (put! out| error))}))))
+          (doseq [[k client] (take 1 @clients)]
+            (-> client
+                (.requestResponse (clj->js
+                                   {"data" (pr-str value)
+                                    "metadata" ""}))
+                (.subscribe
+                 (clj->js {"onComplete" (fn [payload]
+                                          #_(println (type payload.data))
+                                          #_(println "response" payload.data)
+                                          (put! out| (read-string payload.data)))
+                           "onError" (fn [error]
+                                       (put! out| error))})))))
         fire-and-forget
         (fn [value]
-          (-> @client
-              (.fireAndForget (clj->js
-                               {"data" (pr-str value)
-                                "metadata" ""}))
-              #_(.subscribe
+          (doseq [[k client] @clients]
+            (-> client
+                (.fireAndForget (clj->js
+                                 {"data" (pr-str value)
+                                  "metadata" ""}))
+                #_(.subscribe
+                   (clj->js {"onComplete" (fn []
+                                            #_(println ::onComplete))
+                             "onError" (fn [error]
+                                         (println ::onError error))})))))
+        request-stream
+        (fn [value out|]
+          (doseq [[k client] (take 1 @clients)]
+            (-> client
+                (.requestStream (clj->js
+                                 {"data" (pr-str value)
+                                  "metadata" ""}))
+                (.subscribe
                  (clj->js {"onComplete" (fn []
                                           #_(println ::onComplete))
                            "onError" (fn [error]
-                                       (println ::onError error))}))))
-        request-stream
-        (fn [value out|]
-          (-> @client
-              (.requestStream (clj->js
-                               {"data" (pr-str value)
-                                "metadata" ""}))
-              (.subscribe
-               (clj->js {"onComplete" (fn []
-                                        #_(println ::onComplete))
-                         "onError" (fn [error]
-                                     (put! out| error))
-                         "onNext" (fn [payload]
-                                    (put! out| (read-string payload.data)))
-                         "onSubscribe" (fn [subscription]
-                                         (.request subscription MAX_STREAM_ID))}))))
+                                       (put! out| error))
+                           "onNext" (fn [payload]
+                                      (put! out| (read-string payload.data)))
+                           "onSubscribe" (fn [subscription]
+                                           (.request subscription MAX_STREAM_ID))})))))
 
         request-channel
         (fn [value out| send|]
-          (-> @client
-              (.requestChannel
-               (Flowable.
-                (fn [subscriber]
-                  (let [cancelled (volatile! false)]
-                    (.onSubscribe subscriber
-                                  (clj->js {"cancel" (fn []
-                                                       (vreset! cancelled true))
-                                            "request" (fn [n]
-                                                        (.onNext subscriber (pr-str value))
-                                                        (go (loop []
-                                                              (when-let [value (<! send|)]
-                                                                (.onNext subscriber (pr-str (dissoc value ::op.spec/out|)))
-                                                                (recur)))
-                                                            (.onComplete subscriber)))}))))))
-              (.subscribe
-               (clj->js {"onComplete" (fn []
-                                        #_(println ::onComplete))
-                         "onError" (fn [error]
-                                     (put! out| error))
-                         "onNext" (fn [payload]
-                                    (put! out| (read-string payload.data)))
-                         "onSubscribe" (fn [subscription]
-                                         (.request subscription MAX_STREAM_ID))}))))]
+          (doseq [[k client] (take 1 @clients)]
+            (-> client
+                (.requestChannel
+                 (Flowable.
+                  (fn [subscriber]
+                    (let [cancelled (volatile! false)]
+                      (.onSubscribe subscriber
+                                    (clj->js {"cancel" (fn []
+                                                         (vreset! cancelled true))
+                                              "request" (fn [n]
+                                                          (.onNext subscriber (pr-str value))
+                                                          (go (loop []
+                                                                (when-let [value (<! send|)]
+                                                                  (.onNext subscriber (pr-str (dissoc value ::op.spec/out|)))
+                                                                  (recur)))
+                                                              (.onComplete subscriber)))}))))))
+                (.subscribe
+                 (clj->js {"onComplete" (fn []
+                                          #_(println ::onComplete))
+                           "onError" (fn [error]
+                                       (put! out| error))
+                           "onNext" (fn [payload]
+                                      (put! out| (read-string payload.data)))
+                           "onSubscribe" (fn [subscription]
+                                           (.request subscription MAX_STREAM_ID))})))))]
     (when (= connection-side ::rsocket.spec/accepting)
       (reset! connection (create-connection-accepting)))
     (when (= connection-side ::rsocket.spec/initiating)
-      (reset! client  (create-connection-initiating)))
+      (reset! connection  (create-connection-initiating)))
     (go
-      (<! rsocket-request-intialized|)
       (loop []
-        (when-let [[value port] (alts! [ops|])]
+        (when-let [[value port] (alts! [ops*|])]
           (condp = port
-
-            ops|
+            
+            ops*|
             (condp = (select-keys value [::op.spec/op-type ::op.spec/op-orient])
 
               {::op.spec/op-type ::op.spec/request-response

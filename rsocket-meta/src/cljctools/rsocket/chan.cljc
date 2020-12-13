@@ -17,8 +17,8 @@
 
 (defn create-channels
   []
-  (let [ops| (chan 10)
-        requests| (chan 10)]
+  (let [ops| (chan (sliding-buffer 5))
+        requests| (chan (sliding-buffer 5))]
     {::ops| ops|
      ::requests| requests|}))
 
