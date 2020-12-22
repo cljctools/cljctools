@@ -9,3 +9,6 @@
 (s/def ::connection-side #{::accepting ::initiating})
 
 (s/def ::transport #{::tcp ::websocket})
+
+(s/def ::create-websocket (s/nilable ifn?))
+(s/def ::create-websocket-server (s/nilable ifn?))

@@ -30,7 +30,9 @@
   (def RSocketWebSocketServer (.-default (js/require "rsocket-websocket-server")))
   (def RSocketTCPServer (.-default (js/require "rsocket-tcp-server")))
   (def RSocketTcpClient (.-default (js/require "rsocket-tcp-client")))
-  (set! js/WebSocket (js/require "ws"))
+  (def ws (js/require "ws"))
+  (def WSServer (.-Server ws))
+  (set! js/WebSocket ws)
   #_(set! js/module.exports exports))
 
 #_(when (exists? js/module)
@@ -62,7 +64,17 @@
         {:keys [::rsocket.spec/connection-side
                 ::rsocket.spec/host
                 ::rsocket.spec/port
-                ::rsocket.spec/transport]} opts
+                ::rsocket.spec/transport
+                ::rsocket.spec/create-websocket
+                ::rsocket.spec/create-websocket-server]
+
+         :or {create-websocket
+              (fn [url]
+                (js/WebSocket. (str "ws://" host ":" port)))
+              create-websocket-server
+              (fn [options]
+                (WSServer. (clj->js {"host" host
+                                     "port" port})))}} opts
 
         ops*| (chan (sliding-buffer 5))
         ops*|mx (mix ops*|)
@@ -192,7 +204,9 @@
                                                              "port" port}))
                                ::rsocket.spec/websocket (RSocketWebSocketServer.
                                                          (clj->js {"host" host
-                                                                   "port" port})))
+                                                                   "port" port})
+                                                         nil
+                                                         create-websocket-server))
                  "errorHandler" (fn [error]
                                   (println ::error)
                                   (println error))}))
@@ -212,9 +226,8 @@
                             ::rsocket.spec/tcp (RSocketTcpClient. (clj->js {"host" host
                                                                             "port" port}))
                             ::rsocket.spec/websocket (RSocketWebSocketClient.
-                                                      (clj->js {"url" (str "ws://" host ":" port)
-                                                                "wsCreator" (fn [url]
-                                                                              (js/WebSocket. url))})))}))
+                                                      (clj->js {"url" nil
+                                                                "wsCreator" create-websocket})))}))
            (.connect)
            (.subscribe
             (clj->js
