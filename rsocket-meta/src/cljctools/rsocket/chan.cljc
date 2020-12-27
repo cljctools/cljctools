@@ -18,9 +18,43 @@
 (defn create-channels
   []
   (let [ops| (chan (sliding-buffer 5))
-        requests| (chan (sliding-buffer 5))]
+        requests| (chan (sliding-buffer 5))
+        release| (chan 1)]
     {::ops| ops|
-     ::requests| requests|}))
+     ::requests| requests|
+     ::release| release|}))
+
+(defmethod op*
+  {::op.spec/op-key ::release
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request} [_]
+  (s/keys :req []))
+(derive ::release ::op)
+(defmethod op
+  {::op.spec/op-key ::release
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/request}
+  ([op-meta channels value]
+   (op op-meta channels value (chan 1)))
+  ([op-meta channels value out|]
+   (put! (::release| channels) (merge op-meta
+                                      value
+                                      {::op.spec/out| out|}))
+   out|))
+(defmethod op*
+  {::op.spec/op-key ::release
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response} [_]
+  (s/keys :req []))
+(derive ::release ::op)
+(defmethod op
+  {::op.spec/op-key ::release
+   ::op.spec/op-type ::op.spec/request-response
+   ::op.spec/op-orient ::op.spec/response}
+  [op-meta out| value]
+  (put! out| (merge op-meta
+                    value)))
+
 
 (comment
 

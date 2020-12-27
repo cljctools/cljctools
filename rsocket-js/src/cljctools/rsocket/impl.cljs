@@ -60,6 +60,7 @@
 (defn create-proc-ops
   [channels opts]
   (let [{:keys [::rsocket.chan/ops|
+                ::rsocket.chan/release|
                 ::rsocket.chan/requests|]} channels
         {:keys [::rsocket.spec/connection-side
                 ::rsocket.spec/host
@@ -178,88 +179,94 @@
 
         create-connection-accepting
         (fn []
-          (-> (RSocketServer.
-               (clj->js
-                {"getRequestHandler"
-                 (fn [rsocket-request]
-                   (-> rsocket-request
-                       (.connectionStatus)
-                       (.subscribe (fn [status]
-                                     (cond
-                                       (= (.-kind status) "CONNECTED")
-                                       (do
-                                         (println ::accepting-side :rsocket-connected)
-                                         (swap! clients assoc rsocket-request rsocket-request)
-                                         (toggle-pause false))
-                                       (= (.-kind status) "CLOSED")
-                                       (do
-                                         (println ::accepting-side :rsocket-disconnected)
-                                         (swap! clients dissoc rsocket-request)
-                                         (when (empty? @clients)
-                                           (toggle-pause true)))))))
-                   rsocket-response)
-                 "transport" (condp = transport
-                               ::rsocket.spec/tcp (RSocketTCPServer.
-                                                   (clj->js {"host" host
-                                                             "port" port}))
-                               ::rsocket.spec/websocket (RSocketWebSocketServer.
-                                                         (clj->js {"host" host
-                                                                   "port" port})
-                                                         nil
-                                                         create-websocket-server))
-                 "errorHandler" (fn [error]
-                                  (println ::error)
-                                  (println error))}))
-              (.start)))
+          (let [rsocket-server
+                (RSocketServer.
+                 (clj->js
+                  {"getRequestHandler"
+                   (fn [rsocket-request]
+                     (-> rsocket-request
+                         (.connectionStatus)
+                         (.subscribe (fn [status]
+                                       (cond
+                                         (= (.-kind status) "CONNECTED")
+                                         (do
+                                           (println ::accepting-side :rsocket-connected)
+                                           (swap! clients assoc rsocket-request rsocket-request)
+                                           (toggle-pause false))
+                                         (= (.-kind status) "CLOSED")
+                                         (do
+                                           (println ::accepting-side :rsocket-disconnected)
+                                           (swap! clients dissoc rsocket-request)
+                                           (when (empty? @clients)
+                                             (toggle-pause true)))))))
+                     rsocket-response)
+                   "transport" (condp = transport
+                                 ::rsocket.spec/tcp (RSocketTCPServer.
+                                                     (clj->js {"host" host
+                                                               "port" port}))
+                                 ::rsocket.spec/websocket (RSocketWebSocketServer.
+                                                           (clj->js {"host" host
+                                                                     "port" port})
+                                                           nil
+                                                           create-websocket-server))
+                   "errorHandler" (fn [error]
+                                    (println ::error)
+                                    (println error))}))]
+            (-> rsocket-server
+                (.start))
+            rsocket-server))
 
         create-connection-initiating
         (fn []
-          (->
-           (RSocketClient.
-            (clj->js
-             {"setup" {"dataMimeType"  "text/plain"
-                       "keepAlive" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 1000000000
-                       "lifetime" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 100000000
-                       "metadataMimeType" "text/plain"}
-              "responder" rsocket-response
-              "transport" (condp = transport
-                            ::rsocket.spec/tcp (RSocketTcpClient. (clj->js {"host" host
-                                                                            "port" port}))
-                            ::rsocket.spec/websocket (RSocketWebSocketClient.
-                                                      (clj->js {"url" nil
-                                                                "wsCreator" create-websocket})))}))
-           (.connect)
-           (.subscribe
-            (clj->js
-             {"onComplete" (fn [rsocket-request]
-                             (do (-> rsocket-request
-                                     (.connectionStatus)
-                                     (.subscribe (fn [status]
-                                                   (cond
-                                                     (= (.-kind status) "CONNECTED")
-                                                     (do
-                                                       (println ::initiating-side :rsocket-connected)
-                                                       (swap! clients assoc rsocket-request rsocket-request)
-                                                       (toggle-pause false))
-                                                     (= (.-kind status) "CLOSED")
-                                                     (do
-                                                       (println ::initiating-side :rsocket-disconnected)
-                                                       (swap! clients dissoc rsocket-request)
-                                                       (when (empty? @clients)
-                                                         (toggle-pause true)))))))))
-              "onError" (fn [error]
-                          (println ::initiating-side-error)
-                          (println error))
-              "onSubscribe" (fn [cancel]
-                              #_(cancel))}))
-           #_(.then
-              (fn [rsocket-request]
-                (reset! client rsocket-request)
-                (do (-> rsocket-request
-                        (.connectionStatus)
-                        (.subscribe (fn [status]
-                                      (close! rsocket-request-intialized|)
-                                      (println ::connection-status status.kind)))))))))
+          (let [rsocket-client
+                (RSocketClient.
+                 (clj->js
+                  {"setup" {"dataMimeType"  "text/plain"
+                            "keepAlive" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 1000000000
+                            "lifetime" #_js/Number.MAX_SAFE_INTEGER #_js/Infinity 100000000
+                            "metadataMimeType" "text/plain"}
+                   "responder" rsocket-response
+                   "transport" (condp = transport
+                                 ::rsocket.spec/tcp (RSocketTcpClient. (clj->js {"host" host
+                                                                                 "port" port}))
+                                 ::rsocket.spec/websocket (RSocketWebSocketClient.
+                                                           (clj->js {"url" nil
+                                                                     "wsCreator" create-websocket})))}))]
+            (->
+             rsocket-client
+             (.connect)
+             (.subscribe
+              (clj->js
+               {"onComplete" (fn [rsocket-request]
+                               (do (-> rsocket-request
+                                       (.connectionStatus)
+                                       (.subscribe (fn [status]
+                                                     (cond
+                                                       (= (.-kind status) "CONNECTED")
+                                                       (do
+                                                         (println ::initiating-side :rsocket-connected)
+                                                         (swap! clients assoc rsocket-request rsocket-request)
+                                                         (toggle-pause false))
+                                                       (= (.-kind status) "CLOSED")
+                                                       (do
+                                                         (println ::initiating-side :rsocket-disconnected)
+                                                         (swap! clients dissoc rsocket-request)
+                                                         (when (empty? @clients)
+                                                           (toggle-pause true)))))))))
+                "onError" (fn [error]
+                            (println ::initiating-side-error)
+                            (println error))
+                "onSubscribe" (fn [cancel]
+                                #_(cancel))}))
+             #_(.then
+                (fn [rsocket-request]
+                  (reset! client rsocket-request)
+                  (do (-> rsocket-request
+                          (.connectionStatus)
+                          (.subscribe (fn [status]
+                                        (close! rsocket-request-intialized|)
+                                        (println ::connection-status status.kind))))))))
+            rsocket-client))
 
         request-response
         (fn [value out|]
@@ -330,7 +337,15 @@
                            "onNext" (fn [payload]
                                       (put! out| (read-string payload.data)))
                            "onSubscribe" (fn [subscription]
-                                           (.request subscription MAX_STREAM_ID))})))))]
+                                           (.request subscription MAX_STREAM_ID))})))))
+
+        release
+        (fn []
+          (go
+            (when (= connection-side ::rsocket.spec/accepting)
+              (.stop @connection))
+            (when (= connection-side ::rsocket.spec/initiating)
+              (.close @connection))))]
     (when (= connection-side ::rsocket.spec/accepting)
       (reset! connection (create-connection-accepting)))
     (when (= connection-side ::rsocket.spec/initiating)
@@ -339,27 +354,33 @@
       (loop []
         (when-let [[value port] (alts! [ops*|])]
           (condp = port
-            
+
+            release|
+            (let [{:keys [::op.spec/out|]} value]
+              (<! (release))
+              (close! out|))
+
             ops*|
-            (condp = (select-keys value [::op.spec/op-type ::op.spec/op-orient])
+            (do
+              (condp = (select-keys value [::op.spec/op-type ::op.spec/op-orient])
 
-              {::op.spec/op-type ::op.spec/request-response
-               ::op.spec/op-orient ::op.spec/request}
-              (let [{:keys [::op.spec/out|]} value]
-                (request-response (dissoc value ::op.spec/out|)  out|))
+                {::op.spec/op-type ::op.spec/request-response
+                 ::op.spec/op-orient ::op.spec/request}
+                (let [{:keys [::op.spec/out|]} value]
+                  (request-response (dissoc value ::op.spec/out|)  out|))
 
-              {::op.spec/op-type ::op.spec/fire-and-forget}
-              (let [{:keys []} value]
-                (fire-and-forget value))
+                {::op.spec/op-type ::op.spec/fire-and-forget}
+                (let [{:keys []} value]
+                  (fire-and-forget value))
 
-              {::op.spec/op-type ::op.spec/request-stream
-               ::op.spec/op-orient ::op.spec/request}
-              (let [{:keys [::op.spec/out|]} value]
-                (request-stream  (dissoc value ::op.spec/out|) out|))
+                {::op.spec/op-type ::op.spec/request-stream
+                 ::op.spec/op-orient ::op.spec/request}
+                (let [{:keys [::op.spec/out|]} value]
+                  (request-stream  (dissoc value ::op.spec/out|) out|))
 
-              {::op.spec/op-type ::op.spec/request-channel
-               ::op.spec/op-orient ::op.spec/request}
-              (let [{:keys [::op.spec/out|
-                            ::op.spec/send|]} value]
-                (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|))))
-          (recur))))))
+                {::op.spec/op-type ::op.spec/request-channel
+                 ::op.spec/op-orient ::op.spec/request}
+                (let [{:keys [::op.spec/out|
+                              ::op.spec/send|]} value]
+                  (request-channel (dissoc value ::op.spec/out| ::op.spec/send|) out| send|)))
+              (recur))))))))
