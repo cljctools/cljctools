@@ -1,0 +1,3 @@
+{:paths []
+ :deps {github.cljtools/libp2p-spec {:local/root  "./modules/libp2p-spec"}
+        github.cljtools/libp2p-core {:local/root  "./modules/libp2p-core"}}}
