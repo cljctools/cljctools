@@ -9,3 +9,20 @@
 
 (defonce ^:private registry-ref (atom {}))
 
+(defn start-peer-opts
+  [{:keys [::id] :as opts}]
+  {::id id})
+
+(defn start-peer
+  [{:keys [::id] :as opts}]
+  (go
+    (let []
+      (swap! registry-ref assoc id
+             (merge opts
+                    {})))))
+
+(defn stop-peer
+  [{:keys [::id] :as opts}]
+  (go
+    (let []
+      (swap! registry-ref dissoc id))))
