@@ -7,22 +7,49 @@
    [cljctools.libp2p.spec]))
 
 
-(defonce ^:private registry-ref (atom {}))
+(defonce ^:private registry* (atom {}))
 
-(defn start-peer-opts
+(defn start-node-opts
   [{:keys [::id] :as opts}]
-  {::id id})
+  {::id id
+   ::channels {::foo| (chan (sliding-buffer 10))}})
 
-(defn start-peer
+(defn start-node
+  [{:keys [::id] :as opts}]
+  (go
+    (let [procs* (atom [])
+          stop-procs (fn []
+                       (doseq [[stop| proc|] @procs*]
+                         (close! stop|))
+                       (a/merge (mapv second @procs*)))]
+      (swap! registry* assoc id
+             (merge
+              opts
+              {::stop-procs stop-procs
+               ::connection nil
+               ::dht nil}))
+
+      (let [stop| (chan 1)
+            proc|
+            (go
+              (loop []
+                (when-let [[value port] (alts! [stop| foo|])]
+                  (condp = port
+
+                    stop|
+                    (do nil)
+
+                    foo|
+                    (do
+                      (recur)))))
+              (println ::go-block-exits))]
+        (swap! procs* conj [stop| proc|])))))
+
+(defn stop-node
   [{:keys [::id] :as opts}]
   (go
     (let []
-      (swap! registry-ref assoc id
-             (merge opts
-                    {})))))
-
-(defn stop-peer
-  [{:keys [::id] :as opts}]
-  (go
-    (let []
-      (swap! registry-ref dissoc id))))
+      (let [opts-in-registry (get @registry* id)]
+        (when (::stop-procs opts-in-registry)
+          (<! ((::stop-procs opts-in-registry))))
+        (swap! registry* dissoc id)))))
