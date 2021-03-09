@@ -1,2 +1,2 @@
-# nrepl-api
-nrepl remote api
+# nrepl-client
+nrepl client
