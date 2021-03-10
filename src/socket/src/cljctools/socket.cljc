@@ -16,17 +16,34 @@
 (s/def ::reason-text string?)
 (s/def ::error any?)
 
-(s/def ::reconnection-timeout int?)
-(s/def ::connect-fn ifn?)
-(s/def ::disconnect-fn ifn?)
-(s/def ::send-fn ifn?)
-
 (s/def ::connected keyword?)
 (s/def ::ready keyword?)
 (s/def ::timeout keyword?)
 (s/def ::closed keyword?)
 (s/def ::error keyword?)
 (s/def ::raw-socket some?)
+
+(s/def ::id any?)
+(s/def ::reconnection-timeout int?)
+(s/def ::connect-fn ifn?)
+(s/def ::disconnect-fn ifn?)
+(s/def ::send-fn ifn?)
+(s/def ::channel #(instance? clojure.core.async.impl.channels.ManyToManyChannel %))
+(s/def ::send| ::channel)
+(s/def ::recv| ::channel)
+(s/def ::evt| ::channel)
+(s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
+                 :cljs #(satisfies? clojure.core.async/Mult %)))
+(s/def ::evt|mult ::mult)
+
+(s/def ::opts (s/keys :req [::connect-fn
+                            ::disconnect-fn
+                            ::send-fn]
+                      :opt [::id
+                            ::send|
+                            ::recv|
+                            ::evt|
+                            ::evt|mult]))
 
 (defprotocol Socket
   (connect* [_])
@@ -62,6 +79,8 @@
          send| (chan (sliding-buffer 10))
          recv| (chan (sliding-buffer 10))
          evt| (chan (sliding-buffer 10))}}]
+  {:pre [(s/assert ::opts opts)]
+   :post [(s/assert ::socket %)]}
   (or
    (get @registryA id)
    (let [evt|mult (or evt|mult (mult evt|))
@@ -120,6 +139,7 @@
              (recur)))))
      socket)))
 
+
 (defmulti close
   "Closes the socket"
   {:arglists '([id] [socket])} type)
@@ -129,8 +149,10 @@
     (close socket)))
 (defmethod close ::socket
   [socket]
+  {:pre [(s/assert ::socket socket)]}
   (close* socket)
   (swap! registryA dissoc (get @socket ::id)))
+
 
 (defmulti send
   "Send data, data is passed directly to the underlying socket.
@@ -142,7 +164,9 @@
     (send socket)))
 (defmethod send ::socket
   [socket data]
+  {:pre [(s/assert ::socket socket)]}
   (send* socket data))
+
 
 (comment
 
@@ -172,6 +196,24 @@
      (type x)]
     ;; => true
     )
+
+  ;;
+  )
+
+(comment
+
+  (do
+    (clojure.spec.alpha/check-asserts true)
+    (defmulti foo identity)
+    (defmethod foo ::baz
+      [id]
+      {:pre [(clojure.spec.alpha/assert string? id)]
+       :post [(string? %)]}
+      (str id))
+    (foo ::baz))
+
+  (clojure.spec.alpha/explain keyword? :bax)
+
 
   ;;
   )
