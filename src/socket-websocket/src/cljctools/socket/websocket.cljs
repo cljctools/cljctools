@@ -23,10 +23,11 @@
   [{:keys [::url] :as opts}]
   (let []
     {::cljctools.socket/connect-fn
-     (fn [{:keys [::cljctools.socket/evt|
-                  ::cljctools.socket/recv|]}]
-       (let [socket (WebSocket. url #js {})]
-         (doto socket
+     (fn [socket]
+       (let [{:keys [::cljctools.socket/evt|
+                     ::cljctools.socket/recv|]} @socket
+             raw-socket (WebSocket. url #js {})]
+         (doto raw-socket
            (.on "open" (fn []
                          (println ::connected)
                          (put! evt| {:op ::cljctools.socket/connected})))
@@ -41,11 +42,14 @@
                                       ::cljctools.socket/error error})))
            (.on "message" (fn [data]
                             (put! recv| data))))
-         socket))
+         raw-socket))
+
      ::cljctools.socket/disconnect-fn
-     (fn [{:keys [::cljctools.socket/socket]}]
-       (.close socket 1000 (str ::cljctools.socket/disconnected)))
+     (fn [socket]
+       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+         (.close raw-socket 1000 (str ::cljctools.socket/disconnected))))
 
      ::cljctools.socket/send-fn
-     (fn [{:keys [::cljctools.socket/socket]} data]
-       (.send socket data))}))
+     (fn [socket]
+       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+         (.send raw-socket data)))}))

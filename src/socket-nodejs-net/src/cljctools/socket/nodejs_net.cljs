@@ -25,9 +25,10 @@
            ::path] :as opts}]
   (let []
     {::cljctools.socket/connect-fn
-     (fn [{:keys [::cljctools.socket/evt|
-                  ::cljctools.socket/recv|]}]
-       (let [socket (net.Socket.)]
+     (fn [socket]
+       (let [{:keys [::cljctools.socket/evt|
+                     ::cljctools.socket/recv|]} @socket
+             raw-socket (net.Socket.)]
          (doto socket
            (.connect (clj->js (select-keys opts [::host
                                                  ::port
@@ -53,11 +54,13 @@
                           #_(when (and (not s.connecting) (not s.pending)))))
            (.on "data" (fn [data]
                          (put! recv| data))))
-         socket))
+         raw-socket))
      ::cljctools.socket/disconnect-fn
-     (fn [{:keys [::cljctools.socket/socket]}]
-       (.end socket))
+     (fn [socket]
+       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+         (.end raw-socket)))
 
      ::cljctools.socket/send-fn
-     (fn [{:keys [::cljctools.socket/socket]} data]
-       (.write socket data))}))
+     (fn [socket data]
+       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+         (.write raw-socket data)))}))
