@@ -1,6 +1,6 @@
 (ns cljctools.socket
+  (:refer-clojure :exclude [send])
   (:require
-   (:refer-clojure :exclude [send])
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
@@ -23,7 +23,7 @@
 (s/def ::closed keyword?)
 (s/def ::error keyword?)
 
-(defonce ^:private registry* (atom {}))
+(defonce ^:private registryA (atom {}))
 
 (defn start
   [{:as opts
@@ -35,14 +35,16 @@
            ::connect-fn
            ::disconnect-fn
            ::send-fn]
-    :or {send| (chan (sliding-buffer 10))
+    :or {id (str #?(:clj  (java.util.UUID/randomUUID)
+                    :cljs (random-uuid)))
+         send| (chan (sliding-buffer 10))
          recv| (chan (sliding-buffer 10))
          evt| (chan (sliding-buffer 10))
          evt|mult (mult evt|)}}]
   (go
     (let [evt|tap (tap evt|mult (chan (sliding-buffer 10)))
 
-          state* (atom (merge
+          stateA (atom (merge
                         opts
                         {::opts opts
                          ::send| send|
@@ -53,59 +55,61 @@
                          ::connect}))
           disconnect (fn []
                        (when (get @state ::socket)
-                         (disconnect-fn @state*)
-                         (swap! state* dissoc ::socket)))
+                         (disconnect-fn @stateA)
+                         (swap! stateA dissoc ::socket)))
           connect (fn []
                     (when (get @state ::socket)
                       (disconnect))
-                    (swap! state* assoc ::socket (!< (connect-fn @state*))))
+                    (swap! stateA assoc ::socket (!< (connect-fn @stateA))))
 
           send (fn [data]
                  (when (get @state ::socket)
-                   (send-fn @state* data)))
+                   (send-fn @stateA data)))
 
           release (fn []
                     (disconnect)
                     (untap evt|mult evt|tap)
                     (close! evt|tap))]
 
-      (swap! state* merge  {::connect connect
+      (swap! stateA merge  {::connect connect
                             ::disconnect disconnect
                             ::send send
                             ::release release})
-      (swap! registry* assoc id state*)
+      (swap! registryA assoc id stateA)
       (connect)
       (go
         (loop []
-          (when-let [[value port] (alts! [evt|tap])]
+          (when-let [[value port] (alts! [send| evt|tap])]
             (condp = port
 
-              evt|tap
-              (do
-                (condp = (:op value)
+              send|
+              (send value)
 
-                  ::closed
-                  (let []
-                    (when reconnection-timeout
-                      (<! (timeout reconnection-timeout))
-                      (connect)))
-                  (do nil))
-                (recur)))))
+              evt|tap
+              (condp = (:op value)
+
+                ::closed
+                (let []
+                  (when reconnection-timeout
+                    (<! (timeout reconnection-timeout))
+                    (connect)))
+                (do nil)))
+            (recur)))
         (println ::go-block-exits)))))
 
 
 (defn stop
   [{:keys [::id] :as opts}]
   (go
-    (let [state @(get @registry* id)]
+    (let [state @(get @registryA id)]
       (when (::release state)
         ((::release state)))
-      (swap! registry* dissoc id))))
+      (swap! registryA dissoc id))))
 
 
 (defn send
   [{:keys [::id] :as opts} data]
   (go
-    (let [state @(get @registry* id)]
+    (let [state @(get @registryA id)]
       (when state
         ((::send state) data)))))
