@@ -1,6 +1,6 @@
 (ns cljctools.nrepl-client
+  (:refer-clojure :exclude [eval clone])
   (:require
-   (:refer-clojure :exclude [eval])
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
@@ -27,13 +27,13 @@
 
        (defn encode
          "Returns bencode string"
-         [edn-value]
-         (.encode bencode (clj->js edn-value)))
+         [data]
+         (.encode bencode (clj->js data)))
 
        (defn decode
          "Returns edn with :keywordize-keys true"
          [bencode-str]
-         #(as-> decode<-str v
+         #(as-> bencode-str v
             (.toString v)
             (.decode bencode v "utf8")
             (js->clj v :keywordize-keys true)))
@@ -87,10 +87,10 @@
         (prn ::sending)
         (prn request)
         (put! send| (encode request))
-        (catch js/Error error (put! error|) {:error (ex-info
-                                                     "Error xfroming/sending nrepl op"
-                                                     request
-                                                     error)}))
+        (catch js/Error error (put! error| {:error (ex-info
+                                                    "Error xfroming/sending nrepl op"
+                                                    request
+                                                    error)})))
       (loop [timeout| (timeout time-out)]
         (alt!
           recv|tap ([value] (when value
@@ -118,26 +118,18 @@
                             (release)
                             value)))))))
 
-(defn eval
-  [{:as nrepl
-    :keys [::id]}
-   {:as opts
+(defn clone
+  [{:as opts
     :keys [:code
            :session]}]
   (nrepl-op
-   nrepl
    {::data (merge {:op "clone"})
     ::result-keys [:new-session]}))
 
 (defn eval
-  [{:as nrepl
-    :keys [::id]}
-   {:as opts
+  [{:as opts
     :keys [:code
            :session]}]
   (nrepl-op
-   nrepl
    {::data (merge {:op "eval"}
                   opts)}))
-
-
