@@ -50,12 +50,7 @@
                           (println ::error)
                           (put! evt| {:op ::cljctools.socket/error
                                       ::cljctools.socket/error error})
-                          #_(when-let [s @socket]
-                              (when (and (not s.connecting) (not s.pending))
-                                (socket.chan/op
-                                 {::op.spec/op-key ::socket.chan/error}
-                                 (::socket.chan/evt| channels)
-                                 error)))))
+                          #_(when (and (not s.connecting) (not s.pending)))))
            (.on "data" (fn [data]
                          (put! recv| data))))
          socket))

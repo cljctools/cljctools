@@ -34,16 +34,17 @@
            ::recv|
            ::connect-fn
            ::disconnect-fn
+           ::reconnection-timeout
            ::send-fn]
     :or {id (str #?(:clj  (java.util.UUID/randomUUID)
                     :cljs (random-uuid)))
+         reconnection-timeout 1000
          send| (chan (sliding-buffer 10))
          recv| (chan (sliding-buffer 10))
-         evt| (chan (sliding-buffer 10))
-         evt|mult (mult evt|)}}]
+         evt| (chan (sliding-buffer 10))}}]
   (go
-    (let [evt|tap (tap evt|mult (chan (sliding-buffer 10)))
-
+    (let [evt|mult (or evt|mult (mult evt|))
+          evt|tap (tap evt|mult (chan (sliding-buffer 10)))
           stateA (atom (merge
                         opts
                         {::opts opts
@@ -51,19 +52,18 @@
                          ::evt| evt|
                          ::evt|mult evt|mult
                          ::socket nil
-                         ::recv| recv|
-                         ::connect}))
+                         ::recv| recv|}))
           disconnect (fn []
-                       (when (get @state ::socket)
+                       (when (get @stateA ::socket)
                          (disconnect-fn @stateA)
                          (swap! stateA dissoc ::socket)))
           connect (fn []
-                    (when (get @state ::socket)
+                    (when (get @stateA ::socket)
                       (disconnect))
-                    (swap! stateA assoc ::socket (!< (connect-fn @stateA))))
+                    (swap! stateA assoc ::socket (<! (connect-fn @stateA))))
 
           send (fn [data]
-                 (when (get @state ::socket)
+                 (when (get @stateA ::socket)
                    (send-fn @stateA data)))
 
           release (fn []
