@@ -78,7 +78,6 @@
                       ::socket.spec/evt|mult evt|mult
                       ::socket.spec/raw-socket nil
                       ::socket.spec/recv| recv|}))
-     (swap! registryA assoc id stateA)
      (socket.protocols/connect* socket)
      (go
        (loop []
@@ -99,6 +98,7 @@
                      (socket.protocols/connect* socket)))
                  (do nil)))
              (recur)))))
+     (swap! registryA assoc id socket)
      socket)))
 
 
