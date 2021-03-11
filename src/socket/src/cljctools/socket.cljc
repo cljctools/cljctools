@@ -28,12 +28,14 @@
 (s/def ::connect-fn ifn?)
 (s/def ::disconnect-fn ifn?)
 (s/def ::send-fn ifn?)
-(s/def ::channel #(instance? clojure.core.async.impl.channels.ManyToManyChannel %))
+(s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
+                    :cljs #(instance? clojure.core.async.impl.channels/ManyToManyChannel %)))
+(s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
+                 :cljs #(satisfies? clojure.core.async/Mult %)))
 (s/def ::send| ::channel)
 (s/def ::recv| ::channel)
 (s/def ::evt| ::channel)
-(s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
-                 :cljs #(satisfies? clojure.core.async/Mult %)))
+
 (s/def ::evt|mult ::mult)
 
 (s/def ::opts (s/keys :req [::connect-fn
@@ -51,7 +53,10 @@
   (close* [_])
   (send* [_ data] "data is passed directly to ::send-fn"))
 
-(s/def ::socket #(satisfies? Socket %))
+(s/def ::socket #(and
+                  (satisfies? Socket %)
+                  #?(:clj (satisfies? clojure.lang.IDeref %))
+                  #?(:cljs (satisfies? cljs.core/IDeref %))))
 
 (defonce ^:private registryA (atom {}))
 
@@ -85,14 +90,7 @@
    (get @registryA id)
    (let [evt|mult (or evt|mult (mult evt|))
          evt|tap (tap evt|mult (chan (sliding-buffer 10)))
-         stateA (atom (merge
-                       opts
-                       {::opts opts
-                        ::send| send|
-                        ::evt| evt|
-                        ::evt|mult evt|mult
-                        ::raw-socket nil
-                        ::recv| recv|}))
+         stateA (atom nil)
          socket
          ^{:type ::socket}
          (reify
@@ -100,14 +98,14 @@
            (connect* [_]
              (when (get @stateA ::raw-socket)
                (disconnect* _))
-             (swap! stateA assoc ::raw-socket (<! (connect-fn @stateA))))
+             (swap! stateA assoc ::raw-socket (connect-fn _)))
            (disconnect* [_]
              (when (get @stateA ::raw-socket)
-               (disconnect-fn @stateA)
+               (disconnect-fn _)
                (swap! stateA dissoc ::raw-socket)))
            (send* [_ data]
              (when (get @stateA ::raw-socket)
-               (send-fn @stateA data)))
+               (send-fn _ data)))
            (close* [_]
              (disconnect* _)
              (untap evt|mult evt|tap)
@@ -116,6 +114,14 @@
            #?(:clj (deref [_] @stateA))
            #?(:cljs cljs.core/IDeref)
            #?(:cljs (-deref [_] @stateA)))]
+     (reset! stateA (merge
+                     opts
+                     {::opts opts
+                      ::send| send|
+                      ::evt| evt|
+                      ::evt|mult evt|mult
+                      ::raw-socket nil
+                      ::recv| recv|}))
      (swap! registryA assoc id stateA)
      (connect* socket)
      (go
