@@ -20,13 +20,14 @@
 
 (s/def ::url string?)
 
-(s/def ::create-opts-opts (s/keys :req-un [::url]))
+(s/def ::create-opts-opts (s/keys :req [::url]))
 
 (defn create-opts
-  [{:keys [:url] :as opts}]
+  [{:as opts
+    :keys [::url]}]
   {:pre [(s/assert ::create-opts-opts opts)]}
   (let []
-    {:connect-fn
+    {::socket.spec/connect-fn
      (fn [socket]
        (let [{:keys [:evt|
                      :recv|]} @socket
@@ -34,26 +35,26 @@
          (doto raw-socket
            (.on "open" (fn []
                          (println ::connected)
-                         (put! evt| {:op :connected})))
+                         (put! evt| {:op ::socket.spec/connected})))
            (.on "close" (fn [code reason]
                           (println ::closed)
-                          (put! evt| {:op :closed
-                                      :reason reason
-                                      :code code})))
+                          (put! evt| {:op ::socket.spec/closed
+                                      ::socket.spec/reason reason
+                                      ::socket.spec/code code})))
            (.on "error" (fn [error]
                           (println ::error)
-                          (put! evt| {:op :error
-                                      :error error})))
+                          (put! evt| {:op ::socket.spec/error
+                                      ::socket.spec/error error})))
            (.on "message" (fn [data]
                             (put! recv| data))))
          raw-socket))
 
-     :disconnect-fn
+     ::socket.spec/disconnect-fn
      (fn [socket]
-       (let [{:keys [:raw-socket]} @socket]
-         (.close raw-socket 1000 (str :disconnected))))
+       (let [{:keys [::socket.spec/raw-socket]} @socket]
+         (.close raw-socket 1000 (str ::socket.spec/disconnected))))
 
-     :send-fn
+     ::socket.spec/send-fn
      (fn [socket]
-       (let [{:keys [:raw-socket]} @socket]
+       (let [{:keys [::socket.spec/raw-socket]} @socket]
          (.send raw-socket data)))}))

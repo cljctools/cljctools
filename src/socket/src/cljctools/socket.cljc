@@ -25,15 +25,15 @@
    Can be derefernced  to get current state - @socket simply returns underlying atom's state.
    For ::connect-fn ::disconnect-fn ::send-fn see cljctools.socket.nodejs_net, cljctools.socket.websocket implementations"
   [{:as opts
-    :keys [:id
-           :send|
-           :recv|
-           :evt|
-           :evt|mult
-           :connect-fn
-           :disconnect-fn
-           :reconnection-timeout
-           :send-fn]
+    :keys [::socket.spec/id
+           ::socket.spec/send|
+           ::socket.spec/recv|
+           ::socket.spec/evt|
+           ::socket.spec/evt|mult
+           ::socket.spec/connect-fn
+           ::socket.spec/disconnect-fn
+           ::socket.spec/reconnection-timeout
+           ::socket.spec/send-fn]
     :or {id (str #?(:clj  (java.util.UUID/randomUUID)
                     :cljs (random-uuid)))
          reconnection-timeout 1000
@@ -52,15 +52,15 @@
          (reify
            Socket
            (connect* [_]
-             (when (get @stateA :raw-socket)
+             (when (get @stateA ::socket.spec/raw-socket)
                (disconnect* _))
-             (swap! stateA assoc :raw-socket (connect-fn _)))
+             (swap! stateA assoc ::socket.spec/raw-socket (connect-fn _)))
            (disconnect* [_]
-             (when (get @stateA :raw-socket)
+             (when (get @stateA ::socket.spec/raw-socket)
                (disconnect-fn _)
-               (swap! stateA dissoc :raw-socket)))
+               (swap! stateA dissoc ::socket.spec/raw-socket)))
            (send* [_ data]
-             (when (get @stateA :raw-socket)
+             (when (get @stateA ::socket.spec/raw-socket)
                (send-fn _ data)))
            (close* [_]
              (disconnect* _)
@@ -72,12 +72,12 @@
            #?(:cljs (-deref [_] @stateA)))]
      (reset! stateA (merge
                      opts
-                     {:opts opts
-                      :send| send|
-                      :evt| evt|
-                      :evt|mult evt|mult
-                      :raw-socket nil
-                      :recv| recv|}))
+                     {::socket.spec/opts opts
+                      ::socket.spec/send| send|
+                      ::socket.spec/evt| evt|
+                      ::socket.spec/evt|mult evt|mult
+                      ::socket.spec/raw-socket nil
+                      ::socket.spec/recv| recv|}))
      (swap! registryA assoc id stateA)
      (connect* socket)
      (go
@@ -92,7 +92,7 @@
                evt|tap
                (condp = (:op value)
 
-                 :closed
+                 ::socket.spec/closed
                  (let []
                    (when reconnection-timeout
                      (<! (timeout reconnection-timeout))

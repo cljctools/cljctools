@@ -30,14 +30,14 @@
 
 (s/def ::evt|mult ::mult)
 
-(s/def ::opts (s/keys :req-un [::connect-fn
-                               ::disconnect-fn
-                               ::send-fn]
-                      :opt-un [::id
-                               ::send|
-                               ::recv|
-                               ::evt|
-                               ::evt|mult]))
+(s/def ::opts (s/keys :req [::connect-fn
+                            ::disconnect-fn
+                            ::send-fn]
+                      :opt [::id
+                            ::send|
+                            ::recv|
+                            ::evt|
+                            ::evt|mult]))
 
 (s/def ::socket #(and
                   (satisfies? socket.protocols/Socket %)

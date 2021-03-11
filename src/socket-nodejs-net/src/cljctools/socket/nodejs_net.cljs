@@ -21,55 +21,55 @@
 
 (s/def ::create-opts-opts (s/or
                            :host-port
-                           (s/keys :req-un [::host
-                                            ::port])
+                           (s/keys :req [::host
+                                         ::port])
                            :path
-                           (s/keys :req-un [::path])))
+                           (s/keys :req [::path])))
 
 (defn create-opts
   [{:as opts
-    :keys [:host
-           :port
-           :path]}]
+    :keys [::host
+           ::port
+           ::path]}]
   {:pre [(s/assert ::create-opts-opts opts)]}
   (let []
-    {:connect-fn
+    {::socket.spec/connect-fn
      (fn [socket]
-       (let [{:keys [:evt|
-                     :recv|]} @socket
+       (let [{:keys [::socket.spec/evt|
+                     ::socket.spec/recv|]} @socket
              raw-socket (net.Socket.)]
          (doto raw-socket
-           (.connect (clj->js (select-keys opts [:host
-                                                 :port
-                                                 :path])))
+           (.connect (clj->js (select-keys opts [::host
+                                                 ::port
+                                                 ::path])))
            (.on "connect" (fn []
                             (println ::connected)
-                            (put! evt| {:op :connected})))
+                            (put! evt| {:op ::socket.spec/connected})))
            (.on "ready" (fn []
                           (println ::ready)
-                          (put! evt| {:op :ready})))
+                          (put! evt| {:op ::socket.spec/ready})))
            (.on "timeout" (fn []
                             (println ::timeout)
-                            (put! evt| {:op :timeout})))
+                            (put! evt| {:op ::socket.spec/timeout})))
            (.on "close" (fn [code reason]
                           (println ::closed)
-                          (put! evt| {:op :closed
-                                      :reason reason
-                                      :code code})))
+                          (put! evt| {:op ::socket.spec/closed
+                                      ::socket.spec/reason reason
+                                      ::socket.spec/code code})))
            (.on "error" (fn [error]
                           (println ::error)
-                          (put! evt| {:op :error
-                                      :error error})
+                          (put! evt| {:op ::socket.spec/error
+                                      ::socket.spec/error error})
                           #_(when (and (not s.connecting) (not s.pending)))))
            (.on "data" (fn [data]
                          (put! recv| data))))
          raw-socket))
-     :disconnect-fn
+     ::socket.spec/disconnect-fn
      (fn [socket]
-       (let [{:keys [:raw-socket]} @socket]
+       (let [{:keys [::socket.spec/raw-socket]} @socket]
          (.end raw-socket)))
 
-     :send-fn
+     ::socket.spec/send-fn
      (fn [socket data]
-       (let [{:keys [:raw-socket]} @socket]
+       (let [{:keys [::socket.spec/raw-socket]} @socket]
          (.write raw-socket data)))}))
