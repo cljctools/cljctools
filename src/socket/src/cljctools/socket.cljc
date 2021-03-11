@@ -50,10 +50,10 @@
          socket
          ^{:type ::socket.spec/socket}
          (reify
-           Socket
+           socket.protocols/Socket
            (connect* [_]
              (when (get @stateA ::socket.spec/raw-socket)
-               (disconnect* _))
+               (socket.protocols/disconnect* _))
              (swap! stateA assoc ::socket.spec/raw-socket (connect-fn _)))
            (disconnect* [_]
              (when (get @stateA ::socket.spec/raw-socket)
@@ -63,7 +63,7 @@
              (when (get @stateA ::socket.spec/raw-socket)
                (send-fn _ data)))
            (close* [_]
-             (disconnect* _)
+             (socket.protocols/disconnect* _)
              (untap evt|mult evt|tap)
              (close! evt|tap))
            #?(:clj clojure.lang.IDeref)
@@ -79,7 +79,7 @@
                       ::socket.spec/raw-socket nil
                       ::socket.spec/recv| recv|}))
      (swap! registryA assoc id stateA)
-     (connect* socket)
+     (socket.protocols/connect* socket)
      (go
        (loop []
          (let [[value port] (alts! [send| evt|tap])]
@@ -87,7 +87,7 @@
              (condp = port
 
                send|
-               (send* socket value)
+               (socket.protocols/send* socket value)
 
                evt|tap
                (condp = (:op value)
@@ -96,7 +96,7 @@
                  (let []
                    (when reconnection-timeout
                      (<! (timeout reconnection-timeout))
-                     (connect* socket)))
+                     (socket.protocols/connect* socket)))
                  (do nil)))
              (recur)))))
      socket)))
@@ -112,7 +112,7 @@
 (defmethod close ::socket.spec/socket
   [socket]
   {:pre [(s/assert ::socket.spec/socket socket)]}
-  (close* socket)
+  (socket.protocols/close* socket)
   (swap! registryA dissoc (get @socket ::id)))
 
 
@@ -127,7 +127,7 @@
 (defmethod send ::socket.spec/socket
   [socket data]
   {:pre [(s/assert ::socket.spec/socket socket)]}
-  (send* socket data))
+  (socket.protocols/send* socket data))
 
 
 (comment
