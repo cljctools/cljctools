@@ -10,46 +10,50 @@
    [goog.string.format]
    [goog.string :refer [format]]
    [clojure.spec.alpha :as s]
-   [cljctools.socket]))
-
-(s/def ::url string?)
+   [cljctools.socket.spec :as socket.spec]
+   [cljctools.socket.protocols :as socket.protocols]))
 
 (when (exists? js/module)
   (def ws (js/require "ws"))
   (set! js/WebSocket ws)
   #_(set! js/module.exports exports))
 
+(s/def ::url string?)
+
+(s/def ::create-opts-opts (s/keys :req-un [::url]))
+
 (defn create-opts
-  [{:keys [::url] :as opts}]
+  [{:keys [:url] :as opts}]
+  {:pre [(s/assert ::create-opts-opts opts)]}
   (let []
-    {::cljctools.socket/connect-fn
+    {:connect-fn
      (fn [socket]
-       (let [{:keys [::cljctools.socket/evt|
-                     ::cljctools.socket/recv|]} @socket
+       (let [{:keys [:evt|
+                     :recv|]} @socket
              raw-socket (WebSocket. url #js {})]
          (doto raw-socket
            (.on "open" (fn []
                          (println ::connected)
-                         (put! evt| {:op ::cljctools.socket/connected})))
+                         (put! evt| {:op :connected})))
            (.on "close" (fn [code reason]
                           (println ::closed)
-                          (put! evt| {:op ::cljctools.socket/closed
-                                      ::cljctools.socket/reason reason
-                                      ::cljctools.socket/code code})))
+                          (put! evt| {:op :closed
+                                      :reason reason
+                                      :code code})))
            (.on "error" (fn [error]
                           (println ::error)
-                          (put! evt| {:op ::cljctools.socket/error
-                                      ::cljctools.socket/error error})))
+                          (put! evt| {:op :error
+                                      :error error})))
            (.on "message" (fn [data]
                             (put! recv| data))))
          raw-socket))
 
-     ::cljctools.socket/disconnect-fn
+     :disconnect-fn
      (fn [socket]
-       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
-         (.close raw-socket 1000 (str ::cljctools.socket/disconnected))))
+       (let [{:keys [:raw-socket]} @socket]
+         (.close raw-socket 1000 (str :disconnected))))
 
-     ::cljctools.socket/send-fn
+     :send-fn
      (fn [socket]
-       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+       (let [{:keys [:raw-socket]} @socket]
          (.send raw-socket data)))}))

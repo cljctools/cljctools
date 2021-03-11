@@ -10,57 +10,66 @@
    [goog.string.format]
    [goog.string :refer [format]]
    [clojure.spec.alpha :as s]
-   [cljctools.socket]))
+   [cljctools.socket.spec :as socket.spec]
+   [cljctools.socket.protocols :as socket.protocols]))
 
+(def net (js/require "net"))
 
 (s/def ::host string?)
 (s/def ::port int?)
 (s/def ::path string?)
 
-(def net (js/require "net"))
+(s/def ::create-opts-opts (s/or
+                           :host-port
+                           (s/keys :req-un [::host
+                                            ::port])
+                           :path
+                           (s/keys :req-un [::path])))
 
 (defn create-opts
-  [{:keys [::host
-           ::port
-           ::path] :as opts}]
+  [{:as opts
+    :keys [:host
+           :port
+           :path]}]
+  {:pre [(s/assert ::create-opts-opts opts)]}
   (let []
-    {::cljctools.socket/connect-fn
+    {:connect-fn
      (fn [socket]
-       (let [{:keys [::cljctools.socket/evt|
-                     ::cljctools.socket/recv|]} @socket
+       (let [{:keys [:evt|
+                     :recv|]} @socket
              raw-socket (net.Socket.)]
-         (doto socket
-           (.connect (clj->js (select-keys opts [::host
-                                                 ::port
-                                                 ::path])))
+         (doto raw-socket
+           (.connect (clj->js (select-keys opts [:host
+                                                 :port
+                                                 :path])))
            (.on "connect" (fn []
                             (println ::connected)
-                            (put! evt| {:op ::cljctools.socket/connected})))
+                            (put! evt| {:op :connected})))
            (.on "ready" (fn []
                           (println ::ready)
-                          (put! evt| {:op ::cljctools.socket/ready})))
+                          (put! evt| {:op :ready})))
            (.on "timeout" (fn []
                             (println ::timeout)
-                            (put! evt| {:op ::cljctools.socket/timeout})))
+                            (put! evt| {:op :timeout})))
            (.on "close" (fn [code reason]
                           (println ::closed)
-                          (put! evt| {:op ::cljctools.socket/closed
-                                      ::cljctools.socket/reason reason
-                                      ::cljctools.socket/code code})))
+                          (put! evt| {:op :closed
+                                      :reason reason
+                                      :code code})))
            (.on "error" (fn [error]
                           (println ::error)
-                          (put! evt| {:op ::cljctools.socket/error
-                                      ::cljctools.socket/error error})
+                          (put! evt| {:op :error
+                                      :error error})
                           #_(when (and (not s.connecting) (not s.pending)))))
            (.on "data" (fn [data]
                          (put! recv| data))))
          raw-socket))
-     ::cljctools.socket/disconnect-fn
+     :disconnect-fn
      (fn [socket]
-       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+       (let [{:keys [:raw-socket]} @socket]
          (.end raw-socket)))
 
-     ::cljctools.socket/send-fn
+     :send-fn
      (fn [socket data]
-       (let [{:keys [::cljctools.socket/raw-socket]} @socket]
+       (let [{:keys [:raw-socket]} @socket]
          (.write raw-socket data)))}))

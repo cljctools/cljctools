@@ -10,53 +10,9 @@
    #?(:cljs [cljs.reader :refer [read-string]])
    #?(:cljs [goog.string.format])
    #?(:cljs [goog.string :refer [format]])
-   [clojure.spec.alpha :as s]))
-
-(s/def ::num-code int?)
-(s/def ::reason-text string?)
-(s/def ::error any?)
-
-(s/def ::connected keyword?)
-(s/def ::ready keyword?)
-(s/def ::timeout keyword?)
-(s/def ::closed keyword?)
-(s/def ::error keyword?)
-(s/def ::raw-socket some?)
-
-(s/def ::id any?)
-(s/def ::reconnection-timeout int?)
-(s/def ::connect-fn ifn?)
-(s/def ::disconnect-fn ifn?)
-(s/def ::send-fn ifn?)
-(s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
-                    :cljs #(instance? clojure.core.async.impl.channels/ManyToManyChannel %)))
-(s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
-                 :cljs #(satisfies? clojure.core.async/Mult %)))
-(s/def ::send| ::channel)
-(s/def ::recv| ::channel)
-(s/def ::evt| ::channel)
-
-(s/def ::evt|mult ::mult)
-
-(s/def ::opts (s/keys :req [::connect-fn
-                            ::disconnect-fn
-                            ::send-fn]
-                      :opt [::id
-                            ::send|
-                            ::recv|
-                            ::evt|
-                            ::evt|mult]))
-
-(defprotocol Socket
-  (connect* [_])
-  (disconnect* [_])
-  (close* [_])
-  (send* [_ data] "data is passed directly to ::send-fn"))
-
-(s/def ::socket #(and
-                  (satisfies? Socket %)
-                  #?(:clj (satisfies? clojure.lang.IDeref %))
-                  #?(:cljs (satisfies? cljs.core/IDeref %))))
+   [clojure.spec.alpha :as s]
+   [cljctools.socket.protocols :as socket.protocols]
+   [cljctools.socket.spec :as socket.spec]))
 
 (defonce ^:private registryA (atom {}))
 
@@ -69,42 +25,42 @@
    Can be derefernced  to get current state - @socket simply returns underlying atom's state.
    For ::connect-fn ::disconnect-fn ::send-fn see cljctools.socket.nodejs_net, cljctools.socket.websocket implementations"
   [{:as opts
-    :keys [::id
-           ::send|
-           ::recv|
-           ::evt|
-           ::evt|mult
-           ::connect-fn
-           ::disconnect-fn
-           ::reconnection-timeout
-           ::send-fn]
+    :keys [:id
+           :send|
+           :recv|
+           :evt|
+           :evt|mult
+           :connect-fn
+           :disconnect-fn
+           :reconnection-timeout
+           :send-fn]
     :or {id (str #?(:clj  (java.util.UUID/randomUUID)
                     :cljs (random-uuid)))
          reconnection-timeout 1000
          send| (chan (sliding-buffer 10))
          recv| (chan (sliding-buffer 10))
          evt| (chan (sliding-buffer 10))}}]
-  {:pre [(s/assert ::opts opts)]
-   :post [(s/assert ::socket %)]}
+  {:pre [(s/assert ::socket.spec/opts opts)]
+   :post [(s/assert ::socket.spec/socket %)]}
   (or
    (get @registryA id)
    (let [evt|mult (or evt|mult (mult evt|))
          evt|tap (tap evt|mult (chan (sliding-buffer 10)))
          stateA (atom nil)
          socket
-         ^{:type ::socket}
+         ^{:type ::socket.spec/socket}
          (reify
            Socket
            (connect* [_]
-             (when (get @stateA ::raw-socket)
+             (when (get @stateA :raw-socket)
                (disconnect* _))
-             (swap! stateA assoc ::raw-socket (connect-fn _)))
+             (swap! stateA assoc :raw-socket (connect-fn _)))
            (disconnect* [_]
-             (when (get @stateA ::raw-socket)
+             (when (get @stateA :raw-socket)
                (disconnect-fn _)
-               (swap! stateA dissoc ::raw-socket)))
+               (swap! stateA dissoc :raw-socket)))
            (send* [_ data]
-             (when (get @stateA ::raw-socket)
+             (when (get @stateA :raw-socket)
                (send-fn _ data)))
            (close* [_]
              (disconnect* _)
@@ -116,12 +72,12 @@
            #?(:cljs (-deref [_] @stateA)))]
      (reset! stateA (merge
                      opts
-                     {::opts opts
-                      ::send| send|
-                      ::evt| evt|
-                      ::evt|mult evt|mult
-                      ::raw-socket nil
-                      ::recv| recv|}))
+                     {:opts opts
+                      :send| send|
+                      :evt| evt|
+                      :evt|mult evt|mult
+                      :raw-socket nil
+                      :recv| recv|}))
      (swap! registryA assoc id stateA)
      (connect* socket)
      (go
@@ -136,7 +92,7 @@
                evt|tap
                (condp = (:op value)
 
-                 ::closed
+                 :closed
                  (let []
                    (when reconnection-timeout
                      (<! (timeout reconnection-timeout))
@@ -153,9 +109,9 @@
   [id]
   (when-let [socket (get @registryA id)]
     (close socket)))
-(defmethod close ::socket
+(defmethod close ::socket.spec/socket
   [socket]
-  {:pre [(s/assert ::socket socket)]}
+  {:pre [(s/assert ::socket.spec/socket socket)]}
   (close* socket)
   (swap! registryA dissoc (get @socket ::id)))
 
@@ -168,9 +124,9 @@
   [id data]
   (when-let [socket (get @registryA id)]
     (send socket)))
-(defmethod send ::socket
+(defmethod send ::socket.spec/socket
   [socket data]
-  {:pre [(s/assert ::socket socket)]}
+  {:pre [(s/assert ::socket.spec/socket socket)]}
   (send* socket data))
 
 
