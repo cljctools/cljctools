@@ -1,4 +1,4 @@
-(ns cljctools.socket
+(ns cljctools.socket.api
   (:refer-clojure :exclude [send])
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
@@ -113,7 +113,7 @@
   [socket]
   {:pre [(s/assert ::socket.spec/socket socket)]}
   (socket.protocols/close* socket)
-  (swap! registryA dissoc (get @socket ::id)))
+  (swap! registryA dissoc (get @socket ::socket.spec/id)))
 
 
 (defmulti send

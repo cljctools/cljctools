@@ -1,2 +1,3 @@
 {:paths []
- :deps {github.cljtools/socket {:local/root  "./src/socket"}}}
+ :deps {github.cljtools/socket-meta {:local/root  "./src/socket-meta"}
+        github.cljtools/socket {:local/root  "./src/socket"}}}
