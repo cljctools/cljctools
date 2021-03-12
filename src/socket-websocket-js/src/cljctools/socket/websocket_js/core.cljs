@@ -1,4 +1,4 @@
-(ns cljctools.socket.websocket
+(ns cljctools.socket.websocket-js.core
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
