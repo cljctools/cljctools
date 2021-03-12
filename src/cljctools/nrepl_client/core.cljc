@@ -1,4 +1,4 @@
-(ns cljctools.nrepl-client
+(ns cljctools.nrepl-client.core
   (:refer-clojure :exclude [eval clone])
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
