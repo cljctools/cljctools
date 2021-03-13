@@ -60,9 +60,11 @@
 
 (s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
                     :cljs #(instance? cljs.core.async.impl.channels/ManyToManyChannel %)))
+(s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
+                 :cljs #(satisfies? cljs.core.async/Mult %)))
 
 (s/def ::send| ::channel)
-(s/def ::recv| ::channel)
+(s/def ::recv|mult ::mult)
 
 
 (s/def ::opts (s/keys :req [::recv|
@@ -91,7 +93,7 @@
 
 (defn nrepl-op
   [{:as opts
-    :keys [::recv|
+    :keys [::recv|mult
            ::send|
            ::done-keys
            ::result-keys
@@ -109,7 +111,7 @@
            (map (fn [value] (decode value)))
            (filter (fn [value] (get value :id))))
 
-          recv|piped (pipe recv| (chan 10 xf-message-id-of-this-operation?) true)
+          recv|tap (tap recv|mult (chan 100 xf-message-id-of-this-operation?)) 
 
           request (merge
                    nrepl-op-data
@@ -118,7 +120,8 @@
           error| (chan 1)
 
           release #(do
-                     (close! recv|piped)
+                     (untap recv|mult recv|tap)
+                     (close! recv|tap)
                      (close! error|))]
       (try
         (prn ::sending)
@@ -130,22 +133,22 @@
                                                     error)})))
       (loop [timeout| (timeout time-out)]
         (alt!
-          recv|piped ([value] (when value
-                            (>! result| value)
-                            (if (not-empty (select-keys value done-keys))
-                              (do
-                                (release)
-                                (close! result|)
-                                (let [responses (<! (a/into [] result|))]
-                                  (transduce
-                                   (comp
-                                    (keep #(or (not-empty (select-keys % result-keys)) nil))
-                                    #_(mapcat vals))
-                                   merge
-                                   {::request request
-                                    ::responses responses}
-                                   responses)))
-                              (recur (timeout time-out)))))
+          recv|tap ([value] (when value
+                              (>! result| value)
+                              (if (not-empty (select-keys value done-keys))
+                                (do
+                                  (release)
+                                  (close! result|)
+                                  (let [responses (<! (a/into [] result|))]
+                                    (transduce
+                                     (comp
+                                      (keep #(or (not-empty (select-keys % result-keys)) nil))
+                                      #_(mapcat vals))
+                                     merge
+                                     {::request request
+                                      ::responses responses}
+                                     responses)))
+                                (recur (timeout time-out)))))
           timeout| ([value] (do
                               (release)
                               {:error (ex-info
