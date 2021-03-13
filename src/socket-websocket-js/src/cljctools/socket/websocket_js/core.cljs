@@ -20,12 +20,13 @@
 
 (s/def ::url string?)
 
-(s/def ::create-opts-opts (s/keys :req [::url]))
+(s/def ::opts (s/keys :req [::url]))
 
 (defn create-opts
   [{:as opts
     :keys [::url]}]
-  {:pre [(s/assert ::create-opts-opts opts)]}
+  {:pre [(s/assert ::opts opts)]
+   :post [(s/assert ::socket.spec/created-opts %)]}
   (let []
     {::socket.spec/connect-fn
      (fn [socket]

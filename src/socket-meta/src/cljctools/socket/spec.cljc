@@ -30,16 +30,22 @@
 
 (s/def ::evt|mult ::mult)
 
-(s/def ::opts (s/keys :req [::connect-fn
-                            ::disconnect-fn
-                            ::send-fn]
-                      :opt [::id
-                            ::send|
-                            ::recv|
-                            ::evt|
-                            ::evt|mult]))
+(s/def ::created-opts (s/keys :req [::connect-fn
+                                    ::disconnect-fn
+                                    ::send-fn]))
+(s/def ::opts (s/and
+               ::created-opts
+               (s/keys :req []
+                       :opt [::id
+                             ::send|
+                             ::recv|
+                             ::evt|
+                             ::evt|mult])))
 
 (s/def ::socket #(and
                   (satisfies? socket.protocols/Socket %)
                   #?(:clj (satisfies? clojure.lang.IDeref %))
                   #?(:cljs (satisfies? cljs.core/IDeref %))))
+
+
+

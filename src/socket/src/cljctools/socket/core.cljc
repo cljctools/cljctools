@@ -32,8 +32,8 @@
            ::socket.spec/evt|mult
            ::socket.spec/connect-fn
            ::socket.spec/disconnect-fn
-           ::socket.spec/reconnection-timeout
-           ::socket.spec/send-fn]
+           ::socket.spec/send-fn
+           ::socket.spec/reconnection-timeout]
     :or {id (str #?(:clj  (java.util.UUID/randomUUID)
                     :cljs (random-uuid)))
          reconnection-timeout 1000

@@ -19,7 +19,7 @@
 (s/def ::port int?)
 (s/def ::path string?)
 
-(s/def ::create-opts-opts (s/or
+(s/def ::opts (s/or
                            :host-port
                            (s/keys :req [::host
                                          ::port])
@@ -31,7 +31,8 @@
     :keys [::host
            ::port
            ::path]}]
-  {:pre [(s/assert ::create-opts-opts opts)]}
+  {:pre [(s/assert ::opts opts)]
+   :post [(s/assert ::socket.spec/created-opts %)]}
   (let []
     {::socket.spec/connect-fn
      (fn [socket]
