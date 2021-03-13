@@ -15,23 +15,12 @@
 
 (def net (js/require "net"))
 
-(s/def ::host string?)
-(s/def ::port int?)
-(s/def ::path string?)
-
-(s/def ::opts (s/or
-                           :host-port
-                           (s/keys :req [::host
-                                         ::port])
-                           :path
-                           (s/keys :req [::path])))
-
 (defn create-opts
   [{:as opts
     :keys [::host
            ::port
            ::path]}]
-  {:pre [(s/assert ::opts opts)]
+  {:pre [(s/assert ::socket.spec/tcp-socket-opts opts)]
    :post [(s/assert ::socket.spec/created-opts %)]}
   (let []
     {::socket.spec/connect-fn

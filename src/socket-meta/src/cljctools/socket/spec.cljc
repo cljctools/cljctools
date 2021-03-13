@@ -30,6 +30,25 @@
 
 (s/def ::evt|mult ::mult)
 
+(s/def ::host string?)
+(s/def ::port int?)
+(s/def ::path string?)
+(s/def ::url string?)
+
+(s/def ::websocket-opts (s/keys :req [::url]))
+
+
+(s/def ::tcp-socket-opts (s/or
+                          :host-port
+                          (s/keys :req [::host
+                                        ::port])
+                          :path
+                          (s/keys :req [::path])))
+
+(s/def ::create-opts-opts (s/or
+                           :websocket-opts ::websocket-opts
+                           :tcp-socket-opts ::tcp-socket-opts))
+
 (s/def ::created-opts (s/keys :req [::connect-fn
                                     ::disconnect-fn
                                     ::send-fn]))

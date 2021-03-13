@@ -18,14 +18,11 @@
   (set! js/WebSocket ws)
   #_(set! js/module.exports exports))
 
-(s/def ::url string?)
-
-(s/def ::opts (s/keys :req [::url]))
 
 (defn create-opts
   [{:as opts
     :keys [::url]}]
-  {:pre [(s/assert ::opts opts)]
+  {:pre [(s/assert ::socket.spec/websocket-opts opts)]
    :post [(s/assert ::socket.spec/created-opts %)]}
   (let []
     {::socket.spec/connect-fn
