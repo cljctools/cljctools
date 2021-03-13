@@ -31,12 +31,15 @@
          (.encode bencode (clj->js data)))
 
        (defn decode
-         "Returns edn with :keywordize-keys true"
+         "Returns edn with :keywordize-keys true. 
+          Warning: try-catches decode error and returns nil"
          [bencode-str]
-         #(as-> bencode-str v
-            (.toString v)
-            (.decode bencode v "utf8")
-            (js->clj v :keywordize-keys true)))
+         (try
+           (as-> bencode-str v
+             (.toString v)
+             (.decode bencode v "utf8")
+             (js->clj v :keywordize-keys true))
+           (catch js/Error err (do nil))))
        ;;
        )))
 
@@ -67,7 +70,7 @@
 (s/def ::recv|mult ::mult)
 
 
-(s/def ::opts (s/keys :req [::recv|
+(s/def ::opts (s/keys :req [::recv|mult
                             ::send|]
                       :opt [::done-keys
                             ::result-keys
@@ -99,19 +102,21 @@
            ::result-keys
            ::nrepl-op-data
            ::time-out]
-    :or {done-keys [:status :err]
+    :or {done-keys [:status :value :err]
          result-keys [:value :err]
          time-out 10000}}]
-  {:pre [(s/assert ::nrepl-op-opts opts)]}
+  #_{:pre [(or (println opts) (s/assert ::nrepl-op-opts opts))]}
   (go
     (let [op-id (str (random-uuid))
 
           xf-message-id-of-this-operation?
           (comp
-           (map (fn [value] (decode value)))
-           (filter (fn [value] (get value :id))))
+           (map (fn [value]
+                  (decode value)))
+           (filter (fn [value]
+                     (get value :id))))
 
-          recv|tap (tap recv|mult (chan 100 xf-message-id-of-this-operation?)) 
+          recv|tap (tap recv|mult (chan 100 xf-message-id-of-this-operation?))
 
           request (merge
                    nrepl-op-data
