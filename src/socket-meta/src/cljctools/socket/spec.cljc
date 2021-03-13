@@ -49,9 +49,13 @@
                            :websocket-opts ::websocket-opts
                            :tcp-socket-opts ::tcp-socket-opts))
 
+(s/def ::create-opts-net-socket ifn?)
+(s/def ::create-opts-websocket ifn?)
+
 (s/def ::created-opts (s/keys :req [::connect-fn
                                     ::disconnect-fn
                                     ::send-fn]))
+
 (s/def ::opts (s/and
                ::created-opts
                (s/keys :req []
