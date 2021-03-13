@@ -1,5 +1,5 @@
 (ns cljctools.nrepl-client.core
-  (:refer-clojure :exclude [eval clone])
+  (:refer-clojure :exclude [eval])
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
@@ -46,11 +46,34 @@
 (s/def ::done-keys (s/coll-of keyword?))
 (s/def ::error any?)
 
+(s/def ::op #{"eval" "clone"})
 (s/def ::code string?)
 (s/def ::session string?)
 
+(s/def ::nrepl-op-data (s/or
+                        ::op-eval
+                        (s/keys :req-un [::op
+                                         ::code
+                                         ::session])
+                        ::op-clone-session
+                        (s/keys :req-un [::op])))
+
+(s/def ::eval-opts (s/keys :req [::code
+                                 ::session]
+                           :opt []))
+
+(s/def ::clone-session-opts (s/keys :req []
+                                    :opt []))
+
+(s/def ::nrepl-op-opts (s/keys :req [::recv|mult
+                                     ::send|
+                                     ::nrepl-op-data]
+                               :opt [::done-keys
+                                     ::result-keys
+                                     ::time-out]))
+
 (declare  eval
-          clone)
+          clone-session)
 
 (defn nrepl-op
   [{:as opts
@@ -58,11 +81,12 @@
            ::send|
            ::done-keys
            ::result-keys
-           ::data
+           ::nrepl-op-data
            ::time-out]
     :or {done-keys [:status :err]
          result-keys [:value :err]
          time-out 10000}}]
+  {:pre [(s/assert ::nrepl-op-opts opts)]}
   (go
     (let [op-id (str (random-uuid))
 
@@ -74,7 +98,7 @@
           recv|tap (tap recv|mult (chan 10 xf-message-id-of-this-operation?))
 
           request (merge
-                   data
+                   nrepl-op-data
                    {:id op-id})
           result| (chan 50)
           error| (chan 1)
@@ -118,18 +142,20 @@
                             (release)
                             value)))))))
 
-(defn clone
+(defn clone-session
   [{:as opts
-    :keys [:code
-           :session]}]
+    :keys []}]
+  {:pre [(s/assert ::clone-session-opts opts)]}
   (nrepl-op
-   {::data (merge {:op "clone"})
+   {::nrepl-op-data {:op "clone"}
     ::result-keys [:new-session]}))
 
 (defn eval
   [{:as opts
-    :keys [:code
-           :session]}]
+    :keys [::code
+           ::session]}]
+  {:pre [(s/assert ::eval-opts opts)]}
   (nrepl-op
-   {::data (merge {:op "eval"}
-                  opts)}))
+   {::nrepl-op-data {:op "eval"
+                     :code code
+                     :session session}}))
