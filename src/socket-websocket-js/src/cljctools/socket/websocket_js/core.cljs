@@ -21,7 +21,7 @@
 
 (defn create-opts
   [{:as opts
-    :keys [::url]}]
+    :keys [::socket.spec/url]}]
   {:pre [(s/assert ::socket.spec/websocket-opts opts)]
    :post [(s/assert ::socket.spec/created-opts %)]}
   (let []

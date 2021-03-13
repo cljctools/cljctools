@@ -17,9 +17,9 @@
 
 (defn create-opts
   [{:as opts
-    :keys [::host
-           ::port
-           ::path]}]
+    :keys [::socket.spec/host
+           ::socket.spec/port
+           ::socket.spec/path]}]
   {:pre [(s/assert ::socket.spec/tcp-socket-opts opts)]
    :post [(s/assert ::socket.spec/created-opts %)]}
   (let []
@@ -29,9 +29,9 @@
                      ::socket.spec/recv|]} @socket
              raw-socket (net.Socket.)]
          (doto raw-socket
-           (.connect (clj->js (select-keys opts [::host
-                                                 ::port
-                                                 ::path])))
+           (.connect (clj->js (select-keys opts [::socket.spec/host
+                                                 ::socket.spec/port
+                                                 ::socket.spec/path])))
            (.on "connect" (fn []
                             (println ::connected)
                             (put! evt| {:op ::socket.spec/connected})))
