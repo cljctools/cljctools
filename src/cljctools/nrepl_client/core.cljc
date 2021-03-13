@@ -58,26 +58,33 @@
                         ::op-clone-session
                         (s/keys :req-un [::op])))
 
-(s/def ::eval-opts (s/keys :req [
-                                 ::code
-                                 ::session]
-                           :opt []))
-
-(s/def ::clone-session-opts (s/keys :req []
-                                    :opt []))
-
 (s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
                     :cljs #(instance? cljs.core.async.impl.channels/ManyToManyChannel %)))
 
 (s/def ::send| ::channel)
 (s/def ::recv| ::channel)
 
-(s/def ::nrepl-op-opts (s/keys :req [::recv|
-                                     ::send|
-                                     ::nrepl-op-data]
-                               :opt [::done-keys
-                                     ::result-keys
-                                     ::time-out]))
+
+(s/def ::opts (s/keys :req [::recv|
+                            ::send|]
+                      :opt [::done-keys
+                            ::result-keys
+                            ::time-out]))
+
+(s/def ::nrepl-op-opts (s/and
+                        ::opts
+                        (s/keys :req [::nrepl-op-data])))
+
+(s/def ::eval-opts (s/and
+                    ::opts
+                    (s/keys :req [::code
+                                  ::session]
+                            :opt [])))
+
+(s/def ::clone-session-opts (s/and
+                             ::opts
+                             (s/keys :req []
+                                     :opt [])))
 
 (declare  eval
           clone-session)
@@ -153,8 +160,10 @@
     :keys []}]
   {:pre [(s/assert ::clone-session-opts opts)]}
   (nrepl-op
-   {::nrepl-op-data {:op "clone"}
-    ::result-keys [:new-session]}))
+   (merge
+    {::nrepl-op-data {:op "clone"}
+     ::result-keys [:new-session]}
+    opts)))
 
 (defn eval
   [{:as opts
@@ -162,6 +171,8 @@
            ::session]}]
   {:pre [(s/assert ::eval-opts opts)]}
   (nrepl-op
-   {::nrepl-op-data {:op "eval"
-                     :code code
-                     :session session}}))
+   (merge
+    {::nrepl-op-data {:op "eval"
+                      :code code
+                      :session session}}
+    opts)))
