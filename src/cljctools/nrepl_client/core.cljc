@@ -102,7 +102,7 @@
            ::result-keys
            ::nrepl-op-data
            ::time-out]
-    :or {done-keys [:status :value :err]
+    :or {done-keys [:status :err]
          result-keys [:value :err]
          time-out 10000}}]
   #_{:pre [(or (println opts) (s/assert ::nrepl-op-opts opts))]}
@@ -129,8 +129,7 @@
                      (close! recv|tap)
                      (close! error|))]
       (try
-        (prn ::sending)
-        (prn request)
+        #_(prn ::sending request)
         (put! send| (encode request))
         (catch js/Error error (put! error| {:error (ex-info
                                                     "Error xfroming/sending nrepl op"
@@ -145,14 +144,18 @@
                                   (release)
                                   (close! result|)
                                   (let [responses (<! (a/into [] result|))]
-                                    (transduce
-                                     (comp
-                                      (keep #(or (not-empty (select-keys % result-keys)) nil))
-                                      #_(mapcat vals))
-                                     merge
-                                     {::request request
-                                      ::responses responses}
-                                     responses)))
+                                    (let [result (transduce
+                                                  (comp
+                                                   (keep #(or (not-empty (select-keys % result-keys)) nil))
+                                                   #_(mapcat vals))
+                                                  merge
+                                                  {::request request
+                                                   ::responses responses}
+                                                  responses)]
+                                      (println ::result)
+                                      (println (::request result))
+                                      (println (::responses result))
+                                      result)))
                                 (recur (timeout time-out)))))
           timeout| ([value] (do
                               (release)
