@@ -48,7 +48,7 @@
   (or
    (get @registryA id)
    (let [evt|mult (or evt|mult (mult evt|))
-         recv|mult (or recv|mult recv|)
+         recv|mult (or recv|mult (mult recv|))
          evt|tap (tap evt|mult (chan (sliding-buffer 10)))
          stateA (atom nil)
          socket

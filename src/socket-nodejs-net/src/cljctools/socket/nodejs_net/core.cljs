@@ -62,4 +62,6 @@
      ::socket.spec/send-fn
      (fn [socket data]
        (let [{:keys [::socket.spec/raw-socket]} @socket]
-         (.write raw-socket data)))}))
+         (.write raw-socket data)
+         #_(when  (= (.readyState raw-socket) "open")
+             (.write raw-socket data))))}))
