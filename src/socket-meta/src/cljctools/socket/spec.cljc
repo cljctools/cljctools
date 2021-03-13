@@ -17,6 +17,7 @@
 
 (s/def ::id any?)
 (s/def ::reconnection-timeout int?)
+(s/def ::connect? boolean?)
 (s/def ::connect-fn ifn?)
 (s/def ::disconnect-fn ifn?)
 (s/def ::send-fn ifn?)
@@ -27,6 +28,8 @@
 (s/def ::send| ::channel)
 (s/def ::recv| ::channel)
 (s/def ::evt| ::channel)
+
+
 
 (s/def ::evt|mult ::mult)
 
@@ -60,6 +63,8 @@
                ::created-opts
                (s/keys :req []
                        :opt [::id
+                             ::connect?
+                             ::reconnection-timeout
                              ::send|
                              ::recv|
                              ::evt|

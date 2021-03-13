@@ -33,13 +33,15 @@
            ::socket.spec/connect-fn
            ::socket.spec/disconnect-fn
            ::socket.spec/send-fn
-           ::socket.spec/reconnection-timeout]
+           ::socket.spec/reconnection-timeout
+           ::socket.spec/connect?]
     :or {id (str #?(:clj  (java.util.UUID/randomUUID)
                     :cljs (random-uuid)))
          reconnection-timeout 1000
          send| (chan (sliding-buffer 10))
          recv| (chan (sliding-buffer 10))
-         evt| (chan (sliding-buffer 10))}}]
+         evt| (chan (sliding-buffer 10))
+         connect? true}}]
   {:pre [(s/assert ::socket.spec/opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
   (or
@@ -78,7 +80,8 @@
                       ::socket.spec/evt|mult evt|mult
                       ::socket.spec/raw-socket nil
                       ::socket.spec/recv| recv|}))
-     (socket.protocols/connect* socket)
+     (when connect?
+       (socket.protocols/connect* socket))
      (go
        (loop []
          (let [[value port] (alts! [send| evt|tap])]
