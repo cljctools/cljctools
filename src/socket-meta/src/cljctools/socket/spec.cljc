@@ -28,10 +28,8 @@
 (s/def ::send| ::channel)
 (s/def ::recv| ::channel)
 (s/def ::evt| ::channel)
-
-
-
 (s/def ::evt|mult ::mult)
+(s/def ::recv|mult ::mult)
 
 (s/def ::host string?)
 (s/def ::port int?)

@@ -28,6 +28,7 @@
     :keys [::socket.spec/id
            ::socket.spec/send|
            ::socket.spec/recv|
+           ::socket.spec/recv|mult
            ::socket.spec/evt|
            ::socket.spec/evt|mult
            ::socket.spec/connect-fn
@@ -47,6 +48,7 @@
   (or
    (get @registryA id)
    (let [evt|mult (or evt|mult (mult evt|))
+         recv|mult (or recv|mult recv|)
          evt|tap (tap evt|mult (chan (sliding-buffer 10)))
          stateA (atom nil)
          socket
@@ -79,7 +81,8 @@
                       ::socket.spec/evt| evt|
                       ::socket.spec/evt|mult evt|mult
                       ::socket.spec/raw-socket nil
-                      ::socket.spec/recv| recv|}))
+                      ::socket.spec/recv| recv|
+                      ::socket.spec/recv|mult recv|mult}))
      (when connect?
        (socket.protocols/connect* socket))
      (go
