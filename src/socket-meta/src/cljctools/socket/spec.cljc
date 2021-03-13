@@ -35,19 +35,24 @@
 (s/def ::path string?)
 (s/def ::url string?)
 
-(s/def ::websocket-opts (s/keys :req [::url]))
+(s/def ::socket-type #{::websocket
+                       ::tcp-socket})
 
+(s/def ::websocket-opts (s/keys :req [::url]
+                                :opt [::socket-type]))
 
 (s/def ::tcp-socket-opts (s/or
                           :host-port
                           (s/keys :req [::host
-                                        ::port])
+                                        ::port]
+                                  :opt [::socket-type])
                           :path
-                          (s/keys :req [::path])))
+                          (s/keys :req [::path]
+                                  :opt [::socket-type])))
 
-(s/def ::create-opts-opts (s/or
-                           :websocket-opts ::websocket-opts
-                           :tcp-socket-opts ::tcp-socket-opts))
+(s/def ::socket-opts (s/or
+                      :websocket-opts ::websocket-opts
+                      :tcp-socket-opts ::tcp-socket-opts))
 
 (s/def ::create-opts-net-socket ifn?)
 (s/def ::create-opts-websocket ifn?)
