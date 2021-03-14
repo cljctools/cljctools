@@ -1,0 +1,42 @@
+{:paths ["src" "resources"]
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://clojars.org/repo/"}}
+ :deps {github.cljctools/mult-vscode {:local/root "./src/mult-vscode"}
+        github.cljctools/mult-vscode-ui {:local/root "./src/mult-vscode-ui"}}
+ :aliases {;  :cljs {:extra-deps {github.com/cljctools.self-hosting  {:local/root "../../cljctools/self-hosting/cljs"}}}
+          ;  :shadow {:extra-deps {github.com/cljctools.self-hosting  {:local/root "../../cljctools/self-hosting/shadow"}}}
+           :cljs-self-hosting-cljs {:extra-deps
+                                    {github.cljctools/cljs-self-hosting-meta
+                                     {:local/root "../cljs-self-hosting/src/cljs-self-hosting-meta"}
+                                     github.cljctools/cljs-self-hosting-cljs
+                                     {:local/root "../cljs-self-hosting/src/cljs-self-hosting-cljs"}}}
+
+           :cljs-self-hosting-shadow-nodejs {:extra-deps
+                                             {github.cljctools/cljs-self-hosting-meta
+                                              {:local/root "../cljs-self-hosting/src/cljs-self-hosting-meta"}
+                                              github.cljctools/cljs-self-hosting-shadow-nodejs
+                                              {:local/root "../cljs-self-hosting/src/cljs-self-hosting-shadow-nodejs"}}}
+
+           :dev {:extra-deps {thheller/shadow-cljs {:mvn/version "2.11.7"
+                                                    :exclusions [nrepl
+                                                                 cider/piggieback
+                                                                 org.clojure/clojure
+                                                                 org.clojure/clojurescript
+                                                                 org.clojure/core.async
+                                                                 #_thheller/shadow-client]}
+                              #_thheller/shadow-client #_{:git/url "https://github.com/sergeiudris/shadow"
+                                                          :sha "320ea4abd28b18d7a576183a8df37446f9716e52"
+                                                          :exclusions [org.clojure/clojurescript
+                                                                       org.clojure/core.async]}
+                              nrepl/nrepl {:mvn/version "0.6.0"}
+                              cider/cider-nrepl {:mvn/version "0.24.0"}
+                              cider/piggieback {:mvn/version "0.4.2"}}}
+           :local {:extra-deps {;; org.clojure/clojurescript {:local/root "../../clojurescript"}
+                                ;; thheller/shadow-cljs-local {:local/root "../code/shadow-cljs"
+                                ;;                             :exclusions [nrepl
+                                ;;                                          cider/piggieback
+                                ;;                                          org.clojure/clojure
+                                ;;                                          org.clojure/clojurescript
+                                ;;                                          org.clojure/core.async
+                                ;;                                          thheller/shadow-client]}
+                                }}}}
