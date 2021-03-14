@@ -1,10 +1,6 @@
 # libp2p
 clojure(script) implementation of https://github.com/libp2p
 
-<img width="500px" src="./docs/hard_way.jpg"></img>
-
-*James Woods and Michael J Fox in The Hard Way, 1991*
-
 ## why
 
 - need for jvm implementation of libp2p with examples and AutoRelay
