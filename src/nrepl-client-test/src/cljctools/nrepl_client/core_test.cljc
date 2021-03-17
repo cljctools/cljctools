@@ -18,14 +18,22 @@
    [clojure.test.check.generators :as gen]
    [clojure.test.check.properties :as prop]
    [clojure.test :refer [is run-all-tests testing deftest run-tests]]
-   [cljctools.nrepl-client.core]))
+
+   [cljctools.nrepl-client.core :as nrepl-client.core]))
 
 
-(deftest arithmetic
-  (testing "Arithmetic"
-    (testing "with positive integers"
-      (is (= 4 (+ 2 2)))
-      (is (= 7 (+ 3 4))))
-    (testing "with negative integers"
-      (is (= -4 (+ -2 -2)))
-      (is (= -1 (+ 3 -4))))))
+#_(deftest arithmetic
+    (testing "Arithmetic"
+      (testing "with positive integers"
+        (is (= 4 (+ 2 2)))
+        (is (= 7 (+ 3 4))))
+      (testing "with negative integers"
+        (is (= -4 (+ -2 -2)))
+        (is (= -1 (+ 3 -4))))))
+
+
+(deftest bencode
+  (testing "Bencode works, and works the same on node and jvm"
+    (testing "encoding"
+      (is (= (nrepl-client.core/encode->str {:a "bc"}) "d1:a2:bce"))
+      (is (= (nrepl-client.core/decode "d1:a2:bce") {:a "bc"})))))

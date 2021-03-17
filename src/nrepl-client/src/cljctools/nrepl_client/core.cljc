@@ -16,6 +16,10 @@
    (do
      (defn encode
        [x])
+
+     (defn encode->str
+       [x]
+       (.toString (encode x)))
      (defn decode
        [x])))
 
@@ -32,6 +36,10 @@
          [data]
          (.encode bencode (clj->js data)))
 
+       (defn encode->str
+         [data]
+         (.toString (encode data)))
+
        (defn decode
          "Returns edn with :keywordize-keys true. 
           Warning: try-catches decode error and returns nil"
@@ -42,6 +50,7 @@
              (.decode bencode v "utf8")
              (js->clj v :keywordize-keys true))
            (catch js/Error err (do nil))))
+
        ;;
        )))
 

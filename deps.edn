@@ -10,9 +10,9 @@
                "--bind" "0.0.0.0"
                "--middleware" "cider.nrepl/cider-middleware"]
    :extra-deps
-   {org.clojure/clojure         {:mvn/version "1.10.3"}
+   {github.cljctools/nrepl-client-test {:local/root "./src/nrepl-client-test"}
+    org.clojure/clojure         {:mvn/version "1.10.3"}
     nrepl/bencode  {:mvn/version "1.1.0"}
-    github.cljctools/nrepl-client-test {:local/root "./src/nrepl-client-test"}
     github.cljctools/deps-cli-nrepl {:git/url "https://github.com/cljctools/deps-cli-nrepl"
                                      :sha "08283d3841c5948b0b9d36a977ebfdad111cdb2f"
                                      :tag "v2.0.1"}
@@ -20,8 +20,8 @@
     cider/cider-nrepl {:mvn/version "0.25.5"}}}
 
   :cljs-test-runner
-  {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.758"}
-                github.cljctools/nrepl-client-test {:local/root "./src/nrepl-client-test"}
+  {:extra-deps {github.cljctools/nrepl-client-test {:local/root "./src/nrepl-client-test"}
+                org.clojure/clojurescript {:mvn/version "1.10.758"}
                 olical/cljs-test-runner {:mvn/version "3.8.0"}}
    :extra-paths ["cljs-test-runner-out/gen"]
    :main-opts ["-m" "cljs-test-runner.main" "-d" "src/nrepl-client-test"]}}}
