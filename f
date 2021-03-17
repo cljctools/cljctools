@@ -1,16 +1,16 @@
 #!/bin/bash
 
 repl(){
-    clojure -A:repl
+    clojure -A:core:repl
 }
 
 test-nodejs(){
     npm i
-    clojure -A:cljs-test-runner -x node
+    clojure -A:core:cljs-test-runner -x node
 }
 
 test-jvm(){
-    clojure -A:clj-test-runner
+    clojure -A:core:clj-test-runner
 }
 
 "$@"
