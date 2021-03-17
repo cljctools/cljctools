@@ -12,18 +12,20 @@
    #?(:cljs [goog.string :refer [format]])
    [clojure.spec.alpha :as s]))
 
-#?(:cljs 
+#?(:clj
    (do
-     (when (exists? js/module)
-       (def path (js/require "path"))
-       #_(set! js/WebSocket ws)
-       #_(set! js/module.exports exports))))
+     (defn encode
+       [x])
+     (defn decode
+       [x])))
 
 #?(:cljs
    (do
      (when (exists? js/module)
-
+       (def path (js/require "path"))
        (def bencode (js/require "bencode"))
+       #_(set! js/WebSocket ws)
+       #_(set! js/module.exports exports)
 
        (defn encode
          "Returns bencode string"
@@ -102,17 +104,21 @@
            ::result-keys
            ::nrepl-op-data
            ::time-out]
-    :or {done-keys [:status :err]
+    :or {done-keys [:status :value :err]
          result-keys [:value :err]
-         time-out 10000}}]
+         time-out 100}}]
   #_{:pre [(or (println opts) (s/assert ::nrepl-op-opts opts))]}
   (go
-    (let [op-id (str (random-uuid))
+    (let [op-id (str #?(:clj (java.util.UUID/randomUUID)
+                        :cljs (random-uuid)))
 
           xf-message-id-of-this-operation?
           (comp
            (map (fn [value]
-                  (decode value)))
+                  (println value)
+                  (let [data (decode value)]
+                    (println data)
+                    data)))
            (filter (fn [value]
                      (get value :id))))
 
@@ -124,17 +130,22 @@
           result| (chan 50)
           error| (chan 1)
 
+
+
           release #(do
                      (untap recv|mult recv|tap)
                      (close! recv|tap)
                      (close! error|))]
       (try
-        #_(prn ::sending request)
+        (prn ::sending request)
         (put! send| (encode request))
-        (catch js/Error error (put! error| {:error (ex-info
-                                                    "Error xfroming/sending nrepl op"
-                                                    request
-                                                    error)})))
+        (catch
+         #?(:cljs js/Error)
+         #?(:clj Exception)
+          error (put! error| {:error (ex-info
+                                      "Error xfroming/sending nrepl op"
+                                      request
+                                      error)})))
       (loop [timeout| (timeout time-out)]
         (alt!
           recv|tap ([value] (when value
@@ -152,13 +163,14 @@
                                                   {::request request
                                                    ::responses responses}
                                                   responses)]
-                                      (println ::result)
-                                      (println (::request result))
-                                      (println (::responses result))
+                                      #_(println ::result)
+                                      #_(println (::request result))
+                                      #_(println (::responses result))
                                       result)))
                                 (recur (timeout time-out)))))
           timeout| ([value] (do
                               (release)
+                              (println ::timed-out request)
                               {:error (ex-info
                                        "Error: nrepl op timed out"
                                        request)}))
