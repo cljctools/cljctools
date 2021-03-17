@@ -19,8 +19,15 @@
    [clojure.test.check.properties :as prop]
    [clojure.test :refer [is run-all-tests testing deftest run-tests]]
 
-   [cljctools.nrepl-client.core :as nrepl-client.core]))
-
+   [cljctools.nrepl-client.core :as nrepl-client.core])
+  #?(:clj
+     (:import
+      [java.io ByteArrayOutputStream
+       EOFException
+       InputStream
+       IOException
+       OutputStream
+       PushbackInputStream])))
 
 #_(deftest arithmetic
     (testing "Arithmetic"
@@ -33,7 +40,7 @@
 
 
 (deftest bencode
-  (testing "Bencode works, and works the same on node and jvm"
+  (testing "Bencode works, and works the same on node and jvm:"
     (testing "encoding"
       (is (= (nrepl-client.core/encode->str {:a "bc"}) "d1:a2:bce"))
       (is (= (nrepl-client.core/decode "d1:a2:bce") {:a "bc"})))))

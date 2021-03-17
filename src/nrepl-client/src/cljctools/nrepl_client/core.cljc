@@ -10,16 +10,29 @@
    #?(:cljs [cljs.reader :refer [read-string]])
    #?(:cljs [goog.string.format])
    #?(:cljs [goog.string :refer [format]])
-   [clojure.spec.alpha :as s]))
+   [clojure.spec.alpha :as s]
+
+   #?(:clj [bencode.core]))
+  #?(:clj
+     (:import
+      [java.io ByteArrayOutputStream
+       EOFException
+       InputStream
+       IOException
+       OutputStream
+       PushbackInputStream])))
 
 #?(:clj
    (do
      (defn encode
-       [x])
+       [data]
+       (doto (ByteArrayOutputStream.)
+         (bencode.core/write-bencode data)))
 
      (defn encode->str
-       [x]
-       (.toString (encode x)))
+       [data]
+       (.toString (encode data)))
+
      (defn decode
        [x])))
 
@@ -32,7 +45,7 @@
        #_(set! js/module.exports exports)
 
        (defn encode
-         "Returns bencode string"
+         "Returns buffer"
          [data]
          (.encode bencode (clj->js data)))
 
