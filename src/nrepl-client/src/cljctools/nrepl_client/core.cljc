@@ -10,62 +10,7 @@
    #?(:cljs [cljs.reader :refer [read-string]])
    #?(:cljs [goog.string.format])
    #?(:cljs [goog.string :refer [format]])
-   [clojure.spec.alpha :as s]
-
-   #?(:clj [bencode.core]))
-  #?(:clj
-     (:import
-      [java.io ByteArrayOutputStream
-       EOFException
-       InputStream
-       IOException
-       OutputStream
-       PushbackInputStream])))
-
-#?(:clj
-   (do
-     (defn encode
-       [data]
-       (doto (ByteArrayOutputStream.)
-         (bencode.core/write-bencode data)))
-
-     (defn encode->str
-       [data]
-       (.toString (encode data)))
-
-     (defn decode
-       [x])))
-
-#?(:cljs
-   (do
-     (when (exists? js/module)
-       (def path (js/require "path"))
-       (def bencode (js/require "bencode"))
-       #_(set! js/WebSocket ws)
-       #_(set! js/module.exports exports)
-
-       (defn encode
-         "Returns buffer"
-         [data]
-         (.encode bencode (clj->js data)))
-
-       (defn encode->str
-         [data]
-         (.toString (encode data)))
-
-       (defn decode
-         "Returns edn with :keywordize-keys true. 
-          Warning: try-catches decode error and returns nil"
-         [bencode-str]
-         (try
-           (as-> bencode-str v
-             (.toString v)
-             (.decode bencode v "utf8")
-             (js->clj v :keywordize-keys true))
-           (catch js/Error err (do nil))))
-
-       ;;
-       )))
+   [clojure.spec.alpha :as s]))
 
 (s/def ::nrepl-op-request-data (s/map-of keyword? some?))
 (s/def ::nrepl-op-responses (s/coll-of some?))
@@ -93,10 +38,14 @@
 (s/def ::send| ::channel)
 (s/def ::recv|mult ::mult)
 
+(s/def ::encode-fn ifn?)
+(s/def ::decode-fn ifn?)
 
 (s/def ::opts (s/keys :req [::recv|mult
                             ::send|]
                       :opt [::done-keys
+                            ::encode-fn
+                            ::decode-fn
                             ::result-keys
                             ::time-out]))
 
@@ -125,10 +74,14 @@
            ::done-keys
            ::result-keys
            ::nrepl-op-data
+           ::encode-fn
+           ::decode-fn
            ::time-out]
     :or {done-keys [:status :value :err]
          result-keys [:value :err]
-         time-out 100}}]
+         time-out 100
+         decode-fn identity
+         encode-fn identity}}]
   #_{:pre [(or (println opts) (s/assert ::nrepl-op-opts opts))]}
   (go
     (let [op-id (str #?(:clj (java.util.UUID/randomUUID)
@@ -138,7 +91,7 @@
           (comp
            (map (fn [value]
                   (println value)
-                  (let [data (decode value)]
+                  (let [data (decode-fn value)]
                     (println data)
                     data)))
            (filter (fn [value]
@@ -160,7 +113,7 @@
                      (close! error|))]
       (try
         (prn ::sending request)
-        (put! send| (encode request))
+        (put! send| (encode-fn request))
         (catch
          #?(:cljs js/Error)
          #?(:clj Exception)

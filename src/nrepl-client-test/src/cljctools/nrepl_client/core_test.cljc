@@ -18,7 +18,8 @@
    [clojure.test.check.generators :as gen]
    [clojure.test.check.properties :as prop]
    [clojure.test :refer [is run-all-tests testing deftest run-tests]]
-
+   
+   #?(:clj [bencode.core])
    [cljctools.nrepl-client.core :as nrepl-client.core])
   #?(:clj
      (:import
@@ -28,6 +29,52 @@
        IOException
        OutputStream
        PushbackInputStream])))
+
+#?(:clj
+   (do
+     (defn encode
+       [data]
+       (doto (ByteArrayOutputStream.)
+         (bencode.core/write-bencode data)))
+
+     (defn encode->str
+       [data]
+       (.toString (encode data)))
+
+     (defn decode
+       [x])))
+
+#?(:cljs
+   (do
+     (when (exists? js/module)
+       (def path (js/require "path"))
+       (def bencode (js/require "bencode"))
+       #_(set! js/WebSocket ws)
+       #_(set! js/module.exports exports)
+
+       (defn encode
+         "Returns buffer"
+         [data]
+         (.encode bencode (clj->js data)))
+
+       (defn encode->str
+         [data]
+         (.toString (encode data)))
+
+       (defn decode
+         "Returns edn with :keywordize-keys true. 
+          Warning: try-catches decode error and returns nil"
+         [bencode-str]
+         (try
+           (as-> bencode-str v
+             (.toString v)
+             (.decode bencode v "utf8")
+             (js->clj v :keywordize-keys true))
+           (catch js/Error err (do nil))))
+
+       ;;
+       )))
+
 
 #_(deftest arithmetic
     (testing "Arithmetic"
@@ -42,5 +89,5 @@
 (deftest bencode
   (testing "Bencode works, and works the same on node and jvm:"
     (testing "encoding"
-      (is (= (nrepl-client.core/encode->str {:a "bc"}) "d1:a2:bce"))
-      (is (= (nrepl-client.core/decode "d1:a2:bce") {:a "bc"})))))
+      (is (= (encode->str {:a "bc"}) "d1:a2:bce"))
+      (is (= (decode "d1:a2:bce") {:a "bc"})))))
