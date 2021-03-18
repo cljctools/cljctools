@@ -3,10 +3,6 @@
 		{
 			"name": "nrepl-client",
 			"path": "../../nrepl-client"
-		},
-    {
-			"name": "socket",
-			"path": "../../socket"
 		}
 	],
 	"settings": {
