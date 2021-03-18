@@ -10,6 +10,9 @@ test-nodejs(){
 }
 
 test-jvm(){
+
+    # -i :integration -i :example
+    # -v cljctools.socket.java-net-test/core-async-blocking-put-in-catch
     clojure -A:core:clj:test:clj-test-runner "$@"
 }
 

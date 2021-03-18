@@ -34,9 +34,7 @@
                                                    :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}
    :main-opts ["-m" "cognitect.test-runner"
                "-d" "src/socket-test"
-               "-n" "cljctools.socket.java-net-test"
-               "-i" ":integration"
-               "-i" ":example"]}
+               "-n" "cljctools.socket.java-net-test"]}
 
   :cljs-test-runner
   {:extra-deps {github.Olical/cljs-test-runner {:git/url "https://github.com/Olical/cljs-test-runner"
