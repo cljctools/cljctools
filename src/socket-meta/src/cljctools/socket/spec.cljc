@@ -53,20 +53,22 @@
 (s/def ::create-opts-net-socket ifn?)
 (s/def ::create-opts-websocket ifn?)
 
-(s/def ::created-opts (s/keys :req [::connect-fn
+(s/def ::connect-opts (s/keys :req [::connect-fn
                                     ::disconnect-fn
                                     ::send-fn]))
 
-(s/def ::opts (s/and
-               ::created-opts
-               (s/keys :req []
-                       :opt [::id
-                             ::connect?
-                             ::reconnection-timeout
-                             ::send|
-                             ::recv|
-                             ::evt|
-                             ::evt|mult])))
+(s/def ::create-opts (s/keys :req []
+                             :opt [::id
+                                   ::connect?
+                                   ::reconnection-timeout
+                                   ::send|
+                                   ::recv|
+                                   ::evt|
+                                   ::evt|mult]))
+
+(s/def ::opts #(if (true? (::connect? %))
+                 (s/assert (s/and ::connect-opts ::create-opts) %)
+                 (s/assert ::create-opts %)))
 
 (s/def ::socket #(and
                   (satisfies? socket.protocols/Socket %)

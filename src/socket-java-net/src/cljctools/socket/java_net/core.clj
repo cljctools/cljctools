@@ -17,12 +17,12 @@
    [java.io
     IOException]))
 
-(defn create-opts
+(defn create-opts-readline-preset
   [{:as opts
     :keys [::socket.spec/host
            ::socket.spec/port]}]
   {:pre [(s/assert ::socket.spec/tcp-socket-opts opts)]
-   :post [(s/assert ::socket.spec/created-opts %)]}
+   :post [(s/assert ::socket.spec/connect-opts %)]}
   (let []
     {::socket.spec/connect-fn
      (fn [socket]

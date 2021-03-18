@@ -16,11 +16,11 @@
 
 (defonce ^:private registryA (atom {}))
 
-(defn open
-  "Creates and connects a socket if one does not exist.
+(defn create
+  "Creates and optionally connects a socket if one does not exist.
    Returns Socket instance or already existing instance
    Socket instaces are also stored in a global registry atom by ::id for convinience: can do close,send by simply provding id.
-   (def socket (cljctools.socket/open {:cljctools.socket/id ::foo })).
+   (def socket (cljctools.socket/create {:cljctools.socket/id ::foo })).
    Can (close socket) or (close ::foo), (send socket data) or (send ::foo data).
    Can be derefernced  to get current state - @socket simply returns underlying atom's state.
    For ::connect-fn ::disconnect-fn ::send-fn see cljctools.socket.nodejs_net, cljctools.socket.websocket implementations"
@@ -56,16 +56,23 @@
          (reify
            socket.protocols/Socket
            (connect* [_]
+             (s/assert ::socket.spec/connect-opts (get @stateA ::socket.spec/opts))
              (when (get @stateA ::socket.spec/raw-socket)
                (socket.protocols/disconnect* _))
-             (swap! stateA assoc ::socket.spec/raw-socket (connect-fn _)))
+             (swap! stateA assoc ::socket.spec/raw-socket ((::socket.spec/connect-fn (get @stateA ::socket.spec/opts)) _)))
+           (connect* [_ opts]
+             {:pre [(s/assert ::socket.spec/connect-opts opts)]}
+             (swap! stateA update ::socket.spec/opts merge opts)
+             (when (get @stateA ::socket.spec/raw-socket)
+               (socket.protocols/disconnect* _))
+             (swap! stateA assoc ::socket.spec/raw-socket ((::socket.spec/connect-fn (get @stateA ::socket.spec/opts)) _)))
            (disconnect* [_]
              (when (get @stateA ::socket.spec/raw-socket)
-               (disconnect-fn _)
+               ((::socket.spec/disconnect-fn (get @stateA ::socket.spec/opts)) _)
                (swap! stateA dissoc ::socket.spec/raw-socket)))
            (send* [_ data]
              (when (get @stateA ::socket.spec/raw-socket)
-               (send-fn _ data)))
+               ((::socket.spec/send-fn (get @stateA ::socket.spec/opts)) _ data)))
            (close* [_]
              (socket.protocols/disconnect* _)
              (untap evt|mult evt|tap)

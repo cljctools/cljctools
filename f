@@ -6,7 +6,9 @@ repl(){
 
 test-nodejs(){
     npm i
-    clojure -A:core:cljs:test:cljs-test-runner -x node "$@"
+    # -i :integration
+    # -n cljctools.socket.nodejs-net-test
+    clojure -A:core:cljs:test:nodejs-net:cljs-test-runner -x node "$@"
 }
 
 test-jvm(){

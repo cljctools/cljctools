@@ -33,26 +33,26 @@
                                                  ::socket.spec/port
                                                  ::socket.spec/path])))
            (.on "connect" (fn []
-                            (println ::connected)
+                            #_(println ::connected)
                             (put! evt| {:op ::socket.spec/connected})))
            (.on "ready" (fn []
-                          (println ::ready)
+                          #_(println ::ready)
                           (put! evt| {:op ::socket.spec/ready})))
            (.on "timeout" (fn []
-                            (println ::timeout)
+                            #_(println ::timeout)
                             (put! evt| {:op ::socket.spec/timeout})))
            (.on "close" (fn [code reason]
-                          (println ::closed)
+                          #_(println ::closed)
                           (put! evt| {:op ::socket.spec/closed
                                       ::socket.spec/reason reason
                                       ::socket.spec/code code})))
            (.on "error" (fn [error]
-                          (println ::error)
+                          #_(println ::error)
                           (put! evt| {:op ::socket.spec/error
                                       ::socket.spec/error error})
                           #_(when (and (not s.connecting) (not s.pending)))))
            (.on "data" (fn [data]
-                         (put! recv| data))))
+                         (put! recv| (.toString data)))))
          raw-socket))
      ::socket.spec/disconnect-fn
      (fn [socket]

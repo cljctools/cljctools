@@ -17,6 +17,9 @@
   :test
   {:extra-deps {github.cljctools/socket-test {:local/root "./src/socket-test"}}}
 
+  :nodejs-net
+  {:extra-deps {github.cljctools/socket-nodejs-test {:local/root "./src/socket-nodejs-net"}}}
+
   :repl
   {:extra-deps {github.cljctools/deps-repl {:git/url "https://github.com/cljctools/deps-repl"
                                             :sha "08283d3841c5948b0b9d36a977ebfdad111cdb2f"

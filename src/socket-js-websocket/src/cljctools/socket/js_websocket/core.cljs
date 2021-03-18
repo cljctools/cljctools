@@ -23,7 +23,7 @@
   [{:as opts
     :keys [::socket.spec/url]}]
   {:pre [(s/assert ::socket.spec/websocket-opts opts)]
-   :post [(s/assert ::socket.spec/created-opts %)]}
+   :post [(s/assert ::socket.spec/connect-opts %)]}
   (let []
     {::socket.spec/connect-fn
      (fn [socket]
