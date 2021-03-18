@@ -1,7 +1,7 @@
 #!/bin/bash
 
 repl(){
-    clojure -A:core:clj:test:repl
+    clj -A:core:clj:test:repl
 }
 
 test-nodejs(){
