@@ -1,4 +1,4 @@
-# nrepl-http-server
+# http-repl
 nrepl server should be an http server
 
 ## reason
