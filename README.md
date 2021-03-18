@@ -1,7 +1,8 @@
 # cljs-self-hosting
 common api for self-hosting clojurescript with cljs.js or shadow-cljs
 
-note:
+## deprecated 
+
 - [mult](https://github.com/cljctools/mult) is no longer using cljctools/cljs-self-hosting, transitioned to https://github.com/borkdude/sci
 - source files in [examples/mult](./examples/mult) are kept as a reference, correspond to [mult at c6ad2d7c50](https://github.com/cljctools/mult/tree/c6ad2d7c50ff818f6d40310cc4a4343bb56e6f9c), when cljs-self-hosting was used for evaluation
 
