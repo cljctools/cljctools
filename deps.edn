@@ -1,0 +1,50 @@
+{:paths ["src" "resources"]
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://clojars.org/repo/"}}
+ :deps
+ {github.cljtools/edit-meta {:local/root  "./src/edit-meta"}
+  github.cljtools/edit {:local/root  "./src/edit"}}
+
+ :aliases
+ {:core
+  {:extra-deps {org.clojure/clojure         {:mvn/version "1.10.3"}
+                org.clojure/clojurescript {:mvn/version "1.10.758"}
+                org.clojure/spec.alpha {:mvn/version "0.2.187"}
+                org.clojure/core.async {:mvn/version "1.1.587"}}
+
+   :override-deps {cljfmt/cljfmt {:mvn/version "0.7.0"
+                                  :exclusions [rewrite-clj
+                                               rewrite-cljs]}
+                   github.clj-commons/rewrite-clj {:git/url "https://github.com/clj-commons/rewrite-clj"
+                                                   :sha "db337b393ac527abe4015854d706ece2a9daeed2"
+                                                   :tag "v1.0.579-alpha"}
+                   org.clojure/test.check {:mvn/version "1.0.0"}                             
+                                                   }}
+  
+  :test
+  {:extra-deps {github.cljctools/edit-test {:local/root "./src/edit-test"}}}                                     
+
+  :clj-test-runner
+  {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
+                                                   :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}
+   :main-opts ["-m" "cognitect.test-runner"
+               "-d" "src/edit-test"]}
+
+  :cljs-test-runner
+  {:extra-deps {github.Olical/cljs-test-runner {:git/url "https://github.com/Olical/cljs-test-runner"
+                                                :sha "a9cc21916f32fb6caa9f54e349e7cc32b199b0c2"
+                                                :tag "v3.8.0"}}
+   :main-opts ["-m" "cljs-test-runner.main"
+               "-d" "src/edit-test"]}
+
+  :repl
+  {:extra-deps {github.cljctools/deps-repl {:git/url "https://github.com/cljctools/deps-repl"
+                                            :sha "08283d3841c5948b0b9d36a977ebfdad111cdb2f"
+                                            :tag "v2.0.1"}
+                nrepl/nrepl {:mvn/version "0.8.3"}
+                cider/cider-nrepl {:mvn/version "0.25.5"}}
+   :main-opts ["-m" "lambdaisland.nrepl.main"
+               "--init-ns" "cljctools.edit.core-test"
+               "--port" "7788"
+               "--bind" "0.0.0.0"
+               "--middleware" "cider.nrepl/cider-middleware"]}}}
