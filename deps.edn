@@ -2,8 +2,7 @@
  :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
              "clojars" {:url "https://clojars.org/repo/"}}
  :deps
- {github.cljtools/edit-meta {:local/root  "./src/edit-meta"}
-  github.cljtools/edit {:local/root  "./src/edit"}}
+ {}
 
  :aliases
  {:core
@@ -18,11 +17,12 @@
                    github.clj-commons/rewrite-clj {:git/url "https://github.com/clj-commons/rewrite-clj"
                                                    :sha "db337b393ac527abe4015854d706ece2a9daeed2"
                                                    :tag "v1.0.579-alpha"}
-                   org.clojure/test.check {:mvn/version "1.0.0"}                             
-                                                   }}
-  
+                   org.clojure/test.check {:mvn/version "1.0.0"}}}
+
   :test
-  {:extra-deps {github.cljctools/edit-test {:local/root "./src/edit-test"}}}                                     
+  {:extra-deps {github.cljtools/edit {:local/root  "./src/edit"}
+                github.cljtools/edit-process {:local/root  "./src/edit-process"}
+                github.cljctools/edit-test {:local/root "./src/edit-test"}}}
 
   :clj-test-runner
   {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"

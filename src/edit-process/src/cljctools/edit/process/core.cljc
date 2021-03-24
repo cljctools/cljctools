@@ -1,5 +1,9 @@
-(ns cljctools.edit.process
+(ns cljctools.edit.process.core
   (:require
+   [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
+                                     pub sub unsub mult tap untap mix admix unmix pipe
+                                     timeout to-chan  sliding-buffer dropping-buffer
+                                     pipeline pipeline-async]]
    [clojure.string]
    [clojure.pprint :refer [pprint]]
    #?(:cljs [cljs.reader :refer [read-string]])
@@ -16,8 +20,10 @@
    [cljfmt.core]
 
    [cljctools.edit.spec :as edit.spec]
-   [cljctools.edit.protocols :as edit.protocols]
-   [cljctools.edit.core :as edit.core]))
+   [cljctools.edit.core :as edit.core]
+
+   [cljctools.edit.process.spec :as edit.process.spec]
+   [cljctools.edit.process.protocols :as edit.process.protocols]))
 
 (s/def ::id (s/or :keyword keyword? :string string?))
 
@@ -28,18 +34,18 @@
 
 (declare)
 
-(defn create-editing-process
+(defn create
   [{:keys [::id] :as opts}]
   {:pre [(s/assert ::create-opts opts)]
-   :post [(s/assert ::edit.spec/editing-process %)]}
+   :post [(s/assert ::edit.process.spec/edit-process %)]}
   (let [stateA (atom nil)
         op| (chan 10)
 
-        editing-process
-        ^{:type ::edit.spec/editing-process}
+        edit-process
+        ^{:type ::edit.process.spec/edit-process}
         (reify
-          edit.protocols/EditingProcess
-          edit.protocols/Release
+          edit.process.protocols/EditProcess
+          edit.process.protocols/Release
           (release*
            [_]
            (close! op|))
@@ -51,7 +57,7 @@
     (reset! stateA (merge
                     opts
                     {:opts opts
-                     ::edit.spec/op| op|}))
+                     ::edit.process.spec/op| op|}))
     (swap! registryA assoc id)
     (go
       (loop []
@@ -62,11 +68,12 @@
               op|
               (condp = (:op value)
 
-                ::edit.spec/op-format-current-form
-                (let [])
+                ::edit.process.spec/op-format-current-form
+                (let []
+                  (println ::op-format-current-form))
                 (do ::ignore-other-ops)))
             (recur)))))
-    editing-process))
+    edit-process))
 
 (defmulti release
   "Releases the instance"
@@ -75,8 +82,8 @@
   [id]
   (when-let [instance (get @registryA id)]
     (release instance)))
-(defmethod release ::edit.spec/editing-process
+(defmethod release ::edit.process.spec/edit-process
   [instance]
-  {:pre [(s/assert ::edit.spec/editing-process instance)]}
-  (edit.protocols/release* instance)
+  {:pre [(s/assert ::edit.process.spec/edit-process instance)]}
+  (edit.process.protocols/release* instance)
   (swap! registryA dissoc (get @instance ::id)))

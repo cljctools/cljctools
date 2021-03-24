@@ -1,9 +1,9 @@
-(ns cljctools.edit.protocols)
+(ns cljctools.edit.process.protocols)
 
 (defprotocol Release
   (release* [_]))
 
-(defprotocol EditingProcess
+(defprotocol EditProcess
   #_Release
   #_IDeref)
 
