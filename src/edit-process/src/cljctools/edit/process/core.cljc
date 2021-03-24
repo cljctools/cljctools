@@ -25,17 +25,13 @@
    [cljctools.edit.process.spec :as edit.process.spec]
    [cljctools.edit.process.protocols :as edit.process.protocols]))
 
-(s/def ::id (s/or :keyword keyword? :string string?))
-
-(s/def ::create-opts (s/keys :req [::id]
-                             :opt []))
-
-(defonce ^:private registryA (atom {}))
-
 (declare)
 
+(s/def ::create-opts (s/keys :req []
+                             :opt []))
+
 (defn create
-  [{:keys [::id] :as opts}]
+  [{:keys [] :as opts}]
   {:pre [(s/assert ::create-opts opts)]
    :post [(s/assert ::edit.process.spec/edit-process %)]}
   (let [stateA (atom nil)
@@ -74,16 +70,3 @@
                 (do ::ignore-other-ops)))
             (recur)))))
     edit-process))
-
-(defmulti release
-  "Releases the instance"
-  {:arglists '([id] [instance])} (fn [x & args] (type x)))
-(defmethod release :default
-  [id]
-  (when-let [instance (get @registryA id)]
-    (release instance)))
-(defmethod release ::edit.process.spec/edit-process
-  [instance]
-  {:pre [(s/assert ::edit.process.spec/edit-process instance)]}
-  (edit.process.protocols/release* instance)
-  (swap! registryA dissoc (get @instance ::id)))
