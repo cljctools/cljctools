@@ -12,7 +12,10 @@
    [rewrite-clj.zip :as z]
    [rewrite-clj.parser :as p]
    [rewrite-clj.node :as n]
-   [rewrite-clj.paredit]))
+   [rewrite-clj.paredit]
+   [cljfmt.core]
+
+   [cljctools.edit.spec :as edit.spec]))
 
 (defn read-ns-symbol
   "Read the namespace name from a string (beggining of text file).

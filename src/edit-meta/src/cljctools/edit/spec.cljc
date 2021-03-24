@@ -11,9 +11,11 @@
 (s/def ::mult #?(:clj #(satisfies? clojure.core.async.Mult %)
                  :cljs #(satisfies? cljs.core.async/Mult %)))
 
-
-(s/def ::cmd| ::channel)
-(s/def ::cmd #{::cmd-format-current-form})
+(s/def ::editing-process #(and
+                           (satisfies? edit.protocols/EditingProcess %)
+                           (satisfies? edit.protocols/Release %)
+                           #?(:clj (satisfies? clojure.lang.IDeref %))
+                           #?(:cljs (satisfies? cljs.core/IDeref %))))
 
 (s/def ::op| ::channel)
-(s/def ::op #{})
+(s/def ::op #{::op-format-current-form})

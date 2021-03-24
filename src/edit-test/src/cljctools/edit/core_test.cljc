@@ -12,7 +12,7 @@
    [clojure.spec.alpha :as s]
 
    [clojure.set :refer [subset?]]
-   
+
    [clojure.spec.gen.alpha :as sgen]
    [clojure.spec.test.alpha :as stest]
    [clojure.test.check :as tc]
@@ -22,7 +22,7 @@
    #?(:cljs [clojure.test :refer [async]])
 
    [cljctools.edit.core :as edit.core]
-))
+   [cljctools.edit.process :as edit.process]))
 
 (deftest ^{:example true} arithmetic
   (testing "Arithmetic"
