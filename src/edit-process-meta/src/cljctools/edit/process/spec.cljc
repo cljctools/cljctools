@@ -16,5 +16,23 @@
                         #?(:clj (satisfies? clojure.lang.IDeref %))
                         #?(:cljs (satisfies? cljs.core/IDeref %))))
 
-(s/def ::op| ::channel)
-(s/def ::op #{::op-format-current-form})
+(s/def ::zloc any?)
+
+(s/def ::clj-string string?)
+
+(s/def ::position (s/tuple int? int?))
+
+(s/def ::cursor-position ::position)
+
+
+(s/def ::evt| ::channel)
+(s/def ::evt|mult ::mult)
+(s/def ::evt #{::op-zloc-changed})
+
+(s/def ::ops| ::channel)
+(s/def ::ops #{::op-format-current-form
+               ::op-clj-string-changed})
+
+(s/def ::op (s/merge
+             ::evt
+             ::ops))

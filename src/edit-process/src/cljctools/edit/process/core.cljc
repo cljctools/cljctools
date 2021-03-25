@@ -31,11 +31,15 @@
                              :opt []))
 
 (defn create
-  [{:keys [] :as opts}]
+  [{:keys [::edit.process.spec/clj-string] :as opts}]
   {:pre [(s/assert ::create-opts opts)]
    :post [(s/assert ::edit.process.spec/edit-process %)]}
   (let [stateA (atom nil)
-        op| (chan 10)
+        ops| (chan 10)
+        evt| (chan (sliding-buffer 10))
+        evt|mult (mult evt|)
+
+        zlocA (atom (z/of-string clj-string))
 
         edit-process
         ^{:type ::edit.process.spec/edit-process}
@@ -43,8 +47,8 @@
           edit.process.protocols/EditProcess
           edit.process.protocols/Release
           (release*
-           [_]
-           (close! op|))
+            [_]
+            (close! ops|))
           #?(:clj clojure.lang.IDeref)
           #?(:clj (deref [_] @stateA))
           #?(:cljs cljs.core/IDeref)
@@ -53,15 +57,26 @@
     (reset! stateA (merge
                     opts
                     {:opts opts
-                     ::edit.process.spec/op| op|}))
+                     ::zlocA zlocA
+                     ::edit.process.spec/ops| ops|
+                     ::edit.process.spec/evt| evt|
+                     ::edit.process.spec/evt|mult evt|mult}))
     (go
       (loop []
-        (let [[value port] (alts! [op|])]
+        (let [[value port] (alts! [ops|])]
           (when value
             (condp = port
 
-              op|
+              ops|
               (condp = (:op value)
+
+                ::edit.process.spec/op-clj-string-changed
+                (let [{:keys [::edit.process.spec/clj-string
+                              ::edit.process.spec/cursor-position]} value
+                      zloc (z/of-string clj-string)]
+                  (reset! zlocA zloc)
+                  (put! evt| {:op ::op-zloc-changed
+                              ::edit.process.spec/zloc zloc}))
 
                 ::edit.process.spec/op-format-current-form
                 (let []
