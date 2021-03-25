@@ -54,7 +54,6 @@
                     opts
                     {:opts opts
                      ::edit.process.spec/op| op|}))
-    (swap! registryA assoc id)
     (go
       (loop []
         (let [[value port] (alts! [op|])]
