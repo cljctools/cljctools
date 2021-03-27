@@ -8,3 +8,5 @@ clojure(script) implementation of https://github.com/libp2p
 - most code should be in `.cljc`, first imlementation in `.clj` and `nodejs` port - if needed, because already solved by js-libp2p - added later
 - doubtful there is a need - simply by design of p2p networking - for libp2p to be in the browser, but can be added
 - jvm is key, networking is key, that's why we need the jvm implementaion to be the best
+
+*this repo should be moved to github.com/libp2p
