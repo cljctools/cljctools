@@ -8,7 +8,13 @@
  {:core
   {:extra-deps {org.clojure/spec.alpha {:mvn/version "0.2.187"}
                 org.clojure/core.async {:mvn/version "1.1.587"}}
-   :override-deps {org.clojure/test.check {:mvn/version "1.0.0"}}}
+   :override-deps {github.clj-commons/rewrite-clj {:git/url "https://github.com/clj-commons/rewrite-clj"
+                                                   :sha "db337b393ac527abe4015854d706ece2a9daeed2"
+                                                   :tag "v1.0.579-alpha"}
+                   org.clojure/test.check {:mvn/version "1.0.0"}
+
+                   io.replikativ/datahike {:git/url "https://github.com/replikativ/datahike.git"
+                                           :sha "b07247fc80ee06858e3417fa04d3015761e61975"}}}
 
   :clj
   {:extra-deps {org.clojure/clojure         {:mvn/version "1.10.3"}}}

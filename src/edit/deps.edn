@@ -1,2 +1,3 @@
 {:paths ["src"]
- :deps {github.cljctools/edit-meta {:local/root  "../edit-meta"}}}
+ :deps {github.clj-commons/rewrite-clj {}
+        github.cljctools/edit-meta {:local/root  "../edit-meta"}}}
