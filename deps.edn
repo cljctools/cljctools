@@ -8,10 +8,7 @@
  {:core
   {:extra-deps {org.clojure/spec.alpha {:mvn/version "0.2.187"}
                 org.clojure/core.async {:mvn/version "1.1.587"}}
-   :override-deps {github.borkdude/edamame {:git/url "https://github.com/borkdude/edamame"
-                                            :sha "e609451d5dc38f347a5e0c68453edd76cccac3ff"
-                                            :tag "0.0.11-alpha.29 + 1 commit"}
-                   org.clojure/test.check {:mvn/version "1.0.0"}}}
+   :override-deps {org.clojure/test.check {:mvn/version "1.0.0"}}}
 
   :clj
   {:extra-deps {org.clojure/clojure         {:mvn/version "1.10.3"}}}

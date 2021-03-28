@@ -1,3 +1,2 @@
 {:paths ["src"]
- :deps {github.borkdude/edamame {}
-        github.cljctools/edit-meta {:local/root  "../edit-meta"}}}
+ :deps {github.cljctools/edit-meta {:local/root  "../edit-meta"}}}

@@ -6,7 +6,6 @@
    #?(:cljs [goog.string.format])
    #?(:cljs [goog.string :refer [format]])
    [clojure.spec.alpha :as s]
-   [edamame.core]
    [cljctools.edit.spec :as edit.spec]))
 
 (defn read-ns-symbol
@@ -16,6 +15,6 @@
    Takes the second form which is namespace symbol"
   [string]
 
-  (let [form (edamame.core/parse-string string)
+  (let [form '(ns foo)
         ns-symbol (second form)]
     ns-symbol))
