@@ -57,3 +57,16 @@
                      zloc-ns)
                    z/sexpr)]
     ns-symbol))
+
+
+(defn parse-forms-at-position
+  "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
+   On every read from sequence, the string is read just enough to return the next form until the top level form.
+   Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
+   "
+  [string position {:keys [] :or {} :as opts}]
+  (let [position [29 34]
+        string-left-length
+        string-left (-> (subs string 0 count-left)
+                        (clojure.string/reverse))
+        string-right (subs string count-left)]))
