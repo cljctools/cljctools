@@ -21,10 +21,9 @@
 
 
 (defn read-ns-symbol
-  "Read the namespace name from a string (beggining of text file).
-   At least the (ns ..) form should be par tof string.
-   String can be invalid, as long as ns form is valid. 
-   File can start with anything, drop-reads one form at a time until ns form and reads ns"
+  "Reads the namespace name (ns foo.bar ,,,) from a string.
+   String after ns form can be invalid. 
+   File may start with comments, drop-reads one form at a time until finds ns"
   [string]
   (let [reader (reader/string-reader string)
         nodes (->> (repeatedly #(parser/parse reader))
