@@ -25,8 +25,9 @@
    #?(:clj [clojure.java.io :as io])
    [cljctools.edit.core :as edit.core]))
 
-(def clojure-core-stringA (atom nil))
-(def tmp-dir-path "./tmp")
+(def tmp-dir "tmp")
+(def pwd #?(:clj (System/getProperty "user.dir")
+            :cljs (.cwd js/process)))
 
 #?(:cljs (do
            (def fs (js/require "fs"))
@@ -37,52 +38,48 @@
              {:before (fn []
                         (async done
                                (go
-                                 (when-not (.existsSync fs (.join path (.cwd js/process) tmp-dir-path "clojure"))
+                                 (when-not (.existsSync fs (.join path pwd tmp-dir "/clojure"))
                                    (.execSync cp
-                                          (str "mkdir -p " tmp-dir-path " && "
-                                               "cd " tmp-dir-path " && "
-                                               "git clone https://github.com/clojure/clojure"
-                                               " && " "cd ../")
-                                          (clj->js {:cwd (.cwd js/process)})))
-                                 (let [clojure-core-string (->
-                                                            (.readFileSync
-                                                             fs
-                                                             (.join path (.cwd js/process) tmp-dir-path "clojure/src/clj/clojure/core.clj")
-                                                             (clj->js {:encoding "utf8"}))
-                                                            (.toString))]
-                                   (reset! clojure-core-stringA  clojure-core-string))
+                                              (str "mkdir -p " tmp-dir " && "
+                                                   "cd " tmp-dir " && "
+                                                   "git clone https://github.com/clojure/clojure"
+                                                   " && " "cd ../")
+                                              (clj->js {:cwd pwd})))
                                  (done))))
               :after (fn []
                        (async done
                               (go
-                                #_(.execSync cp (format "rm -rf %s" (.join path (.cwd js/process) tmp-dir-path))
-                                             (clj->js {:cwd (.cwd js/process)}))
+                                #_(.execSync cp (format "rm -rf %s" (.join path pwd tmp-dir))
+                                             (clj->js {:cwd pwd}))
                                 (done))))})))
 
 #?(:clj (do
           (use-fixtures :once
             (fn [f]
-              (let [pwd (System/getProperty "user.dir")]
-                (when-not (.exists (io/file (str pwd "/tmp/clojure")))
-                  (sh
-                   "sh" "-c"
-                   (str
-                    "mkdir -p " tmp-dir-path
-                    " && cd " tmp-dir-path
-                    " && "
-                    "git clone https://github.com/clojure/clojure")))
-
-                (let [clojure-core-string (slurp (io/file (str pwd "/tmp/clojure/src/clj/clojure/core.clj")))]
-                  (reset! clojure-core-stringA  clojure-core-string))
-                (f)
-                #_(sh
-                   "sh" "-c"
-                   (str "rm -rf " tmp-dir-path)))))))
+              (when-not (.exists (io/file (str pwd "/" tmp-dir "/clojure")))
+                (sh
+                 "sh" "-c"
+                 (str
+                  "mkdir -p " tmp-dir
+                  " && cd " tmp-dir
+                  " && "
+                  "git clone https://github.com/clojure/clojure")))
+              (f)
+              #_(sh
+                 "sh" "-c"
+                 (str "rm -rf " tmp-dir))))))
 
 (deftest ^{:foo true} read-ns-symbol
   (testing "edit.core/read-ns-symbol"
-    (let [clojure-core-string @clojure-core-stringA
-          ns-symbol (edit.core/read-ns-symbol clojure-core-string)]
-      (println ns-symbol)
+    (let [clojure-core-path (str pwd "/" tmp-dir "/clojure/src/clj/clojure/core.clj")
+          clojure-core-string
+          #?(:clj (slurp (io/file clojure-core-path))
+             :cljs (->
+                    (.readFileSync
+                     fs
+                     clojure-core-path
+                     (clj->js {:encoding "utf8"}))
+                    (.toString)))
+          ns-symbol (time (edit.core/read-ns-symbol clojure-core-string))]
       (is (= ns-symbol
              'clojure.core)))))
