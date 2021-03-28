@@ -11,14 +11,6 @@
    #?(:cljs [goog.string :refer [format]])
    [clojure.spec.alpha :as s]
 
-   [clojure.walk]
-
-   [rewrite-clj.zip :as z]
-   [rewrite-clj.parser :as p]
-   [rewrite-clj.node :as n]
-   [rewrite-clj.paredit]
-   [cljfmt.core]
-
    [cljctools.edit.spec :as edit.spec]
    [cljctools.edit.core :as edit.core]
 
@@ -39,8 +31,6 @@
         evt| (chan (sliding-buffer 10))
         evt|mult (mult evt|)
 
-        zlocA (atom (z/of-string clj-string))
-
         edit-process
         ^{:type ::edit.process.spec/edit-process}
         (reify
@@ -57,7 +47,6 @@
     (reset! stateA (merge
                     opts
                     {:opts opts
-                     ::zlocA zlocA
                      ::edit.process.spec/ops| ops|
                      ::edit.process.spec/evt| evt|
                      ::edit.process.spec/evt|mult evt|mult}))
@@ -72,11 +61,7 @@
 
                 ::edit.process.spec/op-clj-string-changed
                 (let [{:keys [::edit.process.spec/clj-string
-                              ::edit.process.spec/cursor-position]} value
-                      zloc (z/of-string clj-string)]
-                  (reset! zlocA zloc)
-                  (put! evt| {:op ::op-zloc-changed
-                              ::edit.process.spec/zloc zloc}))
+                              ::edit.process.spec/cursor-position]} value])
 
                 ::edit.process.spec/op-format-current-form
                 (let []

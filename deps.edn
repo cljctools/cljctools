@@ -1,4 +1,4 @@
-{:paths ["src" "resources"]
+{:paths []
  :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
              "clojars" {:url "https://clojars.org/repo/"}}
  :deps
@@ -6,22 +6,21 @@
 
  :aliases
  {:core
-  {:extra-deps {org.clojure/clojure         {:mvn/version "1.10.3"}
-                org.clojure/clojurescript {:mvn/version "1.10.758"}
-                org.clojure/spec.alpha {:mvn/version "0.2.187"}
+  {:extra-deps {org.clojure/spec.alpha {:mvn/version "0.2.187"}
                 org.clojure/core.async {:mvn/version "1.1.587"}}
-
-   :override-deps {cljfmt/cljfmt {:mvn/version "0.7.0"
-                                  :exclusions [rewrite-clj
-                                               rewrite-cljs]}
-                   github.clj-commons/rewrite-clj {:git/url "https://github.com/clj-commons/rewrite-clj"
-                                                   :sha "db337b393ac527abe4015854d706ece2a9daeed2"
-                                                   :tag "v1.0.579-alpha"}
+   :override-deps {github.borkdude/edamame {:git/url "https://github.com/borkdude/edamame"
+                                            :sha "e609451d5dc38f347a5e0c68453edd76cccac3ff"
+                                            :tag "0.0.11-alpha.29 + 1 commit"}
                    org.clojure/test.check {:mvn/version "1.0.0"}}}
+
+  :clj
+  {:extra-deps {org.clojure/clojure         {:mvn/version "1.10.3"}}}
+
+  :cljs
+  {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.758"}}}
 
   :test
   {:extra-deps {github.cljtools/edit {:local/root  "./src/edit"}
-                github.cljtools/edit-process {:local/root  "./src/edit-process"}
                 github.cljctools/edit-test {:local/root "./src/edit-test"}}}
 
   :clj-test-runner

@@ -6,15 +6,7 @@
    #?(:cljs [goog.string.format])
    #?(:cljs [goog.string :refer [format]])
    [clojure.spec.alpha :as s]
-
-   [clojure.walk]
-
-   [rewrite-clj.zip :as z]
-   [rewrite-clj.parser :as p]
-   [rewrite-clj.node :as n]
-   [rewrite-clj.paredit]
-   [cljfmt.core]
-
+   [edamame.core]
    [cljctools.edit.spec :as edit.spec]))
 
 (defn read-ns-symbol
@@ -24,7 +16,6 @@
    Takes the second form which is namespace symbol"
   [string]
 
-  (let [node (p/parse-string string)
-        zloc (z/of-string (n/string node))
-        ns-symbol (-> zloc z/down z/right z/sexpr)]
+  (let [form (edamame.core/parse-string string)
+        ns-symbol (second form)]
     ns-symbol))
