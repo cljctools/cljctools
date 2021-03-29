@@ -69,17 +69,31 @@
                  "sh" "-c"
                  (str "rm -rf " tmp-dir))))))
 
+(defn read-clojure-core-string
+  []
+  (let [clojure-core-path (str pwd "/" tmp-dir "/clojure/src/clj/clojure/core.clj")
+        clojure-core-string
+        #?(:clj (slurp (io/file clojure-core-path))
+           :cljs (->
+                  (.readFileSync
+                   fs
+                   clojure-core-path
+                   (clj->js {:encoding "utf8"}))
+                  (.toString)))]
+    clojure-core-string))
+
+
 (deftest ^{:foo true} read-ns-symbol
   (testing "edit.core/read-ns-symbol"
-    (let [clojure-core-path (str pwd "/" tmp-dir "/clojure/src/clj/clojure/core.clj")
-          clojure-core-string
-          #?(:clj (slurp (io/file clojure-core-path))
-             :cljs (->
-                    (.readFileSync
-                     fs
-                     clojure-core-path
-                     (clj->js {:encoding "utf8"}))
-                    (.toString)))
+    (let [clojure-core-string (read-clojure-core-string)
           ns-symbol (time (edit.core/read-ns-symbol clojure-core-string))]
       (is (= ns-symbol
              'clojure.core)))))
+
+
+(deftest ^{:foo true} parse-forms-at-position
+  (testing "edit.core/parse-forms-at-position"
+    (let [clojure-core-string (read-clojure-core-string)
+          form (time (edit.core/parse-forms-at-position clojure-core-string [] {}))]
+      (is (= form
+             :foo)))))
