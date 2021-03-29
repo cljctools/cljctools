@@ -157,16 +157,10 @@
   "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
    On every read from sequence, the string is read just enough to return the next form until the top level form.
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
+   In a sequence of forms, like top forms, expands selection one form at a time
    "
   [string [row col :as position] {:keys [] :or {} :as opts}]
-  (let [[string-left string-right]
-        (split-at-position string [6755 19])]
-    (println (subs string-left (- (count string-left) 100)))))
-
-#_(let [position [29 31]
-        offset (offset-at string position)
-        string-left (-> (subs string 0 offset)
-                        (clojure.string/reverse))
-        string-right (subs string offset)]
-    (println offset)
-    (println string-left))
+  (let [[string-left string-right] (split-at-position string [29 31])
+        string-left-reversed (clojure.string/reverse string-left)]
+    (println string-left-reversed)
+    #_(println (subs string-left (- (count string-left) 100)))))
