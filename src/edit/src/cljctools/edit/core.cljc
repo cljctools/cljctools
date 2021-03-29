@@ -63,9 +63,23 @@
     ns-symbol))
 
 
-
 (defn position-at
-  [string offset])
+  [string offset]
+  (let [reader (reader/string-reader string)]
+    (loop []
+      (let [c (r/read-char reader)
+            line (r/get-line-number reader)
+            column (r/get-column-number reader)
+            current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos)
+                              :cljs (.. reader -rdr -rdr -s-pos))]
+        (cond
+          (= offset current-offset)
+          [line column]
+
+          (nil? c)
+          (reader/throw-reader reader "Unexpected EOF.")
+
+          :else (recur))))))
 
 (defn offset-at
   [string [row col :as position]]
@@ -80,11 +94,11 @@
       (let [c (r/read-char reader)
             line (r/get-line-number reader)
             column (r/get-column-number reader)
-            offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos) ; does not work on jvm
-                      :cljs (.. reader -rdr -rdr -s-pos))]
+            current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos) ; does not work on jvm
+                              :cljs (.. reader -rdr -rdr -s-pos))]
         (cond
           (= [line column] [row col])
-          offset
+          current-offset
 
           (nil? c)
           (reader/throw-reader reader "Unexpected EOF.")
@@ -98,7 +112,7 @@
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
    "
   [string [row col :as position] {:keys [] :or {} :as opts}]
-  (let [position [29 34]
+  (let [position [29 31]
         offset (offset-at string position)
         string-left (-> (subs string 0 offset)
                         (clojure.string/reverse))
