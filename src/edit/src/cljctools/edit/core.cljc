@@ -157,10 +157,12 @@
   "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
    On every read from sequence, the string is read just enough to return the next form until the top level form.
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
-   In a sequence of forms, like top forms, expands selection one form at a time
+   If we're in the middle of a collection, should be able to specify in options: select nearest left/right element, select all elements, select whole collection form
    "
   [string [row col :as position] {:keys [] :or {} :as opts}]
   (let [[string-left string-right] (split-at-position string [29 31])
-        string-left-reversed (clojure.string/reverse string-left)]
+        string-left-reversed (clojure.string/reverse string-left)
+        scan-left (fn [])
+        scan-right (fn [])]
     (println string-left-reversed)
     #_(println (subs string-left (- (count string-left) 100)))))
