@@ -63,7 +63,9 @@
     ns-symbol))
 
 
-(defn position-at
+(defn ^{:deprecated "0.0.0"} position-at
+  "[deprecated] we never need offset
+   get string and position -> normalize -> do stuff -> tell editor back new line (s) positions, it's never offset"
   [string offset]
   (let [reader (reader/string-reader string)]
     (loop []
@@ -81,7 +83,9 @@
 
           :else (recur))))))
 
-(defn offset-at
+(defn ^{:deprecated "0.0.0"} offset-at
+  "[deprecated] we never need offset
+   get string and position -> normalize -> do stuff -> tell editor back new line (s) positions, it's never offset"
   [string [row col :as position]]
   (let [reader (reader/string-reader string)
         ; we cannot write chars to string buffer, beacuse newline normalization ate our characters
