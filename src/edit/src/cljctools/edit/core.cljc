@@ -62,37 +62,30 @@
                    z/sexpr)]
     ns-symbol))
 
+ (defn ^{:deprecated "0.0.0"} position-at
+   "[deprecated] we never need offset"
+   [string offset]
+   (let [reader (reader/string-reader string)]
+     (loop []
+       (let [c (r/read-char reader)
+             line (r/get-line-number reader)
+             column (r/get-column-number reader)
+             current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos)
+                               :cljs (.. reader -rdr -rdr -s-pos))]
+         (cond
+           (= offset current-offset)
+           [line column]
 
-(defn ^{:deprecated "0.0.0"} position-at
-  "[deprecated] we never need offset
-   get string and position -> normalize -> do stuff -> tell editor back new line (s) positions, it's never offset"
-  [string offset]
-  (let [reader (reader/string-reader string)]
-    (loop []
-      (let [c (r/read-char reader)
-            line (r/get-line-number reader)
-            column (r/get-column-number reader)
-            current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos)
-                              :cljs (.. reader -rdr -rdr -s-pos))]
-        (cond
-          (= offset current-offset)
-          [line column]
+           (nil? c)
+           (reader/throw-reader reader "Unexpected EOF.")
 
-          (nil? c)
-          (reader/throw-reader reader "Unexpected EOF.")
+           :else (recur))))))
 
-          :else (recur))))))
 
 (defn ^{:deprecated "0.0.0"} offset-at
-  "[deprecated] we never need offset
-   get string and position -> normalize -> do stuff -> tell editor back new line (s) positions, it's never offset"
+  "[deprecated] we never need offset"
   [string [row col :as position]]
   (let [reader (reader/string-reader string)
-        ; we cannot write chars to string buffer, beacuse newline normalization ate our characters
-        ; solution - inefficiently do substring as the second step
-        ; but this should be one step if we need to max performace
-        ; to do that - rewrite tools.reader.reader-types as static functions acting on atom-like state (for line normaliztion etc.)
-        ; then we can loop through string and choose what to do without the chain of 4 reader instances - isntead one state + functions
         string-buffer (StringBuffer.)]
     (loop []
       (let [c (r/read-char reader)
@@ -109,16 +102,10 @@
 
           :else (recur))))))
 
-
-(defn parse-forms-at-position
-  "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
-   On every read from sequence, the string is read just enough to return the next form until the top level form.
-   Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
-   "
-  [string [row col :as position] {:keys [] :or {} :as opts}]
-  (let [row 29
-        col 31
-        lines (clojure.string/split string #"\r?\n" -1)
+(defn split-at-position
+  "note: normalizes new lines"
+  [string [row col :as position]]
+  (let [lines (clojure.string/split string #"\r?\n" -1)
         string-left (as-> lines x
                       (take (dec row) x)
                       (vec x)
@@ -133,7 +120,48 @@
                                 (get lines row)
                                 (subs (dec col))))
                        (clojure.string/join "\n" x))]
-    (println string-left)))
+    [string-left string-right])
+  #_(let [offset (offset-at string [6755 19] #_[29 31])
+          string-left (subs string 0 offset)
+          string-right (subs string offset)]
+      (println offset)
+      (println (subs string-left (- (count string-left) 100))))
+  #_(let [reader (reader/string-reader string)
+          left-string-buffer (StringBuffer.)
+          right-string-buffer (StringBuffer.)]
+      (loop []
+        (let [c (r/read-char reader)
+              line (r/get-line-number reader)
+              column (r/get-column-number reader)]
+          (cond
+            (nil? c)
+            (do nil)
+
+            (or
+             (< line row)
+             (and (= line row) (<= column col)))
+            (do
+              (.append  left-string-buffer c)
+              (recur))
+
+            (or
+             (and (= line row) (> column col))
+             (> line row))
+            (do
+              (.append  right-string-buffer c)
+              (recur)))))
+      [left-string-buffer right-string-buffer]))
+
+
+(defn parse-forms-at-position
+  "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
+   On every read from sequence, the string is read just enough to return the next form until the top level form.
+   Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
+   "
+  [string [row col :as position] {:keys [] :or {} :as opts}]
+  (let [[string-left string-right]
+        (split-at-position string [6755 19])]
+    (println (subs string-left (- (count string-left) 100)))))
 
 #_(let [position [29 31]
         offset (offset-at string position)
