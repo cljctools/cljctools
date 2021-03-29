@@ -152,6 +152,42 @@
               (recur)))))
       [left-string-buffer right-string-buffer]))
 
+#_(fn [c]
+    (cond (nil? c)               :eof
+          (reader/whitespace? c) :whitespace
+          (= c *delimiter*)      :delimiter
+          :else (get {\^ :meta      \# :sharp
+                      \( :list      \[ :vector    \{ :map
+                      \} :unmatched \] :unmatched \) :unmatched
+                      \~ :unquote   \' :quote     \` :syntax-quote
+                      \; :comment   \@ :deref     \" :string
+                      \: :keyword}
+                     c :token)))
+
+(defn scan
+  "A process that scans string in both direction of position
+   Scan understands from where and to where the expresion(s) is to then parse it with rewrite-clj
+   Returns start and end position of a string to pass to rewrite-clj parse-string-all"
+  [string position]
+  (let [[row col] position
+        [string-left string-right] (split-at-position string position)
+        string-left-reversed (clojure.string/reverse string-left)
+        reader-left (reader/string-reader string-left-reversed)
+        reader-right (reader/string-reader string-right)
+        stateV (volatile! {:left-target-position nil
+                           :right-target-position nil})]
+    (loop []
+      (cond
+        
+        
+        )
+
+      (let [char-left (r/read-char reader-left)
+            char-right (r/read-char reader-right)]))))
+
+(s/def ::expand-level #{:nearest-element
+                        :all-elements
+                        :whole-collection})
 
 (defn parse-forms-at-position
   "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
@@ -159,10 +195,10 @@
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
    If we're in the middle of a collection, should be able to specify in options: select nearest left/right element, select all elements, select whole collection form
    "
-  [string [row col :as position] {:keys [] :or {} :as opts}]
+  [string [row col :as position] 
+   {:keys [::expand-level]
+    :or {expand-level :nearest-element} :as opts}]
   (let [[string-left string-right] (split-at-position string [29 31])
-        string-left-reversed (clojure.string/reverse string-left)
-        scan-left (fn [])
-        scan-right (fn [])]
+        string-left-reversed (clojure.string/reverse string-left)]
     (println string-left-reversed)
     #_(println (subs string-left (- (count string-left) 100)))))
