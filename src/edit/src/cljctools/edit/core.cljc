@@ -116,10 +116,29 @@
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
    "
   [string [row col :as position] {:keys [] :or {} :as opts}]
-  (let [position [29 31]
+  (let [row 29
+        col 31
+        lines (clojure.string/split string #"\r?\n" -1)
+        string-left (as-> lines x
+                      (take (dec row) x)
+                      (vec x)
+                      (conj x (->
+                               (get lines (dec row))
+                               (subs 0 (dec col))))
+                      (clojure.string/join "\n" x)
+                      #_(clojure.string/reverse))
+        string-right (as-> lines x
+                       (drop row x)
+                       (conj x (->
+                                (get lines row)
+                                (subs (dec col))))
+                       (clojure.string/join "\n" x))]
+    (println string-left)))
+
+#_(let [position [29 31]
         offset (offset-at string position)
         string-left (-> (subs string 0 offset)
                         (clojure.string/reverse))
         string-right (subs string offset)]
     (println offset)
-    (println string-left)))
+    (println string-left))
