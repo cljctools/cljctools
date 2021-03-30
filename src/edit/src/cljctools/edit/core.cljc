@@ -19,7 +19,9 @@
 
    [clojure.tools.reader.reader-types :as r]
 
-   [cljctools.edit.spec :as edit.spec])
+   [cljctools.edit.spec :as edit.spec]
+   [cljctools.edit.string :as edit.string]
+   [cljctools.edit.scan :as edit.scan])
   #?(:cljs
      (:import [goog.string StringBuffer])))
 
@@ -62,128 +64,6 @@
                    z/sexpr)]
     ns-symbol))
 
- (defn ^{:deprecated "0.0.0"} position-at
-   "[deprecated] we never need offset"
-   [string offset]
-   (let [reader (reader/string-reader string)]
-     (loop []
-       (let [c (r/read-char reader)
-             line (r/get-line-number reader)
-             column (r/get-column-number reader)
-             current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos)
-                               :cljs (.. reader -rdr -rdr -s-pos))]
-         (cond
-           (= offset current-offset)
-           [line column]
-
-           (nil? c)
-           (reader/throw-reader reader "Unexpected EOF.")
-
-           :else (recur))))))
-
-
-(defn ^{:deprecated "0.0.0"} offset-at
-  "[deprecated] we never need offset"
-  [string [row col :as position]]
-  (let [reader (reader/string-reader string)
-        string-buffer (StringBuffer.)]
-    (loop []
-      (let [c (r/read-char reader)
-            line (r/get-line-number reader)
-            column (r/get-column-number reader)
-            current-offset #?(:clj (.. reader -rdr -rdr -rdr -rdr -s-pos) ; does not work on jvm
-                              :cljs (.. reader -rdr -rdr -s-pos))]
-        (cond
-          (= [line column] [row col])
-          current-offset
-
-          (nil? c)
-          (reader/throw-reader reader "Unexpected EOF.")
-
-          :else (recur))))))
-
-(defn split-at-position
-  "note: normalizes new lines"
-  [string [row col :as position]]
-  (let [lines (clojure.string/split string #"\r?\n" -1)
-        string-left (as-> lines x
-                      (take (dec row) x)
-                      (vec x)
-                      (conj x (->
-                               (get lines (dec row))
-                               (subs 0 (dec col))))
-                      (clojure.string/join "\n" x)
-                      #_(clojure.string/reverse))
-        string-right (as-> lines x
-                       (drop row x)
-                       (conj x (->
-                                (get lines row)
-                                (subs (dec col))))
-                       (clojure.string/join "\n" x))]
-    [string-left string-right])
-  #_(let [offset (offset-at string [6755 19] #_[29 31])
-          string-left (subs string 0 offset)
-          string-right (subs string offset)]
-      (println offset)
-      (println (subs string-left (- (count string-left) 100))))
-  #_(let [reader (reader/string-reader string)
-          left-string-buffer (StringBuffer.)
-          right-string-buffer (StringBuffer.)]
-      (loop []
-        (let [c (r/read-char reader)
-              line (r/get-line-number reader)
-              column (r/get-column-number reader)]
-          (cond
-            (nil? c)
-            (do nil)
-
-            (or
-             (< line row)
-             (and (= line row) (<= column col)))
-            (do
-              (.append  left-string-buffer c)
-              (recur))
-
-            (or
-             (and (= line row) (> column col))
-             (> line row))
-            (do
-              (.append  right-string-buffer c)
-              (recur)))))
-      [left-string-buffer right-string-buffer]))
-
-#_(fn [c]
-    (cond (nil? c)               :eof
-          (reader/whitespace? c) :whitespace
-          (= c *delimiter*)      :delimiter
-          :else (get {\^ :meta      \# :sharp
-                      \( :list      \[ :vector    \{ :map
-                      \} :unmatched \] :unmatched \) :unmatched
-                      \~ :unquote   \' :quote     \` :syntax-quote
-                      \; :comment   \@ :deref     \" :string
-                      \: :keyword}
-                     c :token)))
-
-(defn scan
-  "A process that scans string in both direction of position
-   Scan understands from where and to where the expresion(s) is to then parse it with rewrite-clj
-   Returns start and end position of a string to pass to rewrite-clj parse-string-all"
-  [string position]
-  (let [[row col] position
-        [string-left string-right] (split-at-position string position)
-        string-left-reversed (clojure.string/reverse string-left)
-        reader-left (reader/string-reader string-left-reversed)
-        reader-right (reader/string-reader string-right)
-        stateV (volatile! {:left-target-position nil
-                           :right-target-position nil})]
-    (loop []
-      (cond
-        
-        
-        )
-
-      (let [char-left (r/read-char reader-left)
-            char-right (r/read-char reader-right)]))))
 
 (s/def ::expand-level #{:nearest-element
                         :all-elements
@@ -195,10 +75,10 @@
    Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
    If we're in the middle of a collection, should be able to specify in options: select nearest left/right element, select all elements, select whole collection form
    "
-  [string [row col :as position] 
+  [string [row col :as position]
    {:keys [::expand-level]
     :or {expand-level :nearest-element} :as opts}]
-  (let [[string-left string-right] (split-at-position string [29 31])
+  (let [[string-left string-right] (edit.string/split-at-position string [29 31])
         string-left-reversed (clojure.string/reverse string-left)]
     (println string-left-reversed)
     #_(println (subs string-left (- (count string-left) 100)))))

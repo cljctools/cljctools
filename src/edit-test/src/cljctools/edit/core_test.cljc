@@ -23,7 +23,9 @@
 
    #?(:clj [clojure.java.shell :refer [sh]])
    #?(:clj [clojure.java.io :as io])
-   [cljctools.edit.core :as edit.core]))
+   [cljctools.edit.core :as edit.core]
+   [cljctools.edit.string :as edit.string]
+   [cljctools.edit.scan :as edit.scan]))
 
 (def tmp-dir "tmp")
 (def pwd #?(:clj (System/getProperty "user.dir")
@@ -69,23 +71,23 @@
                  "sh" "-c"
                  (str "rm -rf " tmp-dir))))))
 
-(defn read-clojure-core-string
-  []
-  (let [clojure-core-path (str pwd "/" tmp-dir "/clojure/src/clj/clojure/core.clj")
-        clojure-core-string
-        #?(:clj (slurp (io/file clojure-core-path))
+(defn read-file
+  [relative-filepath]
+  (let [filepath (str pwd "/" relative-filepath)
+        file-string
+        #?(:clj (slurp (io/file filepath))
            :cljs (->
                   (.readFileSync
                    fs
-                   clojure-core-path
+                   filepath
                    (clj->js {:encoding "utf8"}))
                   (.toString)))]
-    clojure-core-string))
+    file-string))
 
 
 (deftest ^{:foo true} read-ns-symbol
   (testing "edit.core/read-ns-symbol"
-    (let [clojure-core-string (read-clojure-core-string)
+    (let [clojure-core-string (read-file "tmp/clojure/src/clj/clojure/core.clj")
           ns-symbol (time (edit.core/read-ns-symbol clojure-core-string))]
       (is (= ns-symbol
              'clojure.core)))))
@@ -93,7 +95,7 @@
 
 (deftest ^{:foo true} parse-forms-at-position
   (testing "edit.core/parse-forms-at-position"
-    (let [clojure-core-string (read-clojure-core-string)
+    (let [clojure-core-string (read-file "tmp/clojure/src/clj/clojure/core.clj")
           form (time (edit.core/parse-forms-at-position clojure-core-string [] {}))]
       (is (= form
              :foo)))))
