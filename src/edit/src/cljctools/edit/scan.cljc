@@ -37,13 +37,15 @@
                       \: :keyword}
                      c :token)))
 
+
+
 (defn scan
   "A process that scans string in both direction of position.
    Scan understands from where and to where the expresion(s) is, so that substring can be then parsed with rewrite-clj.
    Returns start and end position of a string to pass to rewrite-clj parse-string-all"
   [string position]
   (let [[row col] position
-        [lines string-left string-right] (edit.string/split-at-position string position)
+        [string-left string-right] (edit.string/split-at-position string position)
         string-left-reversed (clojure.string/reverse string-left)
         reader-left (reader/string-reader string-left-reversed)
         reader-right (reader/string-reader string-right)
@@ -53,15 +55,20 @@
       (let [char-left (reader/peek reader-left)
             char-right (reader/peek reader-right)]
         (cond
-          (= char-left \})
+          (= char-left \{)
           (do
-            #_(r/read-char reader-left)
-            (reader/read-until reader-left
-                               (fn [c]
-                                 (= c \{)))
-            (let [reader-left-line (r/get-line-number reader-left)
-                  reader-left-column (r/get-column-number reader-left)
-                  line (- row reader-left-line)
-                  column (- (count (get lines line)) reader-left-column)]
-              {:start [line column]
-               :end [row (dec col)]})))))))
+            (r/read-char reader-left)
+            (let [next-char (reader/peek reader-left) ]
+              (cond
+                (= next-char \:)
+                (do)
+                
+                )
+              
+              )
+            )
+          
+          ))
+      
+
+      )))

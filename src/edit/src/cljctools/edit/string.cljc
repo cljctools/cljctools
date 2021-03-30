@@ -81,7 +81,7 @@
                                 (get lines (dec row))
                                 (subs (dec col))))
                        (clojure.string/join "\n" x))]
-    [lines string-left string-right])
+    [string-left string-right])
   #_(let [offset (offset-at string [6755 19] #_[29 31])
           string-left (subs string 0 offset)
           string-right (subs string offset)]
