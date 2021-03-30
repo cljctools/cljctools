@@ -24,8 +24,7 @@
    #?(:clj [clojure.java.shell :refer [sh]])
    #?(:clj [clojure.java.io :as io])
    [cljctools.edit.core :as edit.core]
-   [cljctools.edit.string :as edit.string]
-   [cljctools.edit.scan :as edit.scan]))
+   [cljctools.edit.string :as edit.string]))
 
 (def tmp-dir "tmp")
 (def pwd #?(:clj (System/getProperty "user.dir")

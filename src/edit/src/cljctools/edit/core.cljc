@@ -31,13 +31,15 @@
    File may start with comments, drop-reads one form at a time until finds ns"
   [string]
   (let [reader (reader/string-reader string)
-        nodes (->> (repeatedly #(parser/parse reader))
+        nodes (->> (repeatedly
+                    (fn []
+                      (parser/parse reader)))
                    (sequence
                     (comp
                      (drop-while (complement
                                   (fn [node]
-                                    (= :seq (node/node-type node)))))))
-                   (take 1))
+                                    (= :seq (node/node-type node)))))
+                     (take 1))))
         node (with-meta
                (nforms/forms-node nodes)
                (meta (first nodes)))
