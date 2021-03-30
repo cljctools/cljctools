@@ -63,22 +63,3 @@
                      zloc-ns)
                    z/sexpr)]
     ns-symbol))
-
-
-(s/def ::expand-level #{:nearest-element
-                        :all-elements
-                        :whole-collection})
-
-(defn parse-forms-at-position
-  "Returns a lazy sequence of forms at position. Every next element returns next form expansion.
-   On every read from sequence, the string is read just enough to return the next form until the top level form.
-   Given e.g. form and position ({:a [:b 1 | ]}), lazy seq will give elements 1 , [:b 1] , {:a [:b 1]} , ({:a [:b 1 |]})
-   If we're in the middle of a collection, should be able to specify in options: select nearest left/right element, select all elements, select whole collection form
-   "
-  [string [row col :as position]
-   {:keys [::expand-level]
-    :or {expand-level :nearest-element} :as opts}]
-  (let [[string-left string-right] (edit.string/split-at-position string [29 31])
-        string-left-reversed (clojure.string/reverse string-left)]
-    (println string-left-reversed)
-    #_(println (subs string-left (- (count string-left) 100)))))
