@@ -1,0 +1,5 @@
+{:paths ["src"]
+ :deps {github.clj-commons/rewrite-clj {}
+        github.tonsky/datascript {:git/url "https://github.com/tonsky/datascript"
+                                  :sha "60feefdd2b2f0d354d4def55b84bed35288e3c0a"
+                                  :tag "1.0.7"}}}
