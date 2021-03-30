@@ -20,8 +20,7 @@
    [clojure.tools.reader.reader-types :as r]
 
    [cljctools.edit.spec :as edit.spec]
-   [cljctools.edit.string :as edit.string]
-   [cljctools.edit.scan :as edit.scan])
+   [cljctools.edit.string :as edit.string])
   #?(:cljs
      (:import [goog.string StringBuffer])))
 
