@@ -23,78 +23,37 @@
 
    #?(:clj [clojure.java.shell :refer [sh]])
    #?(:clj [clojure.java.io :as io])
+   [cljctools.edit.test-data.core :as edit.test-data.core]
    [cljctools.edit.core :as edit.core]
    [cljctools.edit.string :as edit.string]))
 
-(def tmp-dir "tmp")
 (def pwd #?(:clj (System/getProperty "user.dir")
             :cljs (.cwd js/process)))
+(def tmp-dir "tmp")
 
 #?(:cljs (do
-           (def fs (js/require "fs"))
-           (def path (js/require "path"))
-           (def cp (js/require "child_process"))
-
            (use-fixtures :once
              {:before (fn []
                         (async done
                                (go
-                                 (when-not (.existsSync fs (.join path pwd tmp-dir "/clojure"))
-                                   (.execSync cp
-                                              (str "mkdir -p " tmp-dir " && "
-                                                   "cd " tmp-dir " && "
-                                                   "git clone https://github.com/clojure/clojure"
-                                                   " && " "cd ../")
-                                              (clj->js {:cwd pwd})))
+                                 (edit.test-data.core/clojure-repo-git-clone pwd tmp-dir)
                                  (done))))
               :after (fn []
                        (async done
                               (go
-                                #_(.execSync cp (format "rm -rf %s" (.join path pwd tmp-dir))
-                                             (clj->js {:cwd pwd}))
+                                #_(edit.test-data.core/clojure-repo-remove pwd tmp-dir)
                                 (done))))})))
-
 #?(:clj (do
           (use-fixtures :once
             (fn [f]
-              (when-not (.exists (io/file (str pwd "/" tmp-dir "/clojure")))
-                (sh
-                 "sh" "-c"
-                 (str
-                  "mkdir -p " tmp-dir
-                  " && cd " tmp-dir
-                  " && "
-                  "git clone https://github.com/clojure/clojure")))
+              (edit.test-data.core/clojure-repo-git-clone pwd tmp-dir)
               (f)
-              #_(sh
-                 "sh" "-c"
-                 (str "rm -rf " tmp-dir))))))
-
-(defn read-file
-  [relative-filepath]
-  (let [filepath (str pwd "/" relative-filepath)
-        file-string
-        #?(:clj (slurp (io/file filepath))
-           :cljs (->
-                  (.readFileSync
-                   fs
-                   filepath
-                   (clj->js {:encoding "utf8"}))
-                  (.toString)))]
-    file-string))
+              #_(edit.test-data.core/clojure-repo-remove pwd tmp-dir)))))
 
 
 (deftest ^{:foo true} read-ns-symbol
   (testing "edit.core/read-ns-symbol"
-    (let [clojure-core-string (read-file "tmp/clojure/src/clj/clojure/core.clj")
+    (let [clojure-core-string (edit.test-data.core/read-file pwd "tmp/clojure/src/clj/clojure/core.clj")
           ns-symbol (time (edit.core/read-ns-symbol clojure-core-string))]
       (is (= ns-symbol
              'clojure.core)))))
-
-
-(deftest ^{:foo true} parse-forms-at-position
-  (testing "edit.core/parse-forms-at-position"
-    (let [clojure-core-string (read-file "tmp/clojure/src/clj/clojure/core.clj")
-          form (time (edit.core/parse-forms-at-position clojure-core-string [] {}))]
-      (is (= form
-             :foo)))))

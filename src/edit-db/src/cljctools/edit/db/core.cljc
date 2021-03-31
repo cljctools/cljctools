@@ -24,3 +24,26 @@
   #?(:cljs
      (:import [goog.string StringBuffer])))
 
+(defn create-schema
+  []
+  {:node/type {:db/valueType :db.type/keyword
+               :db/cardinality :db.cardinality/one}
+
+   :node/tag {:db/valueType :db.type/keyword
+              :db/cardinality :db.cardinality/one}})
+
+
+(defn parse
+  "Returns rewrite-clj nodes and initial data for db"
+  [string]
+  (let [reader (reader/string-reader string)
+        nodes (->> (repeatedly #(parser/parse reader))
+                   (sequence
+                    (comp
+                     (take-while identity)
+                     (drop-while (complement
+                                  (fn [node]
+                                    (= :seq (node/node-type node))))))))
+        data  (mapv (fn [node]
+                      {:db/id -1}) nodes)]
+    [nodes data]))
