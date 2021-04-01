@@ -1,4 +1,3 @@
 {:paths ["src"]
  :deps {github.clj-commons/rewrite-clj {}
-        instaparse/instaparse {:mvn/version "1.4.10"}
         github.cljctools/edit-meta {:local/root  "../edit-meta"}}}
