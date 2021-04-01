@@ -15,6 +15,10 @@
                                                    :tag "v1.0.579-alpha"}
                    org.clojure/test.check {:mvn/version "1.0.0"}}}
 
+  :edit-test
+  {:extra-deps {github.cljtools/edit {:local/root  "./src/edit"}
+                github.cljctools/edit-test {:local/root "./src/edit-test"}}}
+
   :cljs-test-runner
   {:extra-deps {github.Olical/cljs-test-runner {:git/url "https://github.com/Olical/cljs-test-runner"
                                                 :sha "a9cc21916f32fb6caa9f54e349e7cc32b199b0c2"
@@ -23,17 +27,6 @@
   :clj-test-runner
   {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
                                                    :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}}
-
-  :edit-test
-  {:extra-deps {github.cljtools/edit {:local/root  "./src/edit"}
-                github.cljtools/edit-db {:local/root  "./src/edit-db"}
-                github.cljctools/edit-test {:local/root "./src/edit-test"}
-                github.cljctools/edit-test-data {:local/root "./src/edit-test-data"}}}
-
-  :edit-instaparse-test
-  {:extra-deps {github.cljtools/edit-instaparse {:local/root  "./src/edit-instaparse"}
-                github.cljctools/edit-insta-test {:local/root "./src/edit-instaparse-test"}
-                github.cljctools/edit-test-data {:local/root "./src/edit-test-data"}}}
 
   :repl
   {:extra-deps {github.cljctools/deps-repl {:git/url "https://github.com/cljctools/deps-repl"

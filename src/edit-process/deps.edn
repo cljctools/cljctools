@@ -1,4 +1,0 @@
-{:paths ["src"]
- :deps {github.cljctools/edit-meta {:local/root  "../edit-meta"}
-        github.cljctools/edit-process-meta {:local/root  "../edit-process-meta"}
-        github.cljctools/edit {:local/root  "../edit"}}}

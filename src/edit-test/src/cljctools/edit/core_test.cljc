@@ -23,7 +23,7 @@
 
    #?(:clj [clojure.java.shell :refer [sh]])
    #?(:clj [clojure.java.io :as io])
-   [cljctools.edit.test-data.core :as edit.test-data.core]
+   [cljctools.edit.test-data :as edit.test-data]
    [cljctools.edit.core :as edit.core]
    [cljctools.edit.string :as edit.string]))
 
@@ -36,24 +36,24 @@
              {:before (fn []
                         (async done
                                (go
-                                 (edit.test-data.core/clojure-repo-git-clone pwd tmp-dir)
+                                 (edit.test-data/clojure-repo-git-clone pwd tmp-dir)
                                  (done))))
               :after (fn []
                        (async done
                               (go
-                                #_(edit.test-data.core/clojure-repo-remove pwd tmp-dir)
+                                #_(edit.test-data/clojure-repo-remove pwd tmp-dir)
                                 (done))))})))
 #?(:clj (do
           (use-fixtures :once
             (fn [f]
-              (edit.test-data.core/clojure-repo-git-clone pwd tmp-dir)
+              (edit.test-data/clojure-repo-git-clone pwd tmp-dir)
               (f)
-              #_(edit.test-data.core/clojure-repo-remove pwd tmp-dir)))))
+              #_(edit.test-data/clojure-repo-remove pwd tmp-dir)))))
 
 
 (deftest ^{:foo true} read-ns-symbol
   (testing "edit.core/read-ns-symbol"
-    (let [clojure-core-string (edit.test-data.core/read-file pwd "tmp/clojure/src/clj/clojure/core.clj")
+    (let [clojure-core-string (edit.test-data/read-file pwd "tmp/clojure/src/clj/clojure/core.clj")
           ns-symbol (time (edit.core/read-ns-symbol clojure-core-string))]
       (is (= ns-symbol
              'clojure.core)))))

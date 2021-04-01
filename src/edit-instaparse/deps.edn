@@ -1,2 +1,0 @@
-{:paths ["src"]
- :deps {instaparse/instaparse {:mvn/version "1.4.10"}}}

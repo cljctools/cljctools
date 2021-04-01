@@ -4,7 +4,7 @@ repl(){
     clj -A:core:clj:test:repl
 }
 
-test-edit-nodejs(){
+test-nodejs(){
     # npm i
     # -i :integration
     # -n cljctools.socket.nodejs-net-test
@@ -16,26 +16,11 @@ test-edit-nodejs(){
         -x node
 }
 
-test-edit-jvm(){
+test-jvm(){
     clojure \
         -A:core:edit-test:clj-test-runner \
         -m cognitect.test-runner \
         -d src/edit-test
-}
-
-test-edit-instaparse-nodejs(){
-    clojure \
-        -A:core:edit-instaparse-test:cljs-test-runner \
-        -m cljs-test-runner.main \
-        -d src/edit-instaparse-test \
-        -x node
-}
-
-test-edit-instaparse-jvm(){
-    clojure \
-        -A:core:edit-instaparse-test:clj-test-runner \
-        -m cognitect.test-runner \
-        -d src/edit-instaparse-test
 }
 
 clean(){
