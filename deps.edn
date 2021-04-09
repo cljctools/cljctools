@@ -1,0 +1,31 @@
+{:paths []
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://clojars.org/repo/"}}
+ :deps
+ {}
+
+ :aliases
+ {:core
+  {:extra-deps {org.clojure/spec.alpha {:mvn/version "0.2.187"}
+                org.clojure/core.async {:mvn/version "1.1.587"}
+                org.clojure/clojure         {:mvn/version "1.10.3"}}
+   :override-deps {org.clojure/test.check {:mvn/version "1.0.0"}}}
+
+  :clj-go-libp2p
+  {:extra-deps {github.cljtools/clj-go-libp2p {:local/root  "./src/clj-go-libp2p"}}}
+
+  :clj-test-runner
+  {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
+                                                   :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}}
+
+  :repl
+  {:extra-deps {github.cljctools/deps-repl {:git/url "https://github.com/cljctools/deps-repl"
+                                            :sha "08283d3841c5948b0b9d36a977ebfdad111cdb2f"
+                                            :tag "v2.0.1"}
+                nrepl/nrepl {:mvn/version "0.8.3"}
+                cider/cider-nrepl {:mvn/version "0.25.5"}}
+   :main-opts ["-m" "lambdaisland.nrepl.main"
+               "--init-ns" "cljctools.clj-go-libp2p.core"
+               "--port" "7788"
+               "--bind" "0.0.0.0"
+               "--middleware" "cider.nrepl/cider-middleware"]}}}
