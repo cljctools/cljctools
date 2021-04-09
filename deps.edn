@@ -1,4 +1,4 @@
-{:paths []
+{:paths ["src"]
  :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
              "clojars" {:url "https://clojars.org/repo/"}}
  :deps
@@ -11,8 +11,6 @@
                 org.clojure/clojure         {:mvn/version "1.10.3"}}
    :override-deps {org.clojure/test.check {:mvn/version "1.0.0"}}}
 
-  :clj-go-libp2p
-  {:extra-deps {github.cljtools/clj-go-libp2p {:local/root  "./src/clj-go-libp2p"}}}
 
   :clj-test-runner
   {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
