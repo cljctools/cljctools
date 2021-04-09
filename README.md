@@ -1,7 +1,7 @@
 # libp2p
 clojure(script) implementation of https://github.com/libp2p
 
-## deprecated
+## archived
 
 - launch or use existing running network node (ipfs node) for networking via http-api
 - app requests pubsub stream or uses p2p http proxy
