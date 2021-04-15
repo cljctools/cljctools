@@ -1,6 +1,10 @@
 # libp2p
 clojure(script) implementation of libp2p
 
+## already solved
+
+- instead, golang process + docker container:  write libp2p-related logic in golang as a service and expose what's needed via http to main app that runs on jvm
+
 ## why
 
 - need for jvm implementation of libp2p with examples and AutoRelay
