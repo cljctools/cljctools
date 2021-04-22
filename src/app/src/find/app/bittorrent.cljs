@@ -14,27 +14,43 @@
 
 (defonce fs (js/require "fs-extra"))
 (defonce path (js/require "path"))
+(defonce Webtorrent (js/require "webtorrent"))
 (defonce BittorrentDHT (js/require "bittorrent-dht"))
+(defonce fetchMetadata (js/require "bep9-metadata-dl"))
 (defonce MagnetURI (js/require "magnet-uri"))
 
 
 (defn start
   [{:keys [:peer-index] :as opts}]
   (go
-    (let [dht (BittorrentDHT.)]
+    (let [#_client #_(Webtorrent.
+                      (clj->js
+                       {"dhtPort" (+ 6880 peer-index)}))
+          #_dht #_(. client -dht)
+          dht (BittorrentDHT.)]
       (.listen dht (+ 6880 peer-index)
-               (fn []
-                 (println ::dht-listening (.address dht))))
+               (fn []))
       (.on dht "ready"
            (fn []
-             (println ::dht-ready)
+             (println ::dht-ready (+ 6880 peer-index))
              #_(println (.. dht (toJSON) -nodes))))
       (.on dht "announce"
            (fn [peer info-hash]
              (println ::announce)
-             (println info-hash)
              (println (.-host peer) (.-port peer))
-             (println (.toString info-hash "hex"))))
+             (println (.toString info-hash "hex"))
+             (->
+              (fetchMetadata
+               (.toString info-hash "hex")
+               (clj->js
+                {"maxConns" 10
+                 "fetchTimeout" 30000
+                 "socketTimeout" 5000
+                 "dht" dht}))
+              (.then (fn [metadata]
+                       (println (.. metadata -info -name (toString "utf-8")))))
+              (.catch (fn [error]
+                        (println ::error error))))))
       (.on dht "error"
            (fn [error]
              (println ::dht-error)
