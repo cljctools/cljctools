@@ -27,7 +27,9 @@
                       (clj->js
                        {"dhtPort" (+ 6880 peer-index)}))
           #_dht #_(. client -dht)
-          dht (BittorrentDHT.)]
+          dht (BittorrentDHT.
+               (clj->js
+                {"nodeId" "9859552c412933025559388fe1c438422e3afee7"}))]
       (.listen dht (+ 6880 peer-index)
                (fn []))
       (.on dht "ready"
