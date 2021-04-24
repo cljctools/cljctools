@@ -102,7 +102,8 @@
           routing-table-sampledA (atom {})
           routing-table-find-nodedA (atom {})
           count-torrentsA (atom 0)
-          routing-table-size 16000
+          count-messagesA (atom 0)
+          routing-table-size 512
           add-node (fn [node]
                      (when (and
                             (< (count @routing-tableA) routing-table-size)
@@ -142,9 +143,10 @@
         (.bind port address)
         (.on "listening"
              (fn []
-               (println ::socket-listening)))
+               (println (format "listening on %s:%s" address port))))
         (.on "message"
              (fn [msgB rinfo]
+               (swap! count-messagesA inc)
                (try
                  (put! msg| {:msg (.decode bencode msgB)
                              :rinfo rinfo})
@@ -163,7 +165,8 @@
       (go
         (loop []
           (<! (timeout (* 10 1000)))
-          (println {:count-torrentsA @count-torrentsA
+          (println {:count-messages @count-messagesA
+                    :count-torrentsA @count-torrentsA
                     :routing-table (count @routing-tableA)
                     :routing-table-find-noded  (count @routing-table-find-nodedA)
                     :routing-table-sampledA (count @routing-table-sampledA)})
@@ -172,7 +175,7 @@
       ; peridiacally remove half nodes randomly 
       (go
         (loop []
-          (<! (timeout (* 2 60 1000)))
+          (<! (timeout (* 5 60 1000)))
           (->> @routing-tableA
                (keys)
                (shuffle)
@@ -197,60 +200,70 @@
           (recur)))
 
       ; very rarely ask bootstrap servers for nodes
+      #_(let [stop| (chan 1)]
+          (swap! procsA conj stop|)
+          (go
+            (loop [timeout| (timeout 0)]
+              (alt!
+                timeout|
+                ([_]
+                 (doseq [node nodes-bootstrap]
+                   (send-find-node
+                    socket
+                    (clj->js
+                     node)
+                    id-selfB))
+                 (recur (timeout (* 3 * 60 1000))))
+                stop|
+                (do :stop)))
+            (println :proc-find-nodes-bootstrap-exits)))
+      (doseq [node nodes-bootstrap]
+        (send-find-node
+         socket
+         (clj->js
+          node)
+         id-selfB))
+
+      ; sybil attack - backfired
+      ; problem: overtime, we ask so many nodes, that program simply cannot handle incomming messages, it can crush router, because our ip:port becomes registered on so many nodes
+      ; like 9000 messages a second just by making first query to boostrap servers - simply because we already ran program before and asked nodes, and now they keep sending to our ip:port
+      ; wait for them to remove us from DHT
+      ; instead: we shuold only ask a few nodes once (a day), but from different parts of DHT - and listen to those
+      #_(let [stop| (chan 1)]
+          (swap! procsA conj stop|)
+          (go
+            (loop []
+              (alt!
+                (timeout 2000)
+                ([_]
+                 (doseq [[id node] (->>
+                                    (sequence
+                                     (comp
+                                      (filter (fn [[id node]] (not (get @routing-table-find-nodedA id))))
+                                      (take 64))
+                                     @routing-tableA)
+                                    (shuffle))]
+                   (swap! routing-table-find-nodedA assoc id {:node node
+                                                              :timestamp (js/Date.now)})
+                   (send-find-node
+                    socket
+                    (clj->js
+                     node)
+                    (gen-neighbor-id (:idB node) id-selfB)))
+                 (recur))
+
+                stop|
+                (do :stop)))
+            (println :proc-find-node-exits)))
+
+      ; ask nodes directly, politely for infohashes
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
         (go
+          #_(timeout 1000)
           (loop []
             (alt!
-              (timeout (* 3 * 60 1000))
-              ([_]
-               (doseq [node nodes-bootstrap]
-                 (send-find-node
-                  socket
-                  (clj->js
-                   node)
-                  id-selfB))
-               (recur))
-              stop|
-              (do :stop)))
-          (println :proc-find-nodes-bootstrap-exits)))
-
-      ; ask nodes in routing tables for nodes
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (loop []
-            (alt!
-              (timeout 2000)
-              ([_]
-               (doseq [[id node] (->>
-                                  (sequence
-                                   (comp
-                                    (filter (fn [[id node]] (not (get @routing-table-find-nodedA id))))
-                                    (take 64))
-                                   @routing-tableA)
-                                  (shuffle))]
-                 (swap! routing-table-find-nodedA assoc id {:node node
-                                                            :timestamp (js/Date.now)})
-                 (send-find-node
-                  socket
-                  (clj->js
-                   node)
-                  (gen-neighbor-id (:idB node) id-selfB)))
-               (recur))
-
-              stop|
-              (do :stop)))
-          (println :proc-find-node-exits)))
-
-      ; ask nodes directly for infohashes
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (timeout 1000)
-          (loop []
-            (alt!
-              (timeout 2000)
+              (timeout 5000)
               ([_]
                (doseq [[id node] (->>
                                   (sequence
@@ -272,6 +285,7 @@
               (do :stop)))
           (println :proc-BEP51-exits)))
 
+      ; add new nodes to routing table
       (go
         (loop []
           (when-let [nodesB (<! nodes|)]
