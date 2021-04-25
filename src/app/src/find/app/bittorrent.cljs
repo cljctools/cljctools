@@ -18,10 +18,13 @@
 (defonce path (js/require "path"))
 (defonce Webtorrent (js/require "webtorrent"))
 (defonce BittorrentDHT (js/require "bittorrent-dht"))
+(defonce BittorrrentProtocol (js/require "bittorrent-protocol"))
+(defonce ut_metadata (js/require "ut_metadata"))
 (defonce MagnetURI (js/require "magnet-uri"))
 (defonce crypto (js/require "crypto"))
 (defonce bencode (js/require "bencode"))
 (defonce dgram (js/require "dgram"))
+(defonce net (js/require "net"))
 
 (defn decode-nodes
   [nodesB]
@@ -91,6 +94,61 @@
        :a {:id id-nodeB
            :target id-targetB}})
      rifno)))
+
+(defn send-get-peers
+  [socket rifno id-nodeB infohashB]
+  (send-krpc
+   socket
+   (clj->js
+    {:t (.randomBytes crypto 4)
+     :y "q"
+     :q "get_peers"
+     :a {:id id-nodeB
+         :info_hash infohashB}})
+   rifno))
+
+(defn request-metadata
+  [address port idB infohashB]
+  (go
+    (let [time-out 3000
+          error| (chan 1)
+          result| (chan 1)
+          socket (net.Socket.)]
+      (doto socket
+        (.on "error" (fn [error]
+                       (close! error|)))
+        (.on "timeout" (fn [error]
+                         (close! error|)))
+        (.setTimeout time-out))
+      (.connect socket address port
+                (fn []
+                  (let [wire (doto (BittorrrentProtocol.)
+                               (.use (ut_metadata))
+                               (.on "handshake" (fn [infohash peer-id]
+                                                  (.. wire -ut_metadata (fetch))))
+                               (.on "metadata" (fn [data]
+                                                 (let [metadata (.-info (.decode bencode data))]
+                                                   (put! result| (.. metadata -info -name (toString "utf-8"))))
+                                                 (.. wire -ut_metadata (fetch)))))]
+                    (-> socket
+                        (.pipe wire)
+                        (.pipe socket))
+                    (.handshake wire infohashB idB (clj->js {:dht true})))))
+      (alt!
+        
+        (timeout time-out)
+        ([_]
+         (.destroy socket)
+         nil)
+        
+        error|
+        ([value]
+         (.destroy socket)
+         nil)
+        
+        result|
+        ([value]
+         value)))))
 
 (defn xor-distance
   [buffer1B buffer2B]
