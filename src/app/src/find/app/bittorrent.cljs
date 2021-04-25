@@ -96,17 +96,18 @@
   [{:keys [:peer-index] :as opts}]
   (go
     (let [stateA (atom nil)
-          id-selfB (.randomBytes crypto 20)
+          id-self "96190f486de62449099f9caf852964b2e12058dd"
+          id-selfB (js/Buffer.from id-self "hex") #_(.randomBytes crypto 20)
           duration (* 10 60 1000)
           routing-tableA (atom {})
           routing-table-sampledA (atom {})
           routing-table-find-nodedA (atom {})
           count-torrentsA (atom 0)
           count-messagesA (atom 0)
-          routing-table-size 512
+          routing-table-max-size 16000
           add-node (fn [node]
                      (when (and
-                            (< (count @routing-tableA) routing-table-size)
+                            (< (count @routing-tableA) routing-table-max-size)
                             (not (get @routing-tableA (:id node))))
                        (swap! routing-tableA assoc (:id node) node)))
 
@@ -135,10 +136,6 @@
                  (.close socket)
                  (a/merge @procsA))]
 
-      (go
-        (<! (timeout duration))
-        (stop))
-
       (doto socket
         (.bind port address)
         (.on "listening"
@@ -156,12 +153,10 @@
                (println ::socket-error)
                (println error))))
 
-      (go
-        (loop []
-          (when-let [{:keys [infohashB rinfo]} (<! infohash|)]
-            (put! torrent| {:infohash (.toString infohashB "hex")})
-            (swap! count-torrentsA inc)
-            (recur))))
+      #_(go
+          (<! (timeout duration))
+          (stop))
+
       (go
         (loop []
           (<! (timeout (* 10 1000)))
@@ -172,14 +167,21 @@
                     :routing-table-sampledA (count @routing-table-sampledA)})
           (recur)))
 
+      (go
+        (loop []
+          (when-let [{:keys [infohashB rinfo]} (<! infohash|)]
+            (put! torrent| {:infohash (.toString infohashB "hex")})
+            (swap! count-torrentsA inc)
+            (recur))))
+
       ; peridiacally remove half nodes randomly 
       (go
         (loop []
-          (<! (timeout (* 5 60 1000)))
+          (<! (timeout (* 1 60 1000)))
           (->> @routing-tableA
                (keys)
                (shuffle)
-               (take (/ routing-table-size 2))
+               (take (/ (count @routing-tableA) 2))
                (apply swap! routing-tableA dissoc))
           (recur)))
 
@@ -194,41 +196,59 @@
               (swap! routing-table-sampledA dissoc id)))
 
           (doseq [[id {:keys [node timestamp]}] @routing-table-find-nodedA]
-            (when (> (- (js/Date.now) timestamp) (* 2 60 1000))
+            (when (> (- (js/Date.now) timestamp) (* 5 60 1000))
               (swap! routing-table-find-nodedA dissoc id)))
 
           (recur)))
 
       ; very rarely ask bootstrap servers for nodes
-      #_(let [stop| (chan 1)]
-          (swap! procsA conj stop|)
-          (go
-            (loop [timeout| (timeout 0)]
-              (alt!
-                timeout|
-                ([_]
-                 (doseq [node nodes-bootstrap]
-                   (send-find-node
-                    socket
-                    (clj->js
-                     node)
-                    id-selfB))
-                 (recur (timeout (* 3 * 60 1000))))
-                stop|
-                (do :stop)))
-            (println :proc-find-nodes-bootstrap-exits)))
-      (doseq [node nodes-bootstrap]
-        (send-find-node
-         socket
-         (clj->js
-          node)
-         id-selfB))
+      (let [stop| (chan 1)]
+        (swap! procsA conj stop|)
+        (go
+          (loop [timeout| (timeout 0)]
+            (alt!
+              timeout|
+              ([_]
+               (doseq [node nodes-bootstrap]
+                 (send-find-node
+                  socket
+                  (clj->js
+                   node)
+                  id-selfB))
+               (recur (timeout (* 3 60 1000))))
+              stop|
+              (do :stop)))
+          (println :proc-find-nodes-bootstrap-exits)))
 
-      ; sybil attack - backfired
-      ; problem: overtime, we ask so many nodes, that program simply cannot handle incomming messages, it can crush router, because our ip:port becomes registered on so many nodes
-      ; like 9000 messages a second just by making first query to boostrap servers - simply because we already ran program before and asked nodes, and now they keep sending to our ip:port
-      ; wait for them to remove us from DHT
-      ; instead: we shuold only ask a few nodes once (a day), but from different parts of DHT - and listen to those
+      ; periodicaly ask nodes for new nodes
+      (let [stop| (chan 1)]
+        (swap! procsA conj stop|)
+        (go
+          (loop [timeout| (timeout 2000)]
+            (alt!
+              timeout|
+              ([_]
+               (doseq [[id node] (->>
+                                  (sequence
+                                   (comp
+                                    (filter (fn [[id node]] (not (get @routing-table-find-nodedA id))))
+                                    (take 64))
+                                   @routing-tableA)
+                                  (shuffle))]
+                 (swap! routing-table-find-nodedA assoc id {:node node
+                                                            :timestamp (js/Date.now)})
+                 (send-find-node
+                  socket
+                  (clj->js
+                   node)
+                  id-selfB))
+               (recur (timeout (* 2 60 1000))))
+
+              stop|
+              (do :stop)))
+          (println :proc-find-node-exits)))
+
+      ; sybil
       #_(let [stop| (chan 1)]
           (swap! procsA conj stop|)
           (go
@@ -254,16 +274,16 @@
 
                 stop|
                 (do :stop)))
-            (println :proc-find-node-exits)))
+            (println :proc-sybil-exits)))
 
       ; ask nodes directly, politely for infohashes
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
         (go
           #_(timeout 1000)
-          (loop []
+          (loop [timeout| (timeout 1000)]
             (alt!
-              (timeout 5000)
+              timeout|
               ([_]
                (doseq [[id node] (->>
                                   (sequence
@@ -279,7 +299,7 @@
                   (clj->js
                    node)
                   id-selfB))
-               (recur))
+               (recur (timeout (* 10 1000))))
 
               stop|
               (do :stop)))
