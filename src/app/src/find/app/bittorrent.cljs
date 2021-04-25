@@ -18,7 +18,6 @@
 (defonce path (js/require "path"))
 (defonce Webtorrent (js/require "webtorrent"))
 (defonce BittorrentDHT (js/require "bittorrent-dht"))
-(defonce fetchMetadata (js/require "bep9-metadata-dl"))
 (defonce MagnetURI (js/require "magnet-uri"))
 (defonce crypto (js/require "crypto"))
 (defonce bencode (js/require "bencode"))
