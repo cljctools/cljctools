@@ -177,15 +177,29 @@
                       :routing-table-sampled {}
                       :routing-table-find-noded {}})
                    (<! (load-state data-dir))))
+          port 6881
+          address "0.0.0.0"
+          torrent| (chan (sliding-buffer 100))
           duration (* 10 60 1000)
           count-torrentsA (atom 0)
           count-messagesA (atom 0)
           routing-table-max-size 16000
-          add-node (fn [node]
-                     (when (and
-                            (< (count (:routing-table @stateA)) routing-table-max-size)
-                            (not (get (:routing-table @stateA) (:id node))))
-                       (swap! stateA update-in [:routing-table] assoc (:id node) node)))
+          add-nodes (fn [nodesB]
+                      (->>
+                       (decode-nodes nodesB)
+                       (transduce
+                        (comp
+                         (filter (fn [node] (and (not= (:address node) address)
+                                                 (not= 0 (js/Buffer.compare (:idB node) (:id-selfB @stateA)))
+                                                 (< 0 (:port node) 65536)))))
+                        (fn [routing-table node]
+                          (when (and
+                                 (< (count routing-table) routing-table-max-size)
+                                 (not (get routing-table (:id node))))
+                            (assoc! routing-table (:id node) node)))
+                        (transient (:routing-table @stateA)))
+                       (persistent!)
+                       (swap! stateA assoc :routing-table)))
 
           nodes-bootstrap [{:address "router.bittorrent.com"
                             :port 6881}
@@ -193,9 +207,7 @@
                             :port 6881}
                            #_{:address "dht.libtorrent.org"
                               :port 25401}]
-          port 6881
-          address "0.0.0.0"
-          torrent| (chan (sliding-buffer 100))
+
           msg| (chan (sliding-buffer 100))
           infohash| (chan (sliding-buffer 100))
           nodes| (chan (sliding-buffer 100))
@@ -224,22 +236,22 @@
 
       (println ::id-self (:id-self @stateA))
 
-      (doto socket
-        (.bind port address)
-        (.on "listening"
-             (fn []
-               (println (format "listening on %s:%s" address port))))
-        (.on "message"
-             (fn [msgB rinfo]
-               (swap! count-messagesA inc)
-               (try
-                 (put! msg| {:msg (.decode bencode msgB)
-                             :rinfo rinfo})
-                 (catch js/Error error (do nil)))))
-        (.on "error"
-             (fn [error]
-               (println ::socket-error)
-               (println error))))
+      #_(doto socket
+          (.bind port address)
+          (.on "listening"
+               (fn []
+                 (println (format "listening on %s:%s" address port))))
+          (.on "message"
+               (fn [msgB rinfo]
+                 (swap! count-messagesA inc)
+                 (try
+                   (put! msg| {:msg (.decode bencode msgB)
+                               :rinfo rinfo})
+                   (catch js/Error error (do nil)))))
+          (.on "error"
+               (fn [error]
+                 (println ::socket-error)
+                 (println error))))
 
       #_(go
           (<! (timeout duration))
@@ -404,11 +416,7 @@
       (go
         (loop []
           (when-let [nodesB (<! nodes|)]
-            (doseq [node (decode-nodes nodesB)]
-              (when (and (not= (:address node) address)
-                         (not= 0 (js/Buffer.compare (:idB node) (:id-selfB @stateA)))
-                         (< 0 (:port node) 65536))
-                (add-node node)))
+            (add-nodes nodesB)
             #_(println :nodes-count (count (:routing-table @stateA)))
             (recur)))
         (println :proc-add-nodes-exits))
