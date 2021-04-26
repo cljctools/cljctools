@@ -26,17 +26,7 @@
 (defonce dgram (js/require "dgram"))
 (defonce net (js/require "net"))
 
-(defn decode-nodes
-  [nodesB]
-  (for [i (range 0 (.-length nodesB) 26)]
-    (let [idB (.slice nodesB i (+ i 20))]
-      {:id (.toString idB "hex")
-       :idB idB
-       :address (str (aget nodesB (+ i 20)) "."
-                     (aget nodesB (+ i 21)) "."
-                     (aget nodesB (+ i 22)) "."
-                     (aget nodesB (+ i 23)))
-       :port (.readUInt16BE nodesB (+ i 24))})))
+
 
 (defn gen-neighbor-id
   [target-idB node-idB]
@@ -63,59 +53,51 @@
        (into-array)
        (js/Buffer.concat)))
 
+(defn decode-nodes
+  [nodesB]
+  (try
+    (for [i (range 0 (.-length nodesB) 26)]
+      (let [idB (.slice nodesB i (+ i 20))]
+        {:id (.toString idB "hex")
+         :idB idB
+         :address (str (aget nodesB (+ i 20)) "."
+                       (aget nodesB (+ i 21)) "."
+                       (aget nodesB (+ i 22)) "."
+                       (aget nodesB (+ i 23)))
+         :port (.readUInt16BE nodesB (+ i 24))}))
+    (catch js/Error e [])))
+
 (defn decode-values
-  [valuesB]
-  (for [i (range 0 (.-length valuesB) 6)]
-    (let [idB (.slice valuesB i (+ i 6))]
-      {:address (str (aget valuesB (+ i 0)) "."
-                     (aget valuesB (+ i 1)) "."
-                     (aget valuesB (+ i 2)) "."
-                     (aget valuesB (+ i 3)))
-       :port (.readUInt16BE valuesB (+ i 4))})))
+  [values]
+  (map
+   (fn [peer-infoB]
+     {:address (str (aget peer-infoB 0) "."
+                    (aget peer-infoB 1) "."
+                    (aget peer-infoB 2) "."
+                    (aget peer-infoB 3))
+      :port (.readUInt16BE peer-infoB 4)})
+   values))
 
 (defn send-krpc
   [socket msg rinfo]
   (let [msgB (.encode bencode msg)]
     (.send socket msgB 0 (.-length msgB) (. rinfo -port) (. rinfo -address))))
 
+
 (defn send-find-node
   [socket rifno node-idB]
-  (let [target-idB (.randomBytes crypto 20)]
+  (let [target-idB (.randomBytes crypto 20)
+        txn-idB (.randomBytes crypto 4)]
     (send-krpc
      socket
      (clj->js
-      {:t (.slice target-idB 0 4)
+      {:t txn-idB
        :y "q"
        :q "find_node"
        :a {:id node-idB
            :target target-idB}})
      rifno)))
 
-(defn send-sample-infohashes
-  "BEP51"
-  [socket rifno node-idB]
-  (let [target-idB (.randomBytes crypto 20)]
-    (send-krpc
-     socket
-     (clj->js
-      {:t (.slice target-idB 0 4)
-       :y "q"
-       :q "sample_infohashes"
-       :a {:id node-idB
-           :target target-idB}})
-     rifno)))
-
-(defn send-get-peers
-  [socket rifno node-idB infohashB]
-  (send-krpc
-   socket
-   (clj->js
-    {:t (.randomBytes crypto 4)
-     :y "q"
-     :q "get_peers"
-     :a {:id node-idB
-         :info_hash infohashB}})
-   rifno))
 
 (defn xor-distance
   [buffer1B buffer2B]
@@ -139,32 +121,36 @@
          (= a b) 0
          (< a b) (reduced -1)
          (> a b) (reduced 1))))
+   0
    (range 0 (.-length distance1B))))
 
 (defn request-metadata
   [{:keys [address port]} idB infohashB cancel|]
   (go
-    (let [time-out 3000
+    (let [time-out 5000
           error| (chan 1)
           result| (chan 1)
           socket (net.Socket.)]
       (doto socket
         (.on "error" (fn [error]
+                       (println "request-metadata-socket error" error)
                        (close! error|)))
-        (.on "timeout" (fn [error]
+        (.on "timeout" (fn []
+                         (println "request-metadata-socket timeout")
                          (close! error|)))
         (.setTimeout time-out))
-      (.connect socket address port
+      (.connect socket port address
                 (fn []
                   (let [wire (BittorrrentProtocol.)]
                     (doto wire
                       (.use (ut_metadata))
                       (.on "handshake" (fn [infohash peer-id]
+                                         (println "request-metadata-socket handshake" infohash)
                                          (.. wire -ut_metadata (fetch))))
                       (.on "metadata" (fn [data]
                                         (let [metadata (.-info (.decode bencode data))]
-                                          (put! result| metadata))
-                                        (.. wire -ut_metadata (fetch)))))
+                                          (println (.. metadata -info -name (toString "utf-8")))
+                                          (put! result| metadata)))))
                     (-> socket
                         (.pipe wire)
                         (.pipe socket))
@@ -173,6 +159,7 @@
 
         (timeout time-out)
         ([_]
+         (println :timeout)
          (.destroy socket)
          nil)
 
@@ -210,8 +197,8 @@
                          (sort-by identity
                                   (fn [[_ node1] [_ node2]]
                                     (distance-compare
-                                     (xor-distance infohashB {:idB node1})
-                                     (xor-distance infohashB {:idB node2}))))
+                                     (xor-distance infohashB (:idB node1))
+                                     (xor-distance infohashB (:idB node2)))))
                          (take 8)
                          (into {}))
           release (fn []
@@ -221,7 +208,7 @@
                     (doseq [cancel| @cancel-channelsA]
                       (close! cancel|)))]
 
-      (doseq [node closest-nodes]
+      (doseq [[id node] closest-nodes]
         (put! nodes| node))
 
       (go
@@ -230,7 +217,7 @@
                time-total 0]
           (when (= i 0)
             (when (< time-total 1000)
-              (<! (timeout 1000))
+              (<! (timeout 5000))
               (recur i (js/Date.now) 0)))
           (when-let [node (<! nodes|)]
             (let [txn-idB (.randomBytes crypto 4)]
@@ -271,19 +258,17 @@
                 (cond
 
                   (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "values"))
-                  (try
-                    (let [seeders (decode-values (.. msg -r -values))]
-                      (swap! seeders-countA + (count seeders))
-                      (doseq [seeder seeders]
-                        (put! seeders| seeder)))
-                    (catch js/Error e nil))
+                  (let [seeders (decode-values (.. msg -r -values))]
+                    (swap! seeders-countA + (count seeders))
+                    (doseq [seeder seeders]
+                      (put! seeders| seeder)))
 
                   (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
-                  (try
-                    (let [nodes (decode-nodes (.. msg -r -nodes))]
-                      (doseq [node nodes]
-                        (put! nodes| node)))
-                    (catch js/Error e nil))
+                  (let [nodes (decode-nodes (.. msg -r -nodes))]
+                    (doseq [node nodes]
+                      (when (and (not= (:address node) "0.0.0.0")
+                                 (< 0 (:port node) 65536))
+                        (put! nodes| node))))
 
                   :else nil))
               (recur))))
@@ -365,6 +350,8 @@
                       :routing-table-sampled {}
                       :routing-table-find-noded {}})
                    (<! (load-state data-dir))))
+          self-id (:self-id @stateA)
+          self-idB (:self-idB @stateA)
           port 6881
           address "0.0.0.0"
           duration (* 10 60 1000)
@@ -407,6 +394,25 @@
           infohash|mult (mult infohash|)
           nodes| (chan (sliding-buffer 100))
           socket (.createSocket dgram "udp4")
+          send-krpc-request (let [requestsA (atom {})
+                                  msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
+                              (go
+                                (loop []
+                                  (when-let [{:keys [msg rinfo] :as value} (<! msg|tap)]
+                                    (let [txn-id (some-> (. msg -t) (.toString "hex"))]
+                                      (when-let [response| (get @requestsA txn-id)]
+                                        (put! response| value)
+                                        (swap! requestsA dissoc txn-id)))
+                                    (recur))))
+                              (fn [socket msg rinfo]
+                                (let [txn-id (.toString (. msg -t) "hex")
+                                      response| (chan 1)]
+                                  (send-krpc
+                                   socket
+                                   msg
+                                   rinfo)
+                                  (swap! requestsA assoc txn-id response|)
+                                  response|)))
 
           procsA (atom [])
           stop (fn []
@@ -471,32 +477,37 @@
           (recur)))
 
       ; discovery
-      (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-            in-progressA (atom {})]
-        (go
-          (loop [i 8
-                 ts (js/Date.now)
-                 time-total 0]
-            (when (= i 0)
-              (when (< time-total 1000)
-                (<! (timeout 1000))
-                (recur i (js/Date.now) 0)))
-            (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
-              (let [infohash (.toString infohashB "hex")]
-                (when-not (get @in-progressA infohash)
-                  (let [discovery| (discover-torrent {:routing-table (:routing-table @stateA)
-                                                      :socket socket
-                                                      :msg|mult msg|mult
-                                                      :node-idB (:self-idB @stateA)
-                                                      :infohashB infohashB
-                                                      :cancel| (chan 1)})]
-                    (swap! in-progressA assoc infohash discovery|)
-                    (take! discovery|
-                           (fn [value]
-                             (when value
-                               (println value))
-                             (swap! in-progressA dissoc infohash))))))
-              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
+      #_(let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
+              in-progressA (atom {})]
+          (go
+            (loop [i 8
+                   ts (js/Date.now)
+                   time-total 0]
+              #_(when (= i 0)
+                  (when (< time-total 1000)
+                    (println "-- cool down 10 sec")
+                    (<! (timeout 10000))
+                    (recur i (js/Date.now) 0)))
+              (when (= i 0)
+                (println "-- cool down 10 sec")
+                (<! (timeout 10000)))
+              (<! (timeout 100))
+              (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
+                (let [infohash (.toString infohashB "hex")]
+                  (when-not (get @in-progressA infohash)
+                    (let [discovery| (discover-torrent {:routing-table (:routing-table @stateA)
+                                                        :socket socket
+                                                        :msg|mult msg|mult
+                                                        :node-idB (:self-idB @stateA)
+                                                        :infohashB infohashB
+                                                        :cancel| (chan 1)})]
+                      (swap! in-progressA assoc infohash discovery|)
+                      (take! discovery|
+                             (fn [value]
+                               (when value
+                                 (println value))
+                               (swap! in-progressA dissoc infohash))))))
+                (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
 
       ; count
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
@@ -535,8 +546,10 @@
             (when (> (- (js/Date.now) timestamp) (* 5 60 1000))
               (swap! stateA update-in [:routing-table-sampled] dissoc id)))
 
-          (doseq [[id {:keys [node timestamp]}] (:routing-table-find-noded @stateA)]
-            (when (> (- (js/Date.now) timestamp) (* 5 60 1000))
+          (doseq [[id {:keys [node timestamp interval]}] (:routing-table-find-noded @stateA)]
+            (when (or
+                   (and interval (> (js/Date.now) (+ timestamp (* interval 1000))))
+                   (> (- (js/Date.now) timestamp) (* 5 60 1000)))
               (swap! stateA update-in [:routing-table-find-noded] dissoc id)))
 
           (recur)))
@@ -617,7 +630,7 @@
                 (do :stop)))
             (println :proc-sybil-exits)))
 
-      ; ask nodes directly, politely for infohashes
+      ; sample infohashes
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
         (go
@@ -634,11 +647,34 @@
                                   (shuffle))]
                  (swap! stateA update-in [:routing-table-sampled] assoc id {:node node
                                                                             :timestamp (js/Date.now)})
-                 (send-sample-infohashes
-                  socket
-                  (clj->js
-                   node)
-                  (:self-idB @stateA)))
+                 (let [target-idB (.randomBytes crypto 20)
+                       txn-idB (.randomBytes crypto 4)]
+                   (go
+                     (let [[value port] (alts! [(timeout 5000)
+                                                (send-krpc-request
+                                                 socket
+                                                 (clj->js
+                                                  {:t txn-idB
+                                                   :y "q"
+                                                   :q "sample_infohashes"
+                                                   :a {:id self-idB
+                                                       :target target-idB}})
+                                                 (clj->js node))])]
+                       (when value
+                         (let [{:keys [msg rinfo]} value
+                               {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                           (when samples
+                             (doseq [infohashB (->>
+                                                (js/Array.from  samples)
+                                                (partition 20)
+                                                (map #(js/Buffer.from (into-array %))))]
+                               #_(println :info_hash (.toString infohashB "hex"))
+                               (put! infohash| {:infohashB infohashB
+                                                :rinfo rinfo})))
+                           (when interval
+                             (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
+                           (when nodes
+                             (put! nodes| nodes))))))))
                (recur (timeout (* 2 1000))))
 
               stop|
@@ -658,22 +694,24 @@
       (let [msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
         (go
           (loop []
-            (when-let [{:keys [msg rinfo]} (<! msg|tap)]
+            (when-let [{:keys [msg rinfo] :as value} (<! msg|tap)]
               (let [msg-y (some-> (. msg -y) (.toString "utf-8"))
                     msg-q (some-> (. msg -q) (.toString "utf-8"))]
-
                 (cond
 
-                  (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "samples"))
-                  (when (goog.object/getValueByKeys msg "r" "nodes")
-                    (doseq [infohashB (->>
-                                       (js/Array.from  (goog.object/getValueByKeys msg "r" "samples"))
-                                       (partition 20)
-                                       (map #(js/Buffer.from (into-array %))))]
-                      (println :info_hash (.toString infohashB "hex"))
-                      (put! infohash| {:infohashB infohashB
-                                       :rinfo rinfo}))
-                    (put! nodes| (.. msg -r -nodes)))
+                  #_(and (= msg-y "r") (goog.object/getValueByKeys msg "r" "samples"))
+                  #_(let [{:keys [id interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                      (doseq [infohashB (->>
+                                         (js/Array.from  samples)
+                                         (partition 20)
+                                         (map #(js/Buffer.from (into-array %))))]
+                        #_(println :info_hash (.toString infohashB "hex"))
+                        (put! infohash| {:infohashB infohashB
+                                         :rinfo rinfo}))
+
+                      (when nodes
+                        (put! nodes| nodes)))
+
 
                   (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
                   (put! nodes| (.. msg -r -nodes))
@@ -710,6 +748,8 @@
                         txn-idB (. msg -t)
                         node-idB (.. msg -a -id)
                         tokenB (.slice infohashB 0 2)]
+                    (put! infohash| {:infohashB infohashB
+                                     :rinfo rinfo})
                     (if (or (not txn-idB) (not= (.-length node-idB) 20) (not= (.-length infohashB) 20))
                       (println "invalid query args: get_peers")
                       (send-krpc
@@ -744,7 +784,7 @@
                            :y "r"
                            :r {:id (:self-idB @stateA)}})
                          rinfo)
-                        (println :info_hash (.toString infohashB "hex"))
+                        #_(println :info_hash (.toString infohashB "hex"))
                         (put! infohash| {:infohashB infohashB
                                          :rinfo rinfo}))))
 
