@@ -142,19 +142,20 @@
       (.connect socket port address
                 (fn []
                   (let [wire (BittorrrentProtocol.)]
-                    (doto wire
-                      (.use (ut_metadata))
-                      (.on "handshake" (fn [infohash peer-id]
-                                         (println "request-metadata-socket handshake" infohash)
-                                         (.. wire -ut_metadata (fetch))))
-                      (.on "metadata" (fn [data]
-                                        (let [metadata (.-info (.decode bencode data))]
-                                          (println (.. metadata -info -name (toString "utf-8")))
-                                          (put! result| metadata)))))
                     (-> socket
                         (.pipe wire)
                         (.pipe socket))
-                    (.handshake wire infohashB idB (clj->js {:dht true})))))
+                    (.use wire (ut_metadata))
+                    (.handshake wire infohashB idB (clj->js {:dht true}))
+                    (.on wire "handshake"
+                         (fn [infohash peer-id]
+                           (println "request-metadata-socket handshake" infohash)
+                           (.. wire -ut_metadata (fetch))))
+                    (.on (. wire -ut_metadata) "metadata"
+                         (fn [data]
+                           (let [metadata (.-info (.decode bencode data))]
+                             (println (.. metadata -name (toString "utf-8")))
+                             (put! result| metadata)))))))
       (alt!
 
         (timeout time-out)
@@ -177,17 +178,10 @@
         ([value]
          value)))))
 
-(defn discover-torrent
-  [{:keys [routing-table socket msg|mult node-idB infohashB cancel|]}]
+(defn find-metadata
+  [{:keys [send-krpc-request socket port routing-table  msg|mult node-idB infohashB cancel|]}]
   (go
-    (let [txn-idsA (atom #{})
-          seeders-countA (atom 0)
-          msg|tap (tap msg|mult (chan (sliding-buffer 512)
-                                      (filter (fn [{:keys [msg rinfo]}]
-                                                (some->
-                                                 (. msg -t)
-                                                 (.toString "hex")
-                                                 (@txn-idsA))))))
+    (let [seeders-countA (atom 0)
           result| (chan 1)
           nodes| (chan (sliding-buffer 256))
           seeders| (chan (sliding-buffer 128))
@@ -201,8 +195,58 @@
                                      (xor-distance infohashB (:idB node2)))))
                          (take 8)
                          (into {}))
+
+          send-get-peers (fn [node]
+                           (go
+                             (alt!
+                               (timeout 2000)
+                               ([_] nil)
+
+                               (send-krpc-request
+                                socket
+                                (clj->js
+                                 {:t (.randomBytes crypto 4)
+                                  :y "q"
+                                  :q "get_peers"
+                                  :a {:id node-idB
+                                      :info_hash infohashB}})
+                                (clj->js node))
+                               ([{:keys [msg rifno]}]
+                                (:r (js->clj msg :keywordize-keys true))))))
+
+          send-annouce-peer (fn [node token]
+                              (go
+                                (alt!
+                                  (timeout 2000)
+                                  ([_] nil)
+
+                                  (send-krpc-request
+                                   socket
+                                   (clj->js
+                                    {:t (.randomBytes crypto 4)
+                                     :y "q"
+                                     :q "announce_peer"
+                                     :a {:id node-idB
+                                         :implied_port 1
+                                         :port port
+                                         :token token
+                                         :info_hash infohashB}})
+                                   (clj->js node))
+                                  ([{:keys [msg rifno]}]
+                                   msg))))
+
+          request-metadata* (fn [node]
+                              (let [cancel| (chan 1)]
+                                (swap! cancel-channelsA conj cancel|)
+                                (take! (request-metadata node node-idB infohashB cancel|)
+                                       (fn [metadata]
+                                         (when metadata
+                                           (put! result| {:seeder-count @seeders-countA
+                                                          :torrent {:name (.. metadata -name (toString "utf-8"))}}))))))
+          valid-ip? (fn [node]
+                         (and (not= (:address node) "0.0.0.0")
+                              (< 0 (:port node) 65536)))
           release (fn []
-                    (close! msg|tap)
                     (close! nodes|)
                     (close! seeders|)
                     (doseq [cancel| @cancel-channelsA]
@@ -220,58 +264,75 @@
               (<! (timeout 5000))
               (recur i (js/Date.now) 0)))
           (when-let [node (<! nodes|)]
-            (let [txn-idB (.randomBytes crypto 4)]
-              (swap! txn-idsA conj (.toString txn-idB "hex"))
-              (send-krpc
-               socket
-               (clj->js
-                {:t txn-idB
-                 :y "q"
-                 :q "get_peers"
-                 :a {:id node-idB
-                     :info_hash infohashB}})
-               (clj->js node)))
-            (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
+            (go
+              (when-let [{:keys [token values nodes]} (<! (send-get-peers node))]
 
-      (go
-        (loop [i 8
-               ts (js/Date.now)
-               time-total 0]
-          (when (= i 0)
-            (when (< time-total 1000)
-              (<! (timeout 3000))
-              (recur i (js/Date.now) 0)))
-          (when-let [seeder (<! seeders|)]
-            (let [cancel| (chan 1)]
-              (swap! cancel-channelsA conj cancel|)
-              (take! (request-metadata seeder node-idB infohashB cancel|)
-                     (fn [metadata]
-                       (when metadata
-                         (put! result| {:seeder-count @seeders-countA
-                                        :torrent {:name (.. metadata -info -name (toString "utf-8"))}})))))
-            (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
-
-      (go (loop []
-            (when-let [{:keys [msg rinfo]} (<! msg|tap)]
-              (let [msg-y (some-> (. msg -y) (.toString "utf-8"))
-                    msg-q (some-> (. msg -q) (.toString "utf-8"))]
                 (cond
-
-                  (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "values"))
-                  (let [seeders (decode-values (.. msg -r -values))]
-                    (swap! seeders-countA + (count seeders))
+                  values
+                  (let [seeders (->>
+                                 (decode-values values)
+                                 (filter valid-ip?))]
+                    (swap! seeders-countA + (count seeders) 1)
+                    (take! (send-annouce-peer node token)
+                           (fn [_]
+                             (request-metadata* node)))
                     (doseq [seeder seeders]
-                      (put! seeders| seeder)))
+                      (put! nodes| seeder)
+                      (take! (send-get-peers seeder)
+                             (fn [{:keys [token values nodes]}]
+                               (println :send-get-peers-response2 (type values))
+                               (take! (send-annouce-peer seeder token)
+                                      (fn [_]
+                                        (request-metadata* seeder)))))
+                      #_(put! seeders| seeder)))
 
-                  (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
-                  (let [nodes (decode-nodes (.. msg -r -nodes))]
+                  nodes
+                  (let [nodes (->>
+                               (decode-nodes nodes)
+                               (filter valid-ip?))]
                     (doseq [node nodes]
-                      (when (and (not= (:address node) "0.0.0.0")
-                                 (< 0 (:port node) 65536))
-                        (put! nodes| node))))
+                      (put! nodes| node))))))
+            (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
 
-                  :else nil))
-              (recur))))
+      #_(go
+          (loop [i 8
+                 ts (js/Date.now)
+                 time-total 0]
+            (when (= i 0)
+              (when (< time-total 1000)
+                (<! (timeout 3000))
+                (recur i (js/Date.now) 0)))
+            (when-let [seeder (<! seeders|)]
+              (let [cancel| (chan 1)]
+                (swap! cancel-channelsA conj cancel|)
+                (take! (request-metadata seeder node-idB infohashB cancel|)
+                       (fn [metadata]
+                         (when metadata
+                           (put! result| {:seeder-count @seeders-countA
+                                          :torrent {:name (.. metadata -info -name (toString "utf-8"))}})))))
+              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
+
+      #_(go (loop []
+              (when-let [{:keys [msg rinfo]} (<! msg|tap)]
+                (let [msg-y (some-> (. msg -y) (.toString "utf-8"))
+                      msg-q (some-> (. msg -q) (.toString "utf-8"))]
+                  (cond
+
+                    (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "values"))
+                    (let [seeders (decode-values (.. msg -r -values))]
+                      (swap! seeders-countA + (count seeders))
+                      (doseq [seeder seeders]
+                        (put! seeders| seeder)))
+
+                    (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
+                    (let [nodes (decode-nodes (.. msg -r -nodes))]
+                      (doseq [node nodes]
+                        (when (and (not= (:address node) "0.0.0.0")
+                                   (< 0 (:port node) 65536))
+                          (put! nodes| node))))
+
+                    :else nil))
+                (recur))))
 
       (alt!
         (timeout (* 30 1000))
@@ -477,37 +538,39 @@
           (recur)))
 
       ; discovery
-      #_(let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-              in-progressA (atom {})]
-          (go
-            (loop [i 8
-                   ts (js/Date.now)
-                   time-total 0]
-              #_(when (= i 0)
-                  (when (< time-total 1000)
-                    (println "-- cool down 10 sec")
-                    (<! (timeout 10000))
-                    (recur i (js/Date.now) 0)))
-              (when (= i 0)
-                (println "-- cool down 10 sec")
-                (<! (timeout 10000)))
-              (<! (timeout 100))
-              (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
-                (let [infohash (.toString infohashB "hex")]
-                  (when-not (get @in-progressA infohash)
-                    (let [discovery| (discover-torrent {:routing-table (:routing-table @stateA)
-                                                        :socket socket
-                                                        :msg|mult msg|mult
-                                                        :node-idB (:self-idB @stateA)
-                                                        :infohashB infohashB
-                                                        :cancel| (chan 1)})]
-                      (swap! in-progressA assoc infohash discovery|)
-                      (take! discovery|
-                             (fn [value]
-                               (when value
-                                 (println value))
-                               (swap! in-progressA dissoc infohash))))))
-                (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
+      (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
+            in-progressA (atom {})]
+        (go
+          (loop [i 8
+                 ts (js/Date.now)
+                 time-total 0]
+            #_(when (= i 0)
+                (when (< time-total 1000)
+                  (println "-- cool down 10 sec")
+                  (<! (timeout 10000))
+                  (recur i (js/Date.now) 0)))
+            (when (= i 0)
+              (println "-- cool down 10 sec")
+              (<! (timeout 10000)))
+            (<! (timeout 100))
+            (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
+              (let [infohash (.toString infohashB "hex")]
+                (when-not (get @in-progressA infohash)
+                  (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
+                                                       :socket socket
+                                                       :port port
+                                                       :send-krpc-request send-krpc-request
+                                                       :msg|mult msg|mult
+                                                       :node-idB self-idB
+                                                       :infohashB infohashB
+                                                       :cancel| (chan 1)})]
+                    (swap! in-progressA assoc infohash find_metadata|)
+                    (take! find_metadata|
+                           (fn [value]
+                             (when value
+                               (println value))
+                             (swap! in-progressA dissoc infohash))))))
+              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
 
       ; count
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
