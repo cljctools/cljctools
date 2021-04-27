@@ -24,8 +24,6 @@
 (defonce dgram (js/require "dgram"))
 (defonce net (js/require "net"))
 
-
-
 (defn gen-neighbor-id
   [target-idB node-idB]
   (->>
@@ -96,7 +94,6 @@
            :target target-idB}})
      rifno)))
 
-
 (defn xor-distance
   [buffer1B buffer2B]
   (when-not (= (.-length buffer1B) (.-length buffer2B))
@@ -131,10 +128,10 @@
           socket (net.Socket.)]
       (doto socket
         (.on "error" (fn [error]
-                       (println "request-metadata-socket error" error)
+                       #_(println "request-metadata-socket error" error)
                        (close! error|)))
         (.on "timeout" (fn []
-                         (println "request-metadata-socket timeout")
+                         #_(println "request-metadata-socket timeout")
                          (close! error|)))
         (.setTimeout time-out))
       (.connect socket port address
@@ -147,18 +144,17 @@
                     (.handshake wire infohashB idB (clj->js {:dht true}))
                     (.on wire "handshake"
                          (fn [infohash peer-id]
-                           (println "request-metadata-socket handshake" infohash)
+                           #_(println "request-metadata-socket handshake" infohash)
                            (.. wire -ut_metadata (fetch))))
                     (.on (. wire -ut_metadata) "metadata"
                          (fn [data]
                            (let [metadata (.-info (.decode bencode data))]
-                             (println :metadata (.. metadata -name (toString "utf-8")))
+                             #_(println :metadata (.. metadata -name (toString "utf-8")))
                              (put! result| metadata)))))))
       (alt!
 
         (timeout time-out)
         ([_]
-         (println :timeout)
          (.destroy socket)
          nil)
 
@@ -190,9 +186,13 @@
                           nodes
                           (sort-by identity
                                    (fn [node1 node2]
-                                     (distance-compare
-                                      (xor-distance infohashB (:idB node1))
-                                      (xor-distance infohashB (:idB node2)))))))
+                                     (cond
+                                       (and (not (:idB node1)) (not (:idB node2))) 0
+                                       (and (not (:idB node1)) (:idB node2)) -1
+                                       (and (not (:idB node2)) (:idB node1)) 1
+                                       :else (distance-compare
+                                              (xor-distance infohashB (:idB node1))
+                                              (xor-distance infohashB (:idB node2))))))))
 
           nodesA (atom (take 8 (sort-closest (vals routing-table))))
 
@@ -214,27 +214,6 @@
                                ([{:keys [msg rifno]}]
                                 (:r (js->clj msg :keywordize-keys true))))))
 
-          send-annouce-peer (fn [node token]
-                              (go
-                                (alt!
-                                  (timeout 2000)
-                                  ([_] nil)
-
-                                  (send-krpc-request
-                                   socket
-                                   (clj->js
-                                    {:t (.randomBytes crypto 4)
-                                     :y "q"
-                                     :q "announce_peer"
-                                     :a {:id node-idB
-                                         :implied_port 1
-                                         :port port
-                                         :token token
-                                         :info_hash infohashB}})
-                                   (clj->js node))
-                                  ([{:keys [msg rifno]}]
-                                   msg))))
-
           request-metadata* (fn [node]
                               (let [cancel| (chan 1)]
                                 (swap! cancel-channelsA conj cancel|)
@@ -255,18 +234,15 @@
                     (close! seeders|)
                     (doseq [cancel| @cancel-channelsA]
                       (close! cancel|)))]
-
-      #_(doseq [[id node] @routing-tableA]
-          (put! nodes| node))
-
+      
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
         (go
           (loop []
-            (let [[value port] (alts! [(timeout 1000) stop|])]
-              (when value
+            (let [timeout| (timeout 1000)
+                  [value port] (alts! [timeout| stop|])]
+              (when (= port timeout|)
                 (let [nodes-sorted (sort-closest @nodesA)]
-                  (reset! nodesA (drop 8 nodes-sorted))
                   (doseq [node (take 8 nodes-sorted)]
                     (<! (timeout 50))
                     (take! (send-get-peers node)
@@ -277,22 +253,10 @@
                                               (decode-values values)
                                               (filter valid-ip?))]
                                  (swap! seeders-countA + (count seeders) 1)
-                                 (take! (send-annouce-peer node token)
-                                        (fn [_]
-                                          (request-metadata* node)))
                                  (swap! nodesA concat seeders)
+                                 (request-metadata* node)
                                  (doseq [seeder seeders]
-                                   (request-metadata* seeder)
-                                   (take! (send-annouce-peer seeder token)
-                                          (fn [_]
-                                            (println :announce-peer-response _)
-                                            (request-metadata* seeder)))
-                                   (take! (send-get-peers seeder)
-                                          (fn [{:keys [token values nodes]}]
-                                            (take! (send-annouce-peer seeder token)
-                                                   (fn [_]
-                                                     (request-metadata* seeder)))))
-                                   #_(put! seeders| seeder)))
+                                   (request-metadata* seeder)))
 
                                nodes
                                (let [nodes (->>
@@ -300,93 +264,12 @@
                                             (filter valid-ip?))]
                                  (swap! nodesA concat nodes)
                                  #_(doseq [node nodes]
-                                     (put! nodes| node))))))))
+                                     (put! nodes| node)))))))
+                  (reset! nodesA (drop 8 nodes-sorted)))
                 (recur))))))
 
-      #_(go
-          (loop [i 8
-                 ts (js/Date.now)
-                 time-total 0]
-            (when (= i 0)
-              (when (< time-total 1000)
-                (<! (timeout 5000))
-                (recur i (js/Date.now) 0)))
-            (when-let [node (<! nodes|)]
-              (go
-                (when-let [{:keys [token values nodes]} (<! (send-get-peers node))]
-
-                  (cond
-                    values
-                    (let [seeders (->>
-                                   (decode-values values)
-                                   (filter valid-ip?))]
-                      (swap! seeders-countA + (count seeders) 1)
-                      (take! (send-annouce-peer node token)
-                             (fn [_]
-                               (request-metadata* node)))
-                      (doseq [seeder seeders]
-                        (put! nodes| seeder)
-                        #_(take! (send-annouce-peer seeder token)
-                                 (fn [_]
-                                   (println :announce-peer-response _)
-                                   (request-metadata* seeder)))
-                        (take! (send-get-peers seeder)
-                               (fn [{:keys [token values nodes]}]
-                                 (take! (send-annouce-peer seeder token)
-                                        (fn [_]
-                                          (request-metadata* seeder)))))
-                        #_(put! seeders| seeder)))
-
-                    nodes
-                    (let [nodes (->>
-                                 (decode-nodes nodes)
-                                 (filter valid-ip?))]
-                      (doseq [node nodes]
-                        (put! nodes| node))))))
-              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
-
-      #_(go
-          (loop [i 8
-                 ts (js/Date.now)
-                 time-total 0]
-            (when (= i 0)
-              (when (< time-total 1000)
-                (<! (timeout 3000))
-                (recur i (js/Date.now) 0)))
-            (when-let [seeder (<! seeders|)]
-              (let [cancel| (chan 1)]
-                (swap! cancel-channelsA conj cancel|)
-                (take! (request-metadata seeder node-idB infohashB cancel|)
-                       (fn [metadata]
-                         (when metadata
-                           (put! result| {:seeder-count @seeders-countA
-                                          :torrent {:name (.. metadata -info -name (toString "utf-8"))}})))))
-              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
-
-      #_(go (loop []
-              (when-let [{:keys [msg rinfo]} (<! msg|tap)]
-                (let [msg-y (some-> (. msg -y) (.toString "utf-8"))
-                      msg-q (some-> (. msg -q) (.toString "utf-8"))]
-                  (cond
-
-                    (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "values"))
-                    (let [seeders (decode-values (.. msg -r -values))]
-                      (swap! seeders-countA + (count seeders))
-                      (doseq [seeder seeders]
-                        (put! seeders| seeder)))
-
-                    (and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
-                    (let [nodes (decode-nodes (.. msg -r -nodes))]
-                      (doseq [node nodes]
-                        (when (and (not= (:address node) "0.0.0.0")
-                                   (< 0 (:port node) 65536))
-                          (put! nodes| node))))
-
-                    :else nil))
-                (recur))))
-
       (alt!
-        (timeout (* 30 1000))
+        (timeout (* 15 1000))
         ([_]
          (release)
          nil)
