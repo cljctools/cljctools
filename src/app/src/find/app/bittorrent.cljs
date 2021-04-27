@@ -16,10 +16,8 @@
 
 (defonce fs (js/require "fs-extra"))
 (defonce path (js/require "path"))
-(defonce BittorrentDHT (js/require "bittorrent-dht"))
 (defonce BittorrrentProtocol (js/require "bittorrent-protocol"))
 (defonce ut_metadata (js/require "ut_metadata"))
-(defonce bep9-metadata-dl (js/require "bep9-metadata-dl"))
 (defonce MagnetURI (js/require "magnet-uri"))
 (defonce crypto (js/require "crypto"))
 (defonce bencode (js/require "bencode"))
@@ -592,11 +590,7 @@
 
       ; discovery
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-            in-progressA (atom {})
-            node-id "9faf11fa195d57266d9483a5a9ff98f8c7073b90"
-            dht (BittorrentDHT. (clj->js
-                                 {:nodeId node-id
-                                  :concurrency 32}))]
+            in-progressA (atom {})]
         (go
           (loop [i 8
                  ts (js/Date.now)
@@ -613,34 +607,20 @@
             (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
               (let [infohash (.toString infohashB "hex")]
                 (when-not (get @in-progressA infohash)
-                  (->
-                   (bep9-metadata-dl
-                    infohash
-                    (clj->js
-                     {:maxConns 10
-                      :dht dht
-                      :fetchTimeout 30000
-                      :socketTimeout 5000}))
-                   (.then (fn [metadata]
-                            (println (.. metadata -info -name (toString "utf-8")))))
-                   (.catch (fn [error]
-                             (println :metadata-error error)))
-                   (.finally (fn []
-                               (swap! in-progressA dissoc infohash))))
-                  #_(let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
-                                                         :socket socket
-                                                         :port port
-                                                         :send-krpc-request send-krpc-request
-                                                         :msg|mult msg|mult
-                                                         :node-idB self-idB
-                                                         :infohashB infohashB
-                                                         :cancel| (chan 1)})]
-                      (swap! in-progressA assoc infohash find_metadata|)
-                      (take! find_metadata|
-                             (fn [value]
-                               (when value
-                                 (println value))
-                               (swap! in-progressA dissoc infohash))))))
+                  (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
+                                                       :socket socket
+                                                       :port port
+                                                       :send-krpc-request send-krpc-request
+                                                       :msg|mult msg|mult
+                                                       :node-idB self-idB
+                                                       :infohashB infohashB
+                                                       :cancel| (chan 1)})]
+                    (swap! in-progressA assoc infohash find_metadata|)
+                    (take! find_metadata|
+                           (fn [value]
+                             (when value
+                               (println value))
+                             (swap! in-progressA dissoc infohash))))))
               (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
 
       ; count
