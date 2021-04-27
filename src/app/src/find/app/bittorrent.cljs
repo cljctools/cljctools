@@ -16,7 +16,6 @@
 
 (defonce fs (js/require "fs-extra"))
 (defonce path (js/require "path"))
-(defonce Webtorrent (js/require "webtorrent"))
 (defonce BittorrentDHT (js/require "bittorrent-dht"))
 (defonce BittorrrentProtocol (js/require "bittorrent-protocol"))
 (defonce ut_metadata (js/require "ut_metadata"))
@@ -154,7 +153,7 @@
                     (.on (. wire -ut_metadata) "metadata"
                          (fn [data]
                            (let [metadata (.-info (.decode bencode data))]
-                             (println (.. metadata -name (toString "utf-8")))
+                             (println :metadata (.. metadata -name (toString "utf-8")))
                              (put! result| metadata)))))))
       (alt!
 
@@ -279,20 +278,22 @@
                                               (decode-values values)
                                               (filter valid-ip?))]
                                  (swap! seeders-countA + (count seeders) 1)
-                                 (take! (send-annouce-peer node token)
-                                        (fn [_]
-                                          (request-metadata* node)))
+                                 (request-metadata* node)
+                                 #_(take! (send-annouce-peer node token)
+                                          (fn [_]
+                                            (request-metadata* node)))
                                  (swap! nodesA concat seeders)
                                  (doseq [seeder seeders]
+                                   (request-metadata* seeder)
                                    #_(take! (send-annouce-peer seeder token)
                                             (fn [_]
                                               (println :announce-peer-response _)
                                               (request-metadata* seeder)))
-                                   (take! (send-get-peers seeder)
-                                          (fn [{:keys [token values nodes]}]
-                                            (take! (send-annouce-peer seeder token)
-                                                   (fn [_]
-                                                     (request-metadata* seeder)))))
+                                   #_(take! (send-get-peers seeder)
+                                            (fn [{:keys [token values nodes]}]
+                                              (take! (send-annouce-peer seeder token)
+                                                     (fn [_]
+                                                       (request-metadata* seeder)))))
                                    #_(put! seeders| seeder)))
 
                                nodes
@@ -602,9 +603,9 @@
                   (<! (timeout 10000))
                   (recur i (js/Date.now) 0)))
             (when (= i 0)
-              (println "-- cool down 10 sec")
-              (<! (timeout 10000)))
-            (<! (timeout 100))
+              (println "-- cool down")
+              (<! (timeout 6000)))
+            (<! (timeout 50))
             (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
               (let [infohash (.toString infohashB "hex")]
                 (when-not (get @in-progressA infohash)
