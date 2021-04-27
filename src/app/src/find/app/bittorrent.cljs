@@ -7,6 +7,7 @@
    [clojure.pprint :refer [pprint]]
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.string]
+   [clojure.walk]
    [cognitect.transit :as transit]
    [cljs.core.async.interop :refer-macros [<p!]]
    [goog.string.format :as format]
@@ -148,8 +149,18 @@
                            (.. wire -ut_metadata (fetch))))
                     (.on (. wire -ut_metadata) "metadata"
                          (fn [data]
-                           (let [metadata (.-info (.decode bencode data))]
+                           (let [metadata-info (.-info (.decode bencode data))
+                                 metadata  (clojure.walk/postwalk
+                                            (fn [form]
+                                              (cond
+                                                (instance? js/Buffer form)
+                                                (.toString form "utf-8")
+
+                                                :else form))
+                                            (select-keys (js->clj metadata-info) ["name" "files" "name.utf-8" "length"]))]
+                             #_(println (js-keys metadata-info))
                              #_(println :metadata (.. metadata -name (toString "utf-8")))
+                             #_(pprint metadata)
                              (put! result| metadata)))))))
       (alt!
 
@@ -220,8 +231,10 @@
                                 (take! (request-metadata node node-idB infohashB cancel|)
                                        (fn [metadata]
                                          (when metadata
-                                           (put! result| {:seeder-count @seeders-countA
-                                                          :torrent {:name (.. metadata -name (toString "utf-8"))}}))))))
+                                           (put! result| (merge
+                                                          metadata
+                                                          {:infohash (.toString infohashB "hex")
+                                                           :seeder-count @seeders-countA}) ))))))
           valid-ip? (fn [node]
                       (and (not= (:address node) "0.0.0.0")
                            (< 0 (:port node) 65536)))
@@ -500,9 +513,9 @@
                                                        :cancel| (chan 1)})]
                     (swap! in-progressA assoc infohash find_metadata|)
                     (take! find_metadata|
-                           (fn [value]
-                             (when value
-                               (println value))
+                           (fn [metadata]
+                             (when metadata
+                               (pprint (select-keys metadata ["name" :seeder-count]) ))
                              (swap! in-progressA dissoc infohash))))))
               (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
 
