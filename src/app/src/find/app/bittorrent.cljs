@@ -19,6 +19,7 @@
 (defonce BittorrentDHT (js/require "bittorrent-dht"))
 (defonce BittorrrentProtocol (js/require "bittorrent-protocol"))
 (defonce ut_metadata (js/require "ut_metadata"))
+(defonce bep9-metadata-dl (js/require "bep9-metadata-dl"))
 (defonce MagnetURI (js/require "magnet-uri"))
 (defonce crypto (js/require "crypto"))
 (defonce bencode (js/require "bencode"))
@@ -278,22 +279,21 @@
                                               (decode-values values)
                                               (filter valid-ip?))]
                                  (swap! seeders-countA + (count seeders) 1)
-                                 (request-metadata* node)
-                                 #_(take! (send-annouce-peer node token)
-                                          (fn [_]
-                                            (request-metadata* node)))
+                                 (take! (send-annouce-peer node token)
+                                        (fn [_]
+                                          (request-metadata* node)))
                                  (swap! nodesA concat seeders)
                                  (doseq [seeder seeders]
                                    (request-metadata* seeder)
-                                   #_(take! (send-annouce-peer seeder token)
-                                            (fn [_]
-                                              (println :announce-peer-response _)
-                                              (request-metadata* seeder)))
-                                   #_(take! (send-get-peers seeder)
-                                            (fn [{:keys [token values nodes]}]
-                                              (take! (send-annouce-peer seeder token)
-                                                     (fn [_]
-                                                       (request-metadata* seeder)))))
+                                   (take! (send-annouce-peer seeder token)
+                                          (fn [_]
+                                            (println :announce-peer-response _)
+                                            (request-metadata* seeder)))
+                                   (take! (send-get-peers seeder)
+                                          (fn [{:keys [token values nodes]}]
+                                            (take! (send-annouce-peer seeder token)
+                                                   (fn [_]
+                                                     (request-metadata* seeder)))))
                                    #_(put! seeders| seeder)))
 
                                nodes
@@ -592,7 +592,11 @@
 
       ; discovery
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-            in-progressA (atom {})]
+            in-progressA (atom {})
+            node-id "9faf11fa195d57266d9483a5a9ff98f8c7073b90"
+            dht (BittorrentDHT. (clj->js
+                                 {:nodeId node-id
+                                  :concurrency 32}))]
         (go
           (loop [i 8
                  ts (js/Date.now)
@@ -609,20 +613,34 @@
             (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
               (let [infohash (.toString infohashB "hex")]
                 (when-not (get @in-progressA infohash)
-                  (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
-                                                       :socket socket
-                                                       :port port
-                                                       :send-krpc-request send-krpc-request
-                                                       :msg|mult msg|mult
-                                                       :node-idB self-idB
-                                                       :infohashB infohashB
-                                                       :cancel| (chan 1)})]
-                    (swap! in-progressA assoc infohash find_metadata|)
-                    (take! find_metadata|
-                           (fn [value]
-                             (when value
-                               (println value))
-                             (swap! in-progressA dissoc infohash))))))
+                  (->
+                   (bep9-metadata-dl
+                    infohash
+                    (clj->js
+                     {:maxConns 10
+                      :dht dht
+                      :fetchTimeout 30000
+                      :socketTimeout 5000}))
+                   (.then (fn [metadata]
+                            (println (.. metadata -info -name (toString "utf-8")))))
+                   (.catch (fn [error]
+                             (println :metadata-error error)))
+                   (.finally (fn []
+                               (swap! in-progressA dissoc infohash))))
+                  #_(let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
+                                                         :socket socket
+                                                         :port port
+                                                         :send-krpc-request send-krpc-request
+                                                         :msg|mult msg|mult
+                                                         :node-idB self-idB
+                                                         :infohashB infohashB
+                                                         :cancel| (chan 1)})]
+                      (swap! in-progressA assoc infohash find_metadata|)
+                      (take! find_metadata|
+                             (fn [value]
+                               (when value
+                                 (println value))
+                               (swap! in-progressA dissoc infohash))))))
               (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts)))))))
 
       ; count
