@@ -186,15 +186,17 @@
           nodes| (chan (sliding-buffer 256))
           seeders| (chan (sliding-buffer 128))
           cancel-channelsA (atom [])
-          closest-nodes (->>
-                         routing-table
-                         (sort-by identity
-                                  (fn [[_ node1] [_ node2]]
-                                    (distance-compare
-                                     (xor-distance infohashB (:idB node1))
-                                     (xor-distance infohashB (:idB node2)))))
-                         (take 8)
-                         (into {}))
+
+          sort-closest (fn [nodes]
+                         (->>
+                          nodes
+                          (sort-by identity
+                                   (fn [node1 node2]
+                                     (distance-compare
+                                      (xor-distance infohashB (:idB node1))
+                                      (xor-distance infohashB (:idB node2)))))))
+
+          nodesA (atom (take 8 (sort-closest (vals routing-table))))
 
           send-get-peers (fn [node]
                            (go
@@ -244,55 +246,105 @@
                                            (put! result| {:seeder-count @seeders-countA
                                                           :torrent {:name (.. metadata -name (toString "utf-8"))}}))))))
           valid-ip? (fn [node]
-                         (and (not= (:address node) "0.0.0.0")
-                              (< 0 (:port node) 65536)))
+                      (and (not= (:address node) "0.0.0.0")
+                           (< 0 (:port node) 65536)))
+
+          procsA (atom [])
           release (fn []
+                    (doseq [stop| @procsA]
+                      (close! stop|))
                     (close! nodes|)
                     (close! seeders|)
                     (doseq [cancel| @cancel-channelsA]
                       (close! cancel|)))]
 
-      (doseq [[id node] closest-nodes]
-        (put! nodes| node))
+      #_(doseq [[id node] @routing-tableA]
+          (put! nodes| node))
 
-      (go
-        (loop [i 8
-               ts (js/Date.now)
-               time-total 0]
-          (when (= i 0)
-            (when (< time-total 1000)
-              (<! (timeout 5000))
-              (recur i (js/Date.now) 0)))
-          (when-let [node (<! nodes|)]
-            (go
-              (when-let [{:keys [token values nodes]} (<! (send-get-peers node))]
+      (let [stop| (chan 1)]
+        (swap! procsA conj stop|)
+        (go
+          (loop []
+            (let [[value port] (alts! [(timeout 1000) stop|])]
+              (when value
+                (let [nodes-sorted (sort-closest @nodesA)]
+                  (reset! nodesA (drop 8 nodes-sorted))
+                  (doseq [node (take 8 nodes-sorted)]
+                    (<! (timeout 50))
+                    (take! (send-get-peers node)
+                           (fn [{:keys [token values nodes]}]
+                             (cond
+                               values
+                               (let [seeders (->>
+                                              (decode-values values)
+                                              (filter valid-ip?))]
+                                 (swap! seeders-countA + (count seeders) 1)
+                                 (take! (send-annouce-peer node token)
+                                        (fn [_]
+                                          (request-metadata* node)))
+                                 (swap! nodesA concat seeders)
+                                 (doseq [seeder seeders]
+                                   #_(take! (send-annouce-peer seeder token)
+                                            (fn [_]
+                                              (println :announce-peer-response _)
+                                              (request-metadata* seeder)))
+                                   (take! (send-get-peers seeder)
+                                          (fn [{:keys [token values nodes]}]
+                                            (take! (send-annouce-peer seeder token)
+                                                   (fn [_]
+                                                     (request-metadata* seeder)))))
+                                   #_(put! seeders| seeder)))
 
-                (cond
-                  values
-                  (let [seeders (->>
-                                 (decode-values values)
+                               nodes
+                               (let [nodes (->>
+                                            (decode-nodes nodes)
+                                            (filter valid-ip?))]
+                                 (swap! nodesA concat nodes)
+                                 #_(doseq [node nodes]
+                                     (put! nodes| node))))))))
+                (recur))))))
+
+      #_(go
+          (loop [i 8
+                 ts (js/Date.now)
+                 time-total 0]
+            (when (= i 0)
+              (when (< time-total 1000)
+                (<! (timeout 5000))
+                (recur i (js/Date.now) 0)))
+            (when-let [node (<! nodes|)]
+              (go
+                (when-let [{:keys [token values nodes]} (<! (send-get-peers node))]
+
+                  (cond
+                    values
+                    (let [seeders (->>
+                                   (decode-values values)
+                                   (filter valid-ip?))]
+                      (swap! seeders-countA + (count seeders) 1)
+                      (take! (send-annouce-peer node token)
+                             (fn [_]
+                               (request-metadata* node)))
+                      (doseq [seeder seeders]
+                        (put! nodes| seeder)
+                        #_(take! (send-annouce-peer seeder token)
+                                 (fn [_]
+                                   (println :announce-peer-response _)
+                                   (request-metadata* seeder)))
+                        (take! (send-get-peers seeder)
+                               (fn [{:keys [token values nodes]}]
+                                 (take! (send-annouce-peer seeder token)
+                                        (fn [_]
+                                          (request-metadata* seeder)))))
+                        #_(put! seeders| seeder)))
+
+                    nodes
+                    (let [nodes (->>
+                                 (decode-nodes nodes)
                                  (filter valid-ip?))]
-                    (swap! seeders-countA + (count seeders) 1)
-                    (take! (send-annouce-peer node token)
-                           (fn [_]
-                             (request-metadata* node)))
-                    (doseq [seeder seeders]
-                      (put! nodes| seeder)
-                      (take! (send-get-peers seeder)
-                             (fn [{:keys [token values nodes]}]
-                               (println :send-get-peers-response2 (type values))
-                               (take! (send-annouce-peer seeder token)
-                                      (fn [_]
-                                        (request-metadata* seeder)))))
-                      #_(put! seeders| seeder)))
-
-                  nodes
-                  (let [nodes (->>
-                               (decode-nodes nodes)
-                               (filter valid-ip?))]
-                    (doseq [node nodes]
-                      (put! nodes| node))))))
-            (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
+                      (doseq [node nodes]
+                        (put! nodes| node))))))
+              (recur (mod (inc i) 8) ts (+ time-total (- (js/Date.now) ts))))))
 
       #_(go
           (loop [i 8
@@ -738,7 +790,7 @@
                              (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
                            (when nodes
                              (put! nodes| nodes))))))))
-               (recur (timeout (* 2 1000))))
+               (recur (timeout (* 10 1000))))
 
               stop|
               (do :stop)))
