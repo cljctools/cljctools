@@ -8,6 +8,7 @@
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.string]
    [clojure.walk]
+   [clojure.set]
    [tick.alpha.api :as t]
    [cognitect.transit :as transit]
    [cljs.core.async.interop :refer-macros [<p!]]
@@ -82,20 +83,6 @@
     (.send socket msgB 0 (.-length msgB) (. rinfo -port) (. rinfo -address))))
 
 
-(defn send-find-node
-  [socket rifno node-idB]
-  (let [target-idB (.randomBytes crypto 20)
-        txn-idB (.randomBytes crypto 4)]
-    (send-krpc
-     socket
-     (clj->js
-      {:t txn-idB
-       :y "q"
-       :q "find_node"
-       :a {:id node-idB
-           :target target-idB}})
-     rifno)))
-
 (defn xor-distance
   [buffer1B buffer2B]
   (when-not (= (.-length buffer1B) (.-length buffer2B))
@@ -126,7 +113,7 @@
 (defn request-metadata
   [{:keys [address port]} idB infohashB cancel|]
   (go
-    (let [time-out 6000
+    (let [time-out 5000
           error| (chan 1)
           result| (chan 1)
           socket (net.Socket.)
@@ -206,13 +193,16 @@
                           nodes
                           (sort-by identity
                                    (fn [node1 node2]
-                                     (cond
-                                       (and (not (:idB node1)) (not (:idB node2))) 0
-                                       (and (not (:idB node1)) (:idB node2)) -1
-                                       (and (not (:idB node2)) (:idB node1)) 1
-                                       :else (distance-compare
-                                              (xor-distance infohashB (:idB node1))
-                                              (xor-distance infohashB (:idB node2))))))))
+                                     (distance-compare
+                                      (xor-distance infohashB (:idB node1))
+                                      (xor-distance infohashB (:idB node2)))
+                                     #_(cond
+                                         (and (not (:idB node1)) (not (:idB node2))) 0
+                                         (and (not (:idB node1)) (:idB node2)) -1
+                                         (and (not (:idB node2)) (:idB node1)) 1
+                                         :else (distance-compare
+                                                (xor-distance infohashB (:idB node1))
+                                                (xor-distance infohashB (:idB node2))))))))
 
           nodesA (atom (take 8 (sort-closest (vals routing-table))))
 
@@ -374,7 +364,8 @@
           count-infohashesA (atom 0)
           count-messagesA (atom 0)
           started-at (t/now)
-          routing-table-max-size 256
+          routing-table-max-size 64
+
           add-nodes (fn [nodes]
                       (->>
                        nodes
@@ -382,7 +373,8 @@
                         (comp
                          (filter (fn [node]
                                    (and (not= (:address node) address)
-                                        (not= 0 (js/Buffer.compare (:idB node) (:self-idB @stateA)))
+                                        (not= (:id node) self-id)
+                                        #_(not= 0 (js/Buffer.compare (:id node) self-id))
                                         (< 0 (:port node) 65536)))))
                         (completing
                          (fn [routing-table node]
@@ -394,6 +386,20 @@
                         (transient (:routing-table @stateA)))
                        (persistent!)
                        (swap! stateA assoc :routing-table)))
+
+          nodes-to-sampleA (atom (:routing-table @stateA))
+
+          add-nodes-to-sample (fn [nodes]
+                                (->>
+                                 nodes
+                                 (into {}
+                                       (comp
+                                        (filter (fn [node]
+                                                  (and (not= (:address node) address)
+                                                       (not= (:id node) self-id)
+                                                       (< 0 (:port node) 65536))))
+                                        (map (fn [node] [(:id node) (select-keys node [:id :address :port])]))))
+                                 (swap! nodes-to-sampleA merge)))
 
           nodes-bootstrap [{:address "router.bittorrent.com"
                             :port 6881}
@@ -409,6 +415,7 @@
           infohash| (chan (sliding-buffer 100))
           infohash|mult (mult infohash|)
           nodes| (chan (sliding-buffer 100))
+          nodes-to-sample| (chan (sliding-buffer 1024))
           socket (.createSocket dgram "udp4")
           send-krpc-request (let [requestsA (atom {})
                                   msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
@@ -445,6 +452,7 @@
                  (close! msg|)
                  (close! torrent|)
                  (close! infohash|)
+                 (close! nodes-to-sample|)
                  (close! nodes|)
                  (.close socket)
                  (a/merge @procsA))]
@@ -505,7 +513,7 @@
                                                  (xor-distance self-idB (:idB node1))
                                                  (xor-distance self-idB (:idB node2))))))
                      count-nodes (count nodes)
-                     nodes-near (take (* 0.7 routing-table-max-size) nodes)
+                     nodes-near (take (* 0.9 routing-table-max-size) nodes)
                      nodes-far (take-last
                                 (- (min (count nodes) routing-table-max-size) (count nodes-near))
                                 nodes)]
@@ -513,6 +521,24 @@
                   (concat nodes-near nodes-far)
                   (into {})
                   (swap! stateA assoc :routing-table)))
+               (recur))
+
+              stop|
+              (do :stop)))))
+      
+      ; keep nodes-to-sample size from growing
+      (let [stop| (chan 1)]
+        (swap! procsA conj stop|)
+        (go
+          (loop []
+            (alt!
+
+              (timeout (* 5 1000))
+              ([_]
+               (reset! nodes-to-sampleA (->>
+                                         @nodes-to-sampleA
+                                         (take 1024)
+                                         (into {})))
                (recur))
 
               stop|
@@ -531,6 +557,7 @@
                         :count-infohashes @count-infohashesA
                         :count-torrents @count-torrentsA
                         :count-sockets @count-socketsA
+                        :nodes-to-sample (count @nodes-to-sampleA)
                         :routing-table (count (:routing-table @stateA))
                         :routing-table-find-noded  (count (:routing-table-find-noded @stateA))
                         :routing-table-sampled (count (:routing-table-sampled @stateA))})
@@ -582,22 +609,22 @@
 
 
       ; peridiacally remove some nodes randomly 
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (loop []
-            (alt!
-              (timeout (* 30 1000))
-              ([_]
-               (->> (:routing-table @stateA)
-                    (keys)
-                    (shuffle)
-                    (take (* 0.1 (count (:routing-table @stateA))))
-                    (apply swap! stateA update-in [:routing-table] dissoc))
-               (recur))
+      #_(let [stop| (chan 1)]
+          (swap! procsA conj stop|)
+          (go
+            (loop []
+              (alt!
+                (timeout (* 30 1000))
+                ([_]
+                 (->> (:routing-table @stateA)
+                      (keys)
+                      (shuffle)
+                      (take (* 0.1 (count (:routing-table @stateA))))
+                      (apply swap! stateA update-in [:routing-table] dissoc))
+                 (recur))
 
-              stop|
-              (do :stop)))))
+                stop|
+                (do :stop)))))
 
       ; after time passes, remove nodes from already-asked tables so they can be queried again
       ; this means we politely ask only nodes we haven't asked before
@@ -640,7 +667,7 @@
                      :y "q"
                      :q "find_node"
                      :a {:id self-idB
-                         :target (gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                         :target self-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
                    (clj->js node)
                    (timeout 2000))
                   (fn [{:keys [msg rinfo] :as value}]
@@ -700,7 +727,7 @@
                                    (comp
                                     (filter (fn [[id node]]
                                               (not (get (:routing-table-find-noded @stateA) id))))
-                                    (take 2))
+                                    (take 4))
                                    (:routing-table @stateA)))]
                  (swap! stateA update-in [:routing-table-find-noded] assoc id {:node node
                                                                                :timestamp (js/Date.now)})
@@ -712,7 +739,7 @@
                      :y "q"
                      :q "find_node"
                      :a {:id self-idB
-                         :target (gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                         :target self-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
                    (clj->js node)
                    (timeout 2000))
                   (fn [{:keys [msg rinfo] :as value}]
@@ -760,41 +787,44 @@
             (alt!
               timeout|
               ([_]
-               (doseq [[id node] (sequence
-                                  (comp
-                                   (filter (fn [[id node]] (not (get (:routing-table-sampled @stateA) id))))
-                                   (take 2))
-                                  (:routing-table @stateA))]
-                 (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
-                                                                                  {:timestamp (js/Date.now)}))
-                 (let [target-idB (.randomBytes crypto 20)
-                       txn-idB (.randomBytes crypto 4)]
-                   (take! (send-krpc-request
-                           socket
-                           (clj->js
-                            {:t txn-idB
-                             :y "q"
-                             :q "sample_infohashes"
-                             :a {:id self-idB
-                                 :target target-idB}})
-                           (clj->js node)
-                           (timeout 2000))
-                          (fn [value]
-                            (when value
-                              (let [{:keys [msg rinfo]} value
-                                    {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
-                                (when samples
-                                  (doseq [infohashB (->>
-                                                     (js/Array.from samples)
-                                                     (partition 20)
-                                                     (map #(js/Buffer.from (into-array %))))]
-                                    #_(println :info_hash (.toString infohashB "hex"))
-                                    (put! infohash| {:infohashB infohashB
-                                                     :rinfo rinfo})))
-                                (when interval
-                                  (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
-                                (when nodes
-                                  (put! nodes| nodes))))))))
+               (let [routing-table-sampled (:routing-table-sampled @stateA)]
+                 (doseq [[id node] (sequence
+                                    (comp
+                                     (filter (fn [[id node]] (not (get routing-table-sampled id))))
+                                     (take 2))
+                                    @nodes-to-sampleA)]
+                   (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
+                                                                                    {:timestamp (js/Date.now)}))
+                   (swap! nodes-to-sampleA dissoc id)
+                   (let [target-idB (.randomBytes crypto 20)
+                         txn-idB (.randomBytes crypto 4)]
+                     (take! (send-krpc-request
+                             socket
+                             (clj->js
+                              {:t txn-idB
+                               :y "q"
+                               :q "sample_infohashes"
+                               :a {:id self-idB
+                                   :target target-idB}})
+                             (clj->js node)
+                             (timeout 2000))
+                            (fn [value]
+                              (when value
+                                (let [{:keys [msg rinfo]} value
+                                      {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                                  (when samples
+                                    (doseq [infohashB (->>
+                                                       (js/Array.from samples)
+                                                       (partition 20)
+                                                       (map #(js/Buffer.from (into-array %))))]
+                                      #_(println :info_hash (.toString infohashB "hex"))
+                                      (put! infohash| {:infohashB infohashB
+                                                       :rinfo rinfo})))
+                                  (when interval
+                                    (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
+                                  #_(when nodes
+                                      (put! nodes-to-sample| nodes)))))))))
+               
                (recur (timeout (* 1 1000))))
 
               stop|
@@ -804,8 +834,18 @@
       (go
         (loop []
           (when-let [nodesB (<! nodes|)]
-            (add-nodes (decode-nodes nodesB))
+            (let [nodes (decode-nodes nodesB)]
+              (add-nodes nodes)
+              (add-nodes-to-sample nodes))
             #_(println :nodes-count (count (:routing-table @stateA)))
+            (recur))))
+
+
+      ; add new nodes to nodes-to-sample
+      (go
+        (loop []
+          (when-let [nodesB (<! nodes-to-sample|)]
+            (add-nodes-to-sample (decode-nodes nodesB))
             (recur))))
 
       ; process messages
