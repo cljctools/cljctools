@@ -273,7 +273,7 @@
                                               (decode-values values)
                                               (filter valid-ip?))]
                                  (swap! seeders-countA + (count seeders) 1)
-                                 (swap! nodesA concat seeders)
+                                 #_(swap! nodesA concat seeders)
                                  (request-metadata* node)
                                  (doseq [seeder seeders]
                                    (request-metadata* seeder)))
