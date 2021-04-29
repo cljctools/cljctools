@@ -165,24 +165,13 @@
 
                                                 :else form))
                                             (select-keys (js->clj metadata-info) ["name" "files" "name.utf-8" "length"]))]
-                             #_(println (js-keys metadata-info))
                              #_(println :metadata (.. metadata -name (toString "utf-8")))
                              #_(pprint metadata)
                              (put! result| metadata)))))))
       (alt!
 
-        (timeout time-out)
-        ([_]
-         (release)
-         nil)
-
-        cancel|
-        ([_]
-         (release)
-         nil)
-
-        error|
-        ([value]
+        [(timeout time-out) cancel| error|]
+        ([_ _]
          (release)
          nil)
 
@@ -191,80 +180,80 @@
          (release)
          value)))))
 
-(defn request-metadata-multiple
-  [{:keys [address port] :as node} idB infohashes cancel|]
-  (go
-    (let [time-out 10000
-          error| (chan 1)
-          result| (chan 100)
-          socket (net.Socket.)
-          infohashes| (chan 100)
-          release (fn []
-                    (close! infohashes|)
-                    (close! result|)
-                    (.destroy socket))]
-      (<! (a/onto-chan! infohashes| infohashes true))
-      (swap! count-socketsA inc)
-      (doto socket
-        (.on "error" (fn [error]
-                       (println "request-metadata-socket error" error)
-                       (close! error|)))
-        (.on "close" (fn [hadError]
-                       (swap! count-socketsA dec)))
-        (.on "timeout" (fn []
-                         (println "request-metadata-socket timeout")
+#_(defn request-metadata-multiple
+    [{:keys [address port] :as node} idB infohashes cancel|]
+    (go
+      (let [time-out 10000
+            error| (chan 1)
+            result| (chan 100)
+            socket (net.Socket.)
+            infohashes| (chan 100)
+            release (fn []
+                      (close! infohashes|)
+                      (close! result|)
+                      (.destroy socket))]
+        (<! (a/onto-chan! infohashes| infohashes true))
+        (swap! count-socketsA inc)
+        (doto socket
+          (.on "error" (fn [error]
+                         (println "request-metadata-socket error" error)
                          (close! error|)))
-        (.setTimeout 4000))
-      (.connect socket port address
-                (fn []
-                  (go
-                    (loop []
-                      (when-let [infohashB (<! infohashes|)]
-                        (let [wire (BittorrrentProtocol.)
-                              out| (chan 1)]
-                          (-> socket
-                              (.pipe wire)
-                              (.pipe socket))
-                          (.use wire (ut_metadata))
-                          (.handshake wire infohashB idB (clj->js {:dht true}))
-                          #_(println :handshaking (.toString infohashB "hex"))
-                          (.on wire "handshake"
-                               (fn [infohash peer-id]
-                                 #_(println "request-metadata-socket handshake" infohash)
-                                 (.. wire -ut_metadata (fetch))))
-                          (.on (. wire -ut_metadata) "metadata"
-                               (fn [data]
-                                 #_(println "request-metadata-socket metadata")
-                                 (let [metadata-info (.-info (.decode bencode data))
-                                       metadata  (clojure.walk/postwalk
-                                                  (fn [form]
-                                                    (cond
-                                                      (instance? js/Buffer form)
-                                                      (.toString form "utf-8")
+          (.on "close" (fn [hadError]
+                         (swap! count-socketsA dec)))
+          (.on "timeout" (fn []
+                           (println "request-metadata-socket timeout")
+                           (close! error|)))
+          (.setTimeout 4000))
+        (.connect socket port address
+                  (fn []
+                    (go
+                      (loop []
+                        (when-let [infohashB (<! infohashes|)]
+                          (let [wire (BittorrrentProtocol.)
+                                out| (chan 1)]
+                            (-> socket
+                                (.pipe wire)
+                                (.pipe socket))
+                            (.use wire (ut_metadata))
+                            (.handshake wire infohashB idB (clj->js {:dht true}))
+                            #_(println :handshaking (.toString infohashB "hex"))
+                            (.on wire "handshake"
+                                 (fn [infohash peer-id]
+                                   #_(println "request-metadata-socket handshake" infohash)
+                                   (.. wire -ut_metadata (fetch))))
+                            (.on (. wire -ut_metadata) "metadata"
+                                 (fn [data]
+                                   #_(println "request-metadata-socket metadata")
+                                   (let [metadata-info (.-info (.decode bencode data))
+                                         metadata  (clojure.walk/postwalk
+                                                    (fn [form]
+                                                      (cond
+                                                        (instance? js/Buffer form)
+                                                        (.toString form "utf-8")
 
-                                                      :else form))
-                                                  (select-keys (js->clj metadata-info) ["name" "files" "name.utf-8" "length"]))]
-                                   #_(println (js-keys metadata-info))
-                                   #_(println :metadata (.. metadata -name (toString "utf-8")))
-                                   #_(pprint metadata)
-                                   (put! out| metadata))))
-                          (let [metadata (<! out|)]
-                            (.unpipe socket wire)
-                            (.unpipe wire socket)
-                            (.destroy wire)
-                            (>! result| metadata)))
-                        (recur)))
-                    (close! result|))))
-      (alt!
-        [(timeout time-out) cancel| error|]
-        ([_ _]
-         (release)
-         (<! (a/into [] result|)))
+                                                        :else form))
+                                                    (select-keys (js->clj metadata-info) ["name" "files" "name.utf-8" "length"]))]
+                                     #_(println (js-keys metadata-info))
+                                     #_(println :metadata (.. metadata -name (toString "utf-8")))
+                                     #_(pprint metadata)
+                                     (put! out| metadata))))
+                            (let [metadata (<! out|)]
+                              (.unpipe socket wire)
+                              (.unpipe wire socket)
+                              (.destroy wire)
+                              (>! result| metadata)))
+                          (recur)))
+                      (close! result|))))
+        (alt!
+          [(timeout time-out) cancel| error|]
+          ([_ _]
+           (release)
+           (<! (a/into [] result|)))
 
-        (a/into [] result|)
-        ([value]
-         (release)
-         value)))))
+          (a/into [] result|)
+          ([value]
+           (release)
+           value)))))
 
 (defn find-metadata
   [{:keys [send-krpc-request socket port routing-table  msg|mult node-idB infohashB cancel|]}]
@@ -645,31 +634,31 @@
               (do :stop)))))
 
       ; discovery
-      #_(let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-              in-progressA (atom {})]
-          (go
-            (loop [timeout| (timeout 0)]
-              (<! timeout|)
-              (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
-                (let [infohash (.toString infohashB "hex")]
-                  (when-not (get @in-progressA infohash)
-                    (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
-                                                         :socket socket
-                                                         :port port
-                                                         :send-krpc-request send-krpc-request
-                                                         :msg|mult msg|mult
-                                                         :node-idB self-idB
-                                                         :infohashB infohashB
-                                                         :cancel| (chan 1)})]
-                      (swap! in-progressA assoc infohash find_metadata|)
-                      (swap! count-discoveryA inc)
-                      (take! find_metadata|
-                             (fn [metadata]
-                               (when metadata
-                                 (put! torrent| metadata)
-                                 #_(pprint (select-keys metadata ["name" :seeder-count])))
-                               (swap! in-progressA dissoc infohash))))))
-                (recur (timeout 500))))))
+      (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
+            in-progressA (atom {})]
+        (go
+          (loop [timeout| (timeout 0)]
+            (<! timeout|)
+            (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
+              (let [infohash (.toString infohashB "hex")]
+                (when-not (get @in-progressA infohash)
+                  (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
+                                                       :socket socket
+                                                       :port port
+                                                       :send-krpc-request send-krpc-request
+                                                       :msg|mult msg|mult
+                                                       :node-idB self-idB
+                                                       :infohashB infohashB
+                                                       :cancel| (chan 1)})]
+                    (swap! in-progressA assoc infohash find_metadata|)
+                    (swap! count-discoveryA inc)
+                    (take! find_metadata|
+                           (fn [metadata]
+                             (when metadata
+                               (put! torrent| metadata)
+                               #_(pprint (select-keys metadata ["name" :seeder-count])))
+                             (swap! in-progressA dissoc infohash))))))
+              (recur (timeout 500))))))
 
       ; count
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
@@ -859,70 +848,12 @@
             (println :proc-sybil-exits)))
 
       ; ask peers directly, politely for infohashes
-      #_(let [stop| (chan 1)
-              nodes| (chan (sliding-buffer 1024)
-                           (comp
-                            (filter [node]
-                                    (not (get (:routing-table-sampled @stateA) (:id node))))))
-              nodes|mix (mix nodes|)]
-          (swap! procsA conj stop|)
-          (admix nodes|mix nodes-to-sample|)
-          (go
-            (loop [n 2
-                   i n
-                   ts (js/Date.now)
-                   time-total 0]
-              (when (and (= i 0) (< time-total 1000))
-                (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
-                (<! (timeout (+ time-total (- 1000 time-total))))
-                (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
-                (recur n n (js/Date.now) 0))
-              (alt!
-                nodes|
-                ([node]
-                 (let []
-                   (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
-                                                                                    {:timestamp (js/Date.now)}))
-                   (let [alternative-infohash-targetB (.randomBytes crypto 20)
-                         txn-idB (.randomBytes crypto 4)]
-                     (when-let [value (<! (send-krpc-request
-                                           socket
-                                           (clj->js
-                                            {:t txn-idB
-                                             :y "q"
-                                             :q "sample_infohashes"
-                                             :a {:id self-idB
-                                                 :target alternative-infohash-targetB}})
-                                           (clj->js node)
-                                           (timeout 2000)))]
-                       (let [{:keys [msg rinfo]} value
-                             {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
-                         (when samples
-                           (doseq [infohashB (decode-samples samples)]
-                             #_(println :info_hash (.toString infohashB "hex"))
-                             (put! infohash| {:infohashB infohashB
-                                              :rinfo rinfo})))
-                         (when interval
-                           (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
-                         #_(when nodes
-                             (put! nodes-to-sample| nodes))))))
-
-                 (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
-
-                stop|
-                (do :stop)))))
-
-      ; ask for infohashes, then for metadata using one tcp connection
       (let [stop| (chan 1)
             nodes| (chan 1
                          (comp
                           (filter (fn [node]
                                     (not (get (:routing-table-sampled @stateA) (:id node)))))))
-            nodes|mix (mix nodes|)
-            cancel-channelsA (atom [])
-            release (fn []
-                      (doseq [cancel| @cancel-channelsA]
-                        (close! cancel|)))]
+            nodes|mix (mix nodes|)]
         (swap! procsA conj stop|)
         (admix nodes|mix nodes-to-sample|)
         (go
@@ -930,9 +861,9 @@
                  i n
                  ts (js/Date.now)
                  time-total 0]
-            (when (and (= i 0) (< time-total 2000))
+            (when (and (= i 0) (< time-total 1000))
               (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
-              (<! (timeout (+ time-total (- 2000 time-total))))
+              (<! (timeout (+ time-total (- 1000 time-total))))
               (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
               (recur n n (js/Date.now) 0))
             (alt!
@@ -943,7 +874,6 @@
                                                                                           {:timestamp (js/Date.now)}))
                  (let [alternative-infohash-targetB (.randomBytes crypto 20)
                        txn-idB (.randomBytes crypto 4)]
-                   #_(println :sampling-a-node)
                    (when-let [value (<! (send-krpc-request
                                          socket
                                          (clj->js
@@ -957,17 +887,11 @@
                      (let [{:keys [msg rinfo]} value
                            {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
                        (when samples
-                         (let [cancel| (chan 1)
-                               _ (swap! cancel-channelsA conj cancel|)
-                               infohashes (decode-samples samples)
-                               _ (doseq [infohashB infohashes]
-                                   (put! infohash| {:infohashB infohashB
-                                                    :rinfo rinfo}))
-                               torrents (<! (request-metadata-multiple node self-idB infohashes cancel|))]
-                           (println :torrents)
-                           (pprint torrents)))
+                         (doseq [infohashB (decode-samples samples)]
+                           #_(println :info_hash (.toString infohashB "hex"))
+                           (put! infohash| {:infohashB infohashB
+                                            :rinfo rinfo})))
                        (when interval
-                         (println (:id node) interval)
                          (swap! stateA update-in [:routing-table-sampled (:id node)] merge {:interval interval}))
                        #_(when nodes
                            (put! nodes-to-sample| nodes))))))
@@ -975,8 +899,78 @@
                (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
 
               stop|
-              (do :stop)))
-          (release)))
+              (do :stop)))))
+
+      ; ask for infohashes, then for metadata using one tcp connection
+      #_(let [stop| (chan 1)
+              nodes| (chan 1
+                           (comp
+                            (filter (fn [node]
+                                      (not (get (:routing-table-sampled @stateA) (:id node)))))))
+              nodes|mix (mix nodes|)
+              cancel-channelsA (atom [])
+              release (fn []
+                        (doseq [cancel| @cancel-channelsA]
+                          (close! cancel|)))]
+          (swap! procsA conj stop|)
+          (admix nodes|mix nodes-to-sample|)
+          (go
+            (loop [n 8
+                   i n
+                   ts (js/Date.now)
+                   time-total 0]
+              (when (and (= i 0) (< time-total 2000))
+                (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
+                (<! (timeout (+ time-total (- 2000 time-total))))
+                (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
+                (recur n n (js/Date.now) 0))
+              (alt!
+                nodes|
+                ([node]
+                 (let []
+                   (swap! stateA update-in [:routing-table-sampled] assoc (:id node) (merge node
+                                                                                            {:timestamp (js/Date.now)}))
+                   (let [alternative-infohash-targetB (.randomBytes crypto 20)
+                         txn-idB (.randomBytes crypto 4)]
+                     #_(println :sampling-a-node)
+                     (when-let [value (<! (send-krpc-request
+                                           socket
+                                           (clj->js
+                                            {:t txn-idB
+                                             :y "q"
+                                             :q "sample_infohashes"
+                                             :a {:id self-idB
+                                                 :target alternative-infohash-targetB}})
+                                           (clj->js node)
+                                           (timeout 2000)))]
+                       (let [{:keys [msg rinfo]} value
+                             {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                         (when samples
+                           (let [cancel| (chan 1)
+                                 _ (swap! cancel-channelsA conj cancel|)
+                                 infohashes (decode-samples samples)
+                                 _ (doseq [infohashB infohashes]
+                                     (put! infohash| {:infohashB infohashB
+                                                      :rinfo rinfo}))]
+                             (doseq [infohashB infohashes]
+                               (<! (timeout 500))
+                               (take! (request-metadata node self-idB infohashB cancel|)
+                                      (fn [value]
+                                        (println :result value))))
+
+                             #_(println :torrents)
+                             #_(pprint (<! (request-metadata-multiple node self-idB infohashes cancel|)))))
+                         (when interval
+                           (println (:id node) interval)
+                           (swap! stateA update-in [:routing-table-sampled (:id node)] merge {:interval interval}))
+                         #_(when nodes
+                             (put! nodes-to-sample| nodes))))))
+
+                 (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
+
+                stop|
+                (do :stop)))
+            (release)))
 
       ; add new nodes to routing table
       (go
