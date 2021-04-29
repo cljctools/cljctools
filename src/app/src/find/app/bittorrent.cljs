@@ -81,6 +81,13 @@
                        (aget peer-infoB 3))
          :port (.readUInt16BE peer-infoB 4)}))))))
 
+(defn decode-samples
+  [samplesB]
+  (->>
+   (js/Array.from samples)
+   (partition 20)
+   (map #(js/Buffer.from (into-array %)))))
+
 (defn send-krpc
   [socket msg rinfo]
   (let [msgB (.encode bencode msg)]
@@ -189,7 +196,7 @@
   (go
     (let [seeders-countA (atom 0)
           result| (chan 1)
-          nodes| (chan (sliding-buffer 256))
+          nodesB| (chan (sliding-buffer 256))
           seeders| (chan (sliding-buffer 128))
           cancel-channelsA (atom [])
 
@@ -247,7 +254,7 @@
           release (fn []
                     (doseq [stop| @procsA]
                       (close! stop|))
-                    (close! nodes|)
+                    (close! nodesB|)
                     (close! seeders|)
                     (doseq [cancel| @cancel-channelsA]
                       (close! cancel|)))]
@@ -282,7 +289,7 @@
                                               (filter valid-ip?))]
                                    (swap! nodesA concat nodes)
                                    #_(doseq [node nodes]
-                                       (put! nodes| node))))))))
+                                       (put! nodesB| node))))))))
                   (reset! nodesA (drop 8 nodes-sorted)))
                 (recur (timeout 1000)))))))
 
@@ -416,19 +423,15 @@
                          (persistent!)
                          (swap! stateA update :routing-table merge))))
 
-          nodes-to-sampleA (atom (:routing-table @stateA))
+          nodes-to-sample| (chan (sliding-buffer 1024)
+                                 (comp
+                                  (filter (fn [node]
+                                            (and (not= (:address node) address)
+                                                 (not= (:id node) self-id)
+                                                 (< 0 (:port node) 65536))))))
 
-          add-nodes-to-sample (fn [nodes]
-                                (->>
-                                 nodes
-                                 (into {}
-                                       (comp
-                                        (filter (fn [node]
-                                                  (and (not= (:address node) address)
-                                                       (not= (:id node) self-id)
-                                                       (< 0 (:port node) 65536))))
-                                        (map (fn [node] [(:id node) (select-keys node [:id :address :port])]))))
-                                 (swap! nodes-to-sampleA merge)))
+          _ (doseq [[id node] (:routing-table @stateA)]
+              (put! nodes-to-sample| node))
 
           nodes-bootstrap [{:address "router.bittorrent.com"
                             :port 6881}
@@ -443,8 +446,7 @@
           torrent|mult (mult torrent|)
           infohash| (chan (sliding-buffer 100))
           infohash|mult (mult infohash|)
-          nodes| (chan (sliding-buffer 100))
-          nodes-to-sample| (chan (sliding-buffer 1024))
+          nodesB| (chan (sliding-buffer 100))
           socket (.createSocket dgram "udp4")
           send-krpc-request (let [requestsA (atom {})
                                   msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
@@ -482,7 +484,7 @@
                  (close! torrent|)
                  (close! infohash|)
                  (close! nodes-to-sample|)
-                 (close! nodes|)
+                 (close! nodesB|)
                  (.close socket)
                  (a/merge @procsA))]
       (swap! stateA merge {:torrent| (let [out| (chan (sliding-buffer 100))
@@ -548,24 +550,6 @@
 
               stop|
               (do :stop)))))
-      
-      ; keep nodes-to-sample size from growing
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (loop []
-            (alt!
-
-              (timeout (* 5 1000))
-              ([_]
-               (reset! nodes-to-sampleA (->>
-                                         @nodes-to-sampleA
-                                         (take 1024)
-                                         (into {})))
-               (recur))
-
-              stop|
-              (do :stop)))))
 
       ; print info
       (let [stop| (chan 1)]
@@ -581,7 +565,7 @@
                         :count-discovery @count-discoveryA
                         :count-torrents @count-torrentsA
                         :count-sockets @count-socketsA
-                        :nodes-to-sample (count @nodes-to-sampleA)
+                        :nodes-to-sample| (count (.-buf nodes-to-sample|))
                         :routing-table (count (:routing-table @stateA))
                         :routing-table-find-noded  (count (:routing-table-find-noded @stateA))
                         :routing-table-sampled (count (:routing-table-sampled @stateA))})
@@ -698,7 +682,7 @@
                   (fn [{:keys [msg rinfo] :as value}]
                     (when value
                       (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
-                        (put! nodes| nodes))))))
+                        (put! nodesB| nodes))))))
                (recur (timeout (* 3 60 1000))))
 
               stop|
@@ -770,7 +754,7 @@
                   (fn [{:keys [msg rinfo] :as value}]
                     (when value
                       (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
-                        (put! nodes| nodes))))))
+                        (put! nodesB| nodes))))))
                (recur (timeout (* 2 1000))))
 
               stop|
@@ -804,73 +788,123 @@
                 (do :stop)))
             (println :proc-sybil-exits)))
 
-      ; sample infohashes
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (loop [timeout| (timeout 1000)]
-            (alt!
-              timeout|
-              ([_]
-               (let [routing-table-sampled (:routing-table-sampled @stateA)]
-                 (doseq [[id node] (sequence
-                                    (comp
-                                     (filter (fn [[id node]] (not (get routing-table-sampled id))))
-                                     (take 2))
-                                    @nodes-to-sampleA)]
+      ; ask peers directly, politely for infohashes
+      #_(let [stop| (chan 1)
+              nodes| (chan (sliding-buffer 1024)
+                           (comp
+                            (filter [node]
+                                    (not (get (:routing-table-sampled @stateA) (:id node))))))
+              nodes|mix (mix nodes|)]
+          (swap! procsA conj stop|)
+          (admix nodes|mix nodes-to-sample|)
+          (go
+            (loop [n 2
+                   i n
+                   ts (js/Date.now)
+                   time-total 0]
+              (when (and (= i 0) (< time-total 1000))
+                (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
+                (<! (timeout (+ time-total (- 1000 time-total))))
+                (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
+                (recur n n (js/Date.now) 0))
+              (alt!
+                nodes|
+                ([node]
+                 (let []
                    (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
                                                                                     {:timestamp (js/Date.now)}))
-                   (swap! nodes-to-sampleA dissoc id)
-                   (let [target-idB (.randomBytes crypto 20)
+                   (let [alternative-infohash-targetB (.randomBytes crypto 20)
                          txn-idB (.randomBytes crypto 4)]
-                     (take! (send-krpc-request
-                             socket
-                             (clj->js
-                              {:t txn-idB
-                               :y "q"
-                               :q "sample_infohashes"
-                               :a {:id self-idB
-                                   :target target-idB}})
-                             (clj->js node)
-                             (timeout 2000))
-                            (fn [value]
-                              (when value
-                                (let [{:keys [msg rinfo]} value
-                                      {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
-                                  (when samples
-                                    (doseq [infohashB (->>
-                                                       (js/Array.from samples)
-                                                       (partition 20)
-                                                       (map #(js/Buffer.from (into-array %))))]
-                                      #_(println :info_hash (.toString infohashB "hex"))
-                                      (put! infohash| {:infohashB infohashB
-                                                       :rinfo rinfo})))
-                                  (when interval
-                                    (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
-                                  #_(when nodes
-                                      (put! nodes-to-sample| nodes)))))))))
-               
-               (recur (timeout (* 1 1000))))
+                     (when-let [value (<! (send-krpc-request
+                                           socket
+                                           (clj->js
+                                            {:t txn-idB
+                                             :y "q"
+                                             :q "sample_infohashes"
+                                             :a {:id self-idB
+                                                 :target alternative-infohash-targetB}})
+                                           (clj->js node)
+                                           (timeout 2000)))]
+                       (let [{:keys [msg rinfo]} value
+                             {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                         (when samples
+                           (doseq [infohashB (decode-samples samples)]
+                             #_(println :info_hash (.toString infohashB "hex"))
+                             (put! infohash| {:infohashB infohashB
+                                              :rinfo rinfo})))
+                         (when interval
+                           (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
+                         #_(when nodes
+                             (put! nodes-to-sample| nodes))))))
+
+                 (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
+
+                stop|
+                (do :stop)))))
+
+      ; ask for infohashes, then for metadata using one tcp connection
+      (let [stop| (chan 1)
+            nodes| (chan (sliding-buffer 1024)
+                         (comp
+                          (filter [node]
+                                  (not (get (:routing-table-sampled @stateA) (:id node))))))
+            nodes|mix (mix nodes|)]
+        (swap! procsA conj stop|)
+        (admix nodes|mix nodes-to-sample|)
+        (go
+          (loop [n 1
+                 i n
+                 ts (js/Date.now)
+                 time-total 0]
+            (when (and (= i 0))
+              (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
+              (<! (timeout 10000))
+              (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
+              (recur n n (js/Date.now) 0))
+            (alt!
+              nodes|
+              ([node]
+               (let []
+                 (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
+                                                                                  {:timestamp (js/Date.now)}))
+                 (let [alternative-infohash-targetB (.randomBytes crypto 20)
+                       txn-idB (.randomBytes crypto 4)]
+                   (when-let [value (<! (send-krpc-request
+                                         socket
+                                         (clj->js
+                                          {:t txn-idB
+                                           :y "q"
+                                           :q "sample_infohashes"
+                                           :a {:id self-idB
+                                               :target alternative-infohash-targetB}})
+                                         (clj->js node)
+                                         (timeout 2000)))]
+                     (let [{:keys [msg rinfo]} value
+                           {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                       (when samples
+                         (doseq [infohashB (decode-samples samples)]
+                           
+                           
+                           ))
+                       (when interval
+                         (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
+                       #_(when nodes
+                           (put! nodes-to-sample| nodes))))))
+
+               (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
 
               stop|
               (do :stop)))))
-
+      
       ; add new nodes to routing table
       (go
         (loop []
-          (when-let [nodesB (<! nodes|)]
+          (when-let [nodesB (<! nodesB|)]
             (let [nodes (decode-nodes nodesB)]
               (add-nodes nodes)
-              (add-nodes-to-sample nodes))
+              (doseq [node nodes]
+                (put! nodes-to-sample| node)))
             #_(println :nodes-count (count (:routing-table @stateA)))
-            (recur))))
-
-
-      ; add new nodes to nodes-to-sample
-      (go
-        (loop []
-          (when-let [nodesB (<! nodes-to-sample|)]
-            (add-nodes-to-sample (decode-nodes nodesB))
             (recur))))
 
       ; process messages
@@ -893,11 +927,11 @@
                                          :rinfo rinfo}))
 
                       (when nodes
-                        (put! nodes| nodes)))
+                        (put! nodesB| nodes)))
 
 
                   #_(and (= msg-y "r") (goog.object/getValueByKeys msg "r" "nodes"))
-                  #_(put! nodes| (.. msg -r -nodes))
+                  #_(put! nodesB| (.. msg -r -nodes))
 
                   (and (= msg-y "q")  (= msg-q "ping"))
                   (let [txn-idB  (. msg -t)
