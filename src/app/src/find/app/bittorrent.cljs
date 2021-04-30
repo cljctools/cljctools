@@ -258,130 +258,146 @@
 
 (defn find-metadata
   [{:keys [send-krpc-request socket port routing-table  msg|mult node-idB infohashB cancel|]}]
-  (go
-    (let [seeders-countA (atom 0)
-          result| (chan 1)
-          nodesB| (chan (sliding-buffer 256))
-          seeders| (chan (sliding-buffer 128))
-          cancel-channelsA (atom [])
+  (letfn [(sorted-map-buffer
+            []
+            (let [collA (atom (sorted-map-by
+                               (fn [id1 id2]
+                                 (distance-compare
+                                  (xor-distance infohashB (js/Buffer.from id1 "hex"))
+                                  (xor-distance infohashB (js/Buffer.from id2 "hex")))
+                                 #_(cond
+                                     (and (not (:idB node1)) (not (:idB node2))) 0
+                                     (and (not (:idB node1)) (:idB node2)) -1
+                                     (and (not (:idB node2)) (:idB node1)) 1
+                                     :else (distance-compare
+                                            (xor-distance infohashB (:idB node1))
+                                            (xor-distance infohashB (:idB node2)))))))]
+              (reify
+                clojure.core.async.impl.protocols/UnblockingBuffer
+                clojure.core.async.impl.protocols/Buffer
+                (full? [this] false)
+                (remove! [this]
+                  (let [[id node :as item] (first @collA)]
+                    (swap! collA dissoc id)
+                    item))
+                (add!* [this [id node]]
+                  (swap! collA assoc id node)
+                  this)
+                (close-buf! [this])
+                cljs.core/ICounted
+                (-count [this] (count @collA)))))]
+    (go
+      (let [seeders-countA (atom 0)
+            result| (chan 1)
+            nodesB| (chan (sliding-buffer 256))
+            seeders| (chan (sliding-buffer 128))
+            cancel-channelsA (atom [])
 
-          sort-closest (fn [nodes]
-                         (->>
-                          nodes
-                          (sort-by identity
-                                   (fn [node1 node2]
-                                     (distance-compare
-                                      (xor-distance infohashB (:idB node1))
-                                      (xor-distance infohashB (:idB node2)))
-                                     #_(cond
-                                         (and (not (:idB node1)) (not (:idB node2))) 0
-                                         (and (not (:idB node1)) (:idB node2)) -1
-                                         (and (not (:idB node2)) (:idB node1)) 1
-                                         :else (distance-compare
-                                                (xor-distance infohashB (:idB node1))
-                                                (xor-distance infohashB (:idB node2))))))))
+            nodes| (chan (sorted-map-buffer))
 
-          nodesA (atom (take 8 (sort-closest (vals routing-table))))
+            _ (<! (a/onto-chan! nodes| (take 8 routing-table) false))
 
-          send-get-peers (fn [node]
-                           (go
-                             (alt!
-                               (send-krpc-request
-                                socket
-                                (clj->js
-                                 {:t (.randomBytes crypto 4)
-                                  :y "q"
-                                  :q "get_peers"
-                                  :a {:id node-idB
-                                      :info_hash infohashB}})
-                                (clj->js node)
-                                (timeout 2000))
-                               ([value]
-                                (when value
-                                  (let [{:keys [msg rifno]} value]
-                                    (:r (js->clj (:msg value) :keywordize-keys true))))))))
-
-          request-metadata* (fn [node]
-                              (let [cancel| (chan 1)]
-                                (swap! cancel-channelsA conj cancel|)
-                                (take! (request-metadata node node-idB infohashB cancel|)
-                                       (fn [metadata]
-                                         (when metadata
-                                           (put! result| (merge
-                                                          metadata
-                                                          {:infohash (.toString infohashB "hex")
-                                                           :seeder-count @seeders-countA})))))))
-          valid-ip? (fn [node]
-                      (and (not= (:address node) "0.0.0.0")
-                           (< 0 (:port node) 65536)))
-
-          procsA (atom [])
-          release (fn []
-                    (doseq [stop| @procsA]
-                      (close! stop|))
-                    (close! nodesB|)
-                    (close! seeders|)
-                    (doseq [cancel| @cancel-channelsA]
-                      (close! cancel|)))]
-
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (go
-          (loop [timeout| (timeout 0)]
-            (let [[value port] (alts! [timeout| stop|])]
-              (when (= port timeout|)
-                (let [nodes-sorted (sort-closest @nodesA)]
-                  (doseq [node (take 8 nodes-sorted)]
-                    (take! (send-get-peers node)
-                           (fn [{:keys [token values nodes]}]
+            send-get-peers (fn [node]
                              (go
-                               (cond
-                                 values
-                                 (let [seeders (->>
-                                                (decode-values values)
-                                                (filter valid-ip?))]
-                                   (swap! seeders-countA + (count seeders) 1)
-                                   #_(swap! nodesA concat seeders)
-                                   #_(request-metadata* node)
-                                   (doseq [seeder (take 8 seeders)]
-                                     (put! seeders| seeder)
-                                     #_(<! (timeout 50))
-                                     #_(request-metadata* seeder)))
+                               (alt!
+                                 (send-krpc-request
+                                  socket
+                                  (clj->js
+                                   {:t (.randomBytes crypto 4)
+                                    :y "q"
+                                    :q "get_peers"
+                                    :a {:id node-idB
+                                        :info_hash infohashB}})
+                                  (clj->js node)
+                                  (timeout 2000))
+                                 ([value]
+                                  (when value
+                                    (let [{:keys [msg rifno]} value]
+                                      (:r (js->clj (:msg value) :keywordize-keys true))))))))
 
-                                 nodes
-                                 (let [nodes (->>
-                                              (decode-nodes nodes)
-                                              (filter valid-ip?))]
-                                   (swap! nodesA concat nodes)
-                                   #_(doseq [node nodes]
-                                       (put! nodesB| node))))))))
-                  (reset! nodesA (drop 8 nodes-sorted)))
-                (recur (timeout 1000)))))))
+            request-metadata* (fn [node]
+                                (let [cancel| (chan 1)
+                                      out| (chan 1)]
+                                  (swap! cancel-channelsA conj cancel|)
+                                  (take! (request-metadata node node-idB infohashB cancel|)
+                                         (fn [metadata]
+                                           (when metadata
+                                             (let [result (merge
+                                                           metadata
+                                                           {:infohash (.toString infohashB "hex")
+                                                            :seeder-count @seeders-countA})]
+                                               (put! result| result)
+                                               (put! out| result)))
+                                           (close! out|)))
+                                  out|))
+            valid-ip? (fn [node]
+                        (and (not= (:address node) "0.0.0.0")
+                             (< 0 (:port node) 65536)))
 
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
+            procsA (atom [])
+            release (fn []
+                      (doseq [stop| @procsA]
+                        (close! stop|))
+                      (close! nodesB|)
+                      (close! seeders|)
+                      (close! nodes|)
+                      (doseq [cancel| @cancel-channelsA]
+                        (close! cancel|)))]
+
         (go
           (loop [i 4
                  ts (js/Date.now)
                  time-total 0]
             (when (and (= i 0) (< time-total 1000))
               (<! (timeout 1000)))
-            (let [[seeder port] (alts! [stop| seeders|])]
-              (when seeder
-                (<! (timeout 50))
-                (request-metadata* seeder)
-                (recur (mod (inc i) 4) (js/Date.now) (+ time-total (- (js/Date.now) ts))))))))
+            (when-let [[id node] (<! nodes|)]
+              (take! (send-get-peers node)
+                     (fn [{:keys [token values nodes]}]
+                       (go
+                         (cond
+                           values
+                           (let [seeders (->>
+                                          (decode-values values)
+                                          (filter valid-ip?))]
+                             (swap! seeders-countA + (count seeders) 1)
+                             #_(swap! nodesA concat seeders)
+                             #_(request-metadata* node)
+                             (doseq [seeder (take 8 seeders)]
+                               (>! seeders| seeder)
+                               #_(<! (timeout 50))
+                               #_(request-metadata* seeder)))
 
-      (alt!
-        [(timeout (* 15 1000)) cancel|]
-        ([_ _]
-         (release)
-         nil)
+                           nodes
+                           (let [nodes (->>
+                                        (decode-nodes nodes)
+                                        (filter valid-ip?))]
+                             (<! (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false))
+                             #_(doseq [node nodes]
+                                 (put! nodesB| node)))))))
+              (recur (mod (inc i) 4) (js/Date.now) (+ time-total (- (js/Date.now) ts))))))
 
-        result|
-        ([value]
-         (release)
-         value)))))
+        (go
+          (loop [i 4
+                 batch (transient [])]
+            (when (= i 0)
+              (<! (a/map (constantly nil) (persistent! batch)))
+              (recur 4
+                     (transient [])))
+            (when-let [seeder (<! seeders|)]
+              (<! (timeout 50))
+              (recur (mod (inc i) 4)
+                     (conj! batch (request-metadata* seeder))))))
+
+        (alt!
+          [(timeout (* 15 1000)) cancel|]
+          ([_ _]
+           (release)
+           nil)
+
+          result|
+          ([value]
+           (release)
+           value))))))
 
 (def transit-write
   (let [handlers {js/Buffer
@@ -457,6 +473,7 @@
           count-torrentsA (atom 0)
           count-infohashesA (atom 0)
           count-discoveryA (atom 0)
+          count-discovery-activeA (atom 0)
           count-messagesA (atom 0)
           started-at (t/now)
           routing-table-max-size 128
@@ -623,6 +640,7 @@
                (pprint {:count-messages @count-messagesA
                         :count-infohashes @count-infohashesA
                         :count-discovery @count-discoveryA
+                        :count-discovery-active @count-discovery-activeA
                         :count-torrents @count-torrentsA
                         :count-sockets @count-socketsA
                         :nodes-to-sample| (count (.-buf nodes-to-sample|))
@@ -653,11 +671,13 @@
                                                        :cancel| (chan 1)})]
                     (swap! in-progressA assoc infohash find_metadata|)
                     (swap! count-discoveryA inc)
+                    (swap! count-discovery-activeA inc)
                     (take! find_metadata|
                            (fn [metadata]
                              (when metadata
                                (put! torrent| metadata)
                                #_(pprint (select-keys metadata ["name" :seeder-count])))
+                             (swap! count-discovery-activeA dec)
                              (swap! in-progressA dissoc infohash))))))
               (recur (timeout 500))))))
 
@@ -858,7 +878,7 @@
         (swap! procsA conj stop|)
         (admix nodes|mix nodes-to-sample|)
         (go
-          (loop [n 8
+          (loop [n 4
                  i n
                  ts (js/Date.now)
                  time-total 0]
@@ -979,8 +999,7 @@
           (when-let [nodesB (<! nodesB|)]
             (let [nodes (decode-nodes nodesB)]
               (add-nodes nodes)
-              (doseq [node nodes]
-                (>! nodes-to-sample| node)))
+              (<! (a/onto-chan! nodes-to-sample| nodes false)))
             #_(println :nodes-count (count (:routing-table @stateA)))
             (recur))))
 
