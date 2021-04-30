@@ -290,7 +290,8 @@
       (let [seeders-countA (atom 0)
             result| (chan 1)
             nodesB| (chan (sliding-buffer 256))
-            seeders| (chan (sliding-buffer 128))
+            seeders| (chan 1)
+            seeder| (chan 1)
             cancel-channelsA (atom [])
 
             nodes| (chan (sorted-map-buffer))
@@ -345,36 +346,52 @@
                         (close! cancel|)))]
 
         (go
-          (loop [i 4
+          (loop [n 4
+                 i n
                  ts (js/Date.now)
                  time-total 0]
-            (when (and (= i 0) (< time-total 1000))
-              (<! (timeout 1000)))
-            (when-let [[id node] (<! nodes|)]
-              (take! (send-get-peers node)
-                     (fn [{:keys [token values nodes]}]
-                       (go
-                         (cond
-                           values
-                           (let [seeders (->>
-                                          (decode-values values)
-                                          (filter valid-ip?))]
-                             (swap! seeders-countA + (count seeders) 1)
-                             #_(swap! nodesA concat seeders)
-                             #_(request-metadata* node)
-                             (doseq [seeder (take 8 seeders)]
-                               (>! seeders| seeder)
-                               #_(<! (timeout 50))
-                               #_(request-metadata* seeder)))
+            (let [timeout| (when (and (= i 0) (< time-total 1000))
+                             (timeout 1000))
+                  [value port] (alts! (concat
+                                       [seeders|]
+                                       (if timeout|
+                                         [timeout|]
+                                         [nodes|]))
+                                      :priority true)]
+              (when (or value (= port timeout|))
+                (condp = port
 
-                           nodes
-                           (let [nodes (->>
-                                        (decode-nodes nodes)
-                                        (filter valid-ip?))]
-                             (<! (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false))
-                             #_(doseq [node nodes]
-                                 (put! nodesB| node)))))))
-              (recur (mod (inc i) 4) (js/Date.now) (+ time-total (- (js/Date.now) ts))))))
+                  seeders|
+                  (let [seeders value]
+                    (swap! seeders-countA + (count seeders))
+                    (doseq [seeder seeders]
+                      (>! seeder| seeder))
+                    (recur n i ts time-total))
+
+                  timeout|
+                  (do
+                    :cool-down
+                    (recur n (mod (inc i) n) (js/Date.now) 0))
+
+                  nodes|
+                  (let [[id node] value]
+                    (take! (send-get-peers node)
+                           (fn [{:keys [token values nodes]}]
+                             (cond
+                               values
+                               (let [seeders (->>
+                                              (decode-values values)
+                                              (filter valid-ip?))]
+                                 (put! seeders| seeders))
+
+                               nodes
+                               (let [nodes (->>
+                                            (decode-nodes nodes)
+                                            (filter valid-ip?))]
+                                 (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)
+                                 #_(doseq [node nodes]
+                                     (put! nodesB| node))))))
+                    (recur n (mod (inc i) 4) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
           (loop [i 4
@@ -383,7 +400,7 @@
               (<! (a/map (constantly nil) (persistent! batch)))
               (recur 4
                      (transient [])))
-            (when-let [seeder (<! seeders|)]
+            (when-let [seeder (<! seeder|)]
               (<! (timeout 50))
               (recur (mod (inc i) 4)
                      (conj! batch (request-metadata* seeder))))))
@@ -672,6 +689,13 @@
                     (swap! in-progressA assoc infohash find_metadata|)
                     (swap! count-discoveryA inc)
                     (swap! count-discovery-activeA inc)
+                    #_(let [metadata (<! find_metadata|)]
+                        (when metadata
+                          (put! torrent| metadata)
+                          #_(pprint (select-keys metadata ["name" :seeder-count])))
+                        (swap! count-discovery-activeA dec)
+                        (swap! in-progressA dissoc infohash)
+                        (println :dicovery-done))
                     (take! find_metadata|
                            (fn [metadata]
                              (when metadata
