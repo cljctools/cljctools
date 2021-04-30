@@ -130,6 +130,7 @@
           result| (chan 1)
           socket (net.Socket.)
           release (fn []
+                    (swap! count-socketsA dec)
                     (.destroy socket))]
       (swap! count-socketsA inc)
       (doto socket
@@ -137,7 +138,7 @@
                        #_(println "request-metadata-socket error" error)
                        (close! error|)))
         (.on "close" (fn [hadError]
-                       (swap! count-socketsA dec)))
+                       (close! error|)))
         (.on "timeout" (fn []
                          #_(println "request-metadata-socket timeout")
                          (close! error|)))
