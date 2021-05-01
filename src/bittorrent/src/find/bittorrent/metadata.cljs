@@ -266,13 +266,14 @@
            count-discovery-activeA]}]
 
   (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-        in-progressA (atom {})]
+        in-processA (atom {})
+        in-progress| (chan 30)]
     (go
-      (loop [timeout| (timeout 0)]
-        (<! timeout|)
+      (loop []
         (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
           (let [infohash (.toString infohashB "hex")]
-            (when-not (get @in-progressA infohash)
+            (when-not (get @in-processA infohash)
+              (>! in-progress| infohashB)
               (let [state @stateA
                     closest-key (->>
                                  (keys (:dht-keyspace state))
@@ -289,7 +290,7 @@
                                                    :node-idB self-idB
                                                    :infohashB infohashB
                                                    :cancel| (chan 1)})]
-                (swap! in-progressA assoc infohash find_metadata|)
+                (swap! in-processA assoc infohash find_metadata|)
                 (swap! count-discoveryA inc)
                 (swap! count-discovery-activeA inc)
                 #_(let [metadata (<! find_metadata|)]
@@ -297,16 +298,18 @@
                       (put! torrent| metadata)
                       (pprint (select-keys metadata [:seeder-count])))
                     (swap! count-discovery-activeA dec)
-                    (swap! in-progressA dissoc infohash)
+                    (swap! in-processA dissoc infohash)
                     (println :dicovery-done))
                 (take! find_metadata|
                        (fn [metadata]
                          (when metadata
                            (put! torrent| metadata)
                            #_(pprint (select-keys metadata [:seeder-count])))
+                         (take! in-progress| (constantly nil))
+
                          (swap! count-discovery-activeA dec)
-                         (swap! in-progressA dissoc infohash))))))
-          (recur (timeout 500)))))))
+                         (swap! in-processA dissoc infohash))))))
+          (recur))))))
 
 #_(defn request-metadata-multiple
     [{:keys [address port] :as node} idB infohashes cancel|]
