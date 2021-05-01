@@ -266,19 +266,21 @@
 (defn find-metadata
   [{:keys [send-krpc-request socket port routing-table  msg|mult node-idB infohashB cancel|]}]
   (letfn [(sorted-map-buffer
-            []
-            (let [collA (atom (sorted-map-by
-                               (fn [id1 id2]
-                                 (distance-compare
-                                  (xor-distance infohashB (js/Buffer.from id1 "hex"))
-                                  (xor-distance infohashB (js/Buffer.from id2 "hex")))
-                                 #_(cond
-                                     (and (not (:idB node1)) (not (:idB node2))) 0
-                                     (and (not (:idB node1)) (:idB node2)) -1
-                                     (and (not (:idB node2)) (:idB node1)) 1
-                                     :else (distance-compare
-                                            (xor-distance infohashB (:idB node1))
-                                            (xor-distance infohashB (:idB node2)))))))]
+            [infohashB]
+            (let [collA (atom
+                         (sorted-map-by (hash-key-comparator-fn infohashB))
+                         #_(sorted-map-by
+                            (fn [id1 id2]
+                              (distance-compare
+                               (xor-distance infohashB (js/Buffer.from id1 "hex"))
+                               (xor-distance infohashB (js/Buffer.from id2 "hex")))
+                              #_(cond
+                                  (and (not (:idB node1)) (not (:idB node2))) 0
+                                  (and (not (:idB node1)) (:idB node2)) -1
+                                  (and (not (:idB node2)) (:idB node1)) 1
+                                  :else (distance-compare
+                                         (xor-distance infohashB (:idB node1))
+                                         (xor-distance infohashB (:idB node2)))))))]
               (reify
                 clojure.core.async.impl.protocols/UnblockingBuffer
                 clojure.core.async.impl.protocols/Buffer
@@ -301,9 +303,10 @@
             seeder| (chan 1)
             cancel-channelsA (atom [])
 
-            nodes| (chan (sorted-map-buffer))
+            nodes| (chan (sorted-map-buffer infohashB))
+            routing-table-nodes| (chan (sorted-map-buffer infohashB))
 
-            _ (<! (a/onto-chan! nodes| (take 8 routing-table) false))
+            _ (<! (a/onto-chan! routing-table-nodes| (sort-by first (hash-key-comparator-fn infohashB) routing-table) false))
 
             send-get-peers (fn [node]
                              (go
@@ -364,25 +367,29 @@
                                        [seeders|]
                                        (if timeout|
                                          [timeout|]
-                                         [nodes|]))
+                                         [nodes| 
+                                          routing-table-nodes|]))
                                       :priority true)]
               (when (or value (= port timeout|))
-                (condp = port
+                (cond
 
-                  seeders|
+                  (= port seeders|)
                   (let [seeders value]
                     (swap! seeders-countA + (count seeders))
+                    (println :seeders| (count seeders))
                     (doseq [seeder seeders]
                       (>! seeder| seeder))
                     (recur n i ts time-total))
 
-                  timeout|
+                  (= port timeout|)
                   (do
+                    (println :timeout|)
                     :cool-down
                     (recur n (mod (inc i) n) (js/Date.now) 0))
 
-                  nodes|
+                  (or (= port nodes|) (= port routing-table-nodes|))
                   (let [[id node] value]
+                    (println :nodes|)
                     (take! (send-get-peers node)
                            (fn [{:keys [token values nodes]}]
                              (cond
@@ -396,6 +403,7 @@
                                (let [nodes (->>
                                             (decode-nodes nodes)
                                             (filter valid-ip?))]
+                                 (println :got-nodes (count nodes))
                                  (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)
                                  #_(doseq [node nodes]
                                      (put! nodesB| node))))))
@@ -409,6 +417,7 @@
               (recur 4
                      (transient [])))
             (when-let [seeder (<! seeder|)]
+              (println :seeder seeder)
               (<! (timeout 50))
               (recur (mod (inc i) 4)
                      (conj! batch (request-metadata* seeder))))))
@@ -491,7 +500,8 @@
                                                (take 40)
                                                (clojure.string/join ""))))
                                            (map (fn [k] [k {}])))
-                                          ["0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "a" "b" "c" "d" "e" "f"])
+                                          ["0"  "2"  "4"  "6"  "8"  "a"  "c"  "e"]
+                                          #_["0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "a" "b" "c" "d" "e" "f"])
                       :routing-table-sampled {}
                       :routing-table-find-noded {}})
                    (<! (load-state data-dir))))
@@ -502,7 +512,7 @@
 
           _ (swap! stateA update :routing-table (partial into (sorted-map-by routing-table-comparator)))
 
-          _ (doseq [[id bucket] (:dht-keyspace @stateA)]
+          _ (doseq [[id routing-table] (:dht-keyspace @stateA)]
               (swap! stateA update-in [:dht-keyspace id] (partial into (sorted-map-by (hash-key-comparator-fn (js/Buffer.from id "hex"))))))
           _ (swap! stateA update :dht-keyspace (partial into (sorted-map)))
 
@@ -516,6 +526,8 @@
           count-messagesA (atom 0)
           started-at (t/now)
           routing-table-max-size 128
+          keyspace-routing-table-max-size 64
+
 
           valid-node? (fn [node]
                         (and (not= (:address node) address)
@@ -683,9 +695,9 @@
                       (fn [dht-keyspace]
                         (->>
                          dht-keyspace
-                         (map (fn [[id bucket]]
-                                [id (->> bucket
-                                         (take routing-table-max-size)
+                         (map (fn [[id routing-table]]
+                                [id (->> routing-table
+                                         (take keyspace-routing-table-max-size)
                                          (into (sorted-map-by (hash-key-comparator-fn (js/Buffer.from id "hex")))))]))
                          (into (sorted-map)))))
                (recur))
@@ -711,7 +723,7 @@
                           :count-sockets @count-socketsA
                           :nodes-to-sample| (count (.-buf nodes-to-sample|))
                           :routing-table (count (:routing-table state))
-                          :dht-keyspace (map (fn [[id bucket]] (count bucket)) (:dht-keyspace state))
+                          :dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))
                           :routing-table-find-noded  (count (:routing-table-find-noded state))
                           :routing-table-sampled (count (:routing-table-sampled state))}))
                (recur))
@@ -728,7 +740,16 @@
             (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
               (let [infohash (.toString infohashB "hex")]
                 (when-not (get @in-progressA infohash)
-                  (let [find_metadata| (find-metadata {:routing-table (:routing-table @stateA)
+                  (let [state @stateA
+                        closest-key (->>
+                                     (keys (:dht-keyspace state))
+                                     (concat [self-id])
+                                     (sort-by identity (hash-key-comparator-fn infohashB))
+                                     (first))
+                        closest-routing-table (if (= closest-key self-id)
+                                                (:routing-table state)
+                                                (get (:dht-keyspace state) closest-key))
+                        find_metadata| (find-metadata {:routing-table closest-routing-table
                                                        :socket socket
                                                        :port port
                                                        :send-krpc-request send-krpc-request
@@ -739,21 +760,21 @@
                     (swap! in-progressA assoc infohash find_metadata|)
                     (swap! count-discoveryA inc)
                     (swap! count-discovery-activeA inc)
-                    #_(let [metadata (<! find_metadata|)]
-                        (when metadata
-                          (put! torrent| metadata)
-                          #_(pprint (select-keys metadata ["name" :seeder-count])))
-                        (swap! count-discovery-activeA dec)
-                        (swap! in-progressA dissoc infohash)
-                        (println :dicovery-done))
-                    (take! find_metadata|
-                           (fn [metadata]
-                             (when metadata
-                               (put! torrent| metadata)
-                               #_(pprint (select-keys metadata ["name" :seeder-count])))
-                             (swap! count-discovery-activeA dec)
-                             (swap! in-progressA dissoc infohash))))))
-              (recur (timeout 500))))))
+                    (let [metadata (<! find_metadata|)]
+                      (when metadata
+                        (put! torrent| metadata)
+                        (pprint (select-keys metadata ["name" :seeder-count])))
+                      (swap! count-discovery-activeA dec)
+                      (swap! in-progressA dissoc infohash)
+                      (println :dicovery-done))
+                    #_(take! find_metadata|
+                             (fn [metadata]
+                               (when metadata
+                                 (put! torrent| metadata)
+                                 #_(pprint (select-keys metadata ["name" :seeder-count])))
+                               (swap! count-discovery-activeA dec)
+                               (swap! in-progressA dissoc infohash))))))
+              (recur (timeout 5000))))))
 
       ; count
       (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
@@ -821,8 +842,24 @@
               timeout|
               ([_]
                (doseq [node nodes-bootstrap]
+                 (take!
+                  (send-krpc-request
+                   socket
+                   (clj->js
+                    {:t (.randomBytes crypto 4)
+                     :y "q"
+                     :q "find_node"
+                     :a {:id self-idB
+                         :target self-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                   (clj->js node)
+                   (timeout 2000))
+                  (fn [{:keys [msg rinfo] :as value}]
+                    (when value
+                      (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
+                        (put! nodesB| nodes)))))
 
-                 (go
+                 (doseq [[id routing-table] (:dht-keyspace @stateA)]
+                   (<! (timeout 500))
                    (take!
                     (send-krpc-request
                      socket
@@ -831,31 +868,14 @@
                        :y "q"
                        :q "find_node"
                        :a {:id self-idB
-                           :target self-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                           :target (js/Buffer.from id "hex")  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
                      (clj->js node)
                      (timeout 2000))
                     (fn [{:keys [msg rinfo] :as value}]
                       (when value
                         (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
-                          (put! nodesB| nodes)))))
+                          (put! nodesB| nodes)))))))
 
-                   (doseq [[id bucket] (:dht-keyspace @stateA)]
-                     (<! (timeout 500))
-                     (take!
-                      (send-krpc-request
-                       socket
-                       (clj->js
-                        {:t (.randomBytes crypto 4)
-                         :y "q"
-                         :q "find_node"
-                         :a {:id self-idB
-                             :target (js/Buffer.from id "hex")  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
-                       (clj->js node)
-                       (timeout 2000))
-                      (fn [{:keys [msg rinfo] :as value}]
-                        (when value
-                          (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
-                            (put! nodesB| nodes))))))))
                (recur (timeout (* 3 60 1000))))
 
               stop|
@@ -869,28 +889,51 @@
             (alt!
               (timeout (* 15 1000))
               ([_]
-               (doseq [[id node] (->>
-                                  (:routing-table @stateA)
-                                  (sequence
-                                   (comp
-                                    (filter (fn [[id node]]
-                                              (or
-                                               (not (:pinged-at node))
-                                               (> (- (js/Date.now) (:pinged-at node)) (* 2 60 1000)))))
-                                    (take 8))))]
-                 (take! (send-krpc-request
-                         socket
-                         (clj->js
-                          {:t (.randomBytes crypto 4)
-                           :y "q"
-                           :q "ping"
-                           :a {:id self-idB}})
-                         (clj->js node)
-                         (timeout 2000))
-                        (fn [value]
-                          (if value
-                            (swap! stateA update-in [:routing-table id] assoc :pinged-at (js/Date.now))
-                            (swap! stateA update-in [:routing-table] dissoc id)))))
+               (let [state @stateA
+                     valid-for-ping? (fn [[id node]]
+                                       (or
+                                        (not (:pinged-at node))
+                                        (> (- (js/Date.now) (:pinged-at node)) (* 2 60 1000))))]
+                 (doseq [[id node] (->>
+                                    (:routing-table state)
+                                    (sequence
+                                     (comp
+                                      (filter valid-for-ping?)
+                                      (take 8))))]
+                   (take! (send-krpc-request
+                           socket
+                           (clj->js
+                            {:t (.randomBytes crypto 4)
+                             :y "q"
+                             :q "ping"
+                             :a {:id self-idB}})
+                           (clj->js node)
+                           (timeout 2000))
+                          (fn [value]
+                            (if value
+                              (swap! stateA update-in [:routing-table id] assoc :pinged-at (js/Date.now))
+                              (swap! stateA update-in [:routing-table] dissoc id)))))
+
+                 (doseq [[k routing-table] (:dht-keyspace state)
+                         [id node] (->>
+                                    routing-table
+                                    (sequence
+                                     (comp
+                                      (filter valid-for-ping?)
+                                      (take 8))))]
+                   (take! (send-krpc-request
+                           socket
+                           (clj->js
+                            {:t (.randomBytes crypto 4)
+                             :y "q"
+                             :q "ping"
+                             :a {:id self-idB}})
+                           (clj->js node)
+                           (timeout 2000))
+                          (fn [value]
+                            (if value
+                              (swap! stateA update-in [:dht-keyspace k id] assoc :pinged-at (js/Date.now))
+                              (swap! stateA update-in [:dht-keyspace k] dissoc id))))))
                (recur))
 
               stop|
@@ -907,17 +950,11 @@
                (let [state @stateA
                      not-find-noded? (fn [[id node]]
                                        (not (get (:routing-table-find-noded state) id)))]
-                 (doseq [[id node] (concat
-                                    (sequence
-                                     (comp
-                                      (filter not-find-noded?)
-                                      (take 4))
-                                     (:routing-table state))
-                                    (sequence
-                                     (comp
-                                      (filter not-find-noded?)
-                                      (take 4))
-                                     (second (rand-nth (seq (:dht-keyspace state))))))]
+                 (doseq [[id node] (sequence
+                                    (comp
+                                     (filter not-find-noded?)
+                                     (take 1))
+                                    (:routing-table state))]
                    (swap! stateA update-in [:routing-table-find-noded] assoc id {:node node
                                                                                  :timestamp (js/Date.now)})
                    (take!
@@ -929,6 +966,31 @@
                        :q "find_node"
                        :a {:id self-idB
                            :target self-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                     (clj->js node)
+                     (timeout 2000))
+                    (fn [{:keys [msg rinfo] :as value}]
+                      (when value
+                        (when-let [nodes (goog.object/getValueByKeys msg "r" "nodes")]
+                          (put! nodesB| nodes))))))
+
+                 (doseq [[k routing-table] (:dht-keyspace state)
+                         [id node] (->>
+                                    routing-table
+                                    (sequence
+                                     (comp
+                                      (filter not-find-noded?)
+                                      (take 1))))]
+                   (swap! stateA update-in [:routing-table-find-noded] assoc id {:node node
+                                                                                 :timestamp (js/Date.now)})
+                   (take!
+                    (send-krpc-request
+                     socket
+                     (clj->js
+                      {:t (.randomBytes crypto 4)
+                       :y "q"
+                       :q "find_node"
+                       :a {:id self-idB
+                           :target (js/Buffer.from k "hex")  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
                      (clj->js node)
                      (timeout 2000))
                     (fn [{:keys [msg rinfo] :as value}]
