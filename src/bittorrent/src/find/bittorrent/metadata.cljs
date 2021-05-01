@@ -200,20 +200,17 @@
                   (= port seeders|)
                   (let [seeders value]
                     (swap! seeders-countA + (count seeders))
-                    (println :seeders| (count seeders))
                     (doseq [seeder seeders]
                       (>! seeder| seeder))
                     (recur n i ts time-total))
 
                   (= port timeout|)
                   (do
-                    (println :timeout|)
                     :cool-down
-                    (recur n (mod (inc i) n) (js/Date.now) 0))
+                    (recur n n (js/Date.now) 0))
 
                   (or (= port nodes|) (= port routing-table-nodes|))
                   (let [[id node] value]
-                    (println :nodes|)
                     (take! (send-get-peers node)
                            (fn [{:keys [token values nodes]}]
                              (cond
@@ -227,7 +224,6 @@
                                (let [nodes (->>
                                             (decode-nodes nodes)
                                             (filter valid-ip?))]
-                                 (println :got-nodes (count nodes))
                                  (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)
                                  #_(doseq [node nodes]
                                      (put! nodesB| node))))))
@@ -241,8 +237,6 @@
               (recur 4
                      (transient [])))
             (when-let [seeder (<! seeder|)]
-              (println :seeder seeder)
-              (<! (timeout 50))
               (recur (mod (inc i) 4)
                      (conj! batch (request-metadata* seeder))))))
 
@@ -298,21 +292,21 @@
                 (swap! in-progressA assoc infohash find_metadata|)
                 (swap! count-discoveryA inc)
                 (swap! count-discovery-activeA inc)
-                (let [metadata (<! find_metadata|)]
-                  (when metadata
-                    (put! torrent| metadata)
-                    (pprint (select-keys metadata ["name" :seeder-count])))
-                  (swap! count-discovery-activeA dec)
-                  (swap! in-progressA dissoc infohash)
-                  (println :dicovery-done))
-                #_(take! find_metadata|
-                         (fn [metadata]
-                           (when metadata
-                             (put! torrent| metadata)
-                             #_(pprint (select-keys metadata ["name" :seeder-count])))
-                           (swap! count-discovery-activeA dec)
-                           (swap! in-progressA dissoc infohash))))))
-          (recur (timeout 5000)))))))
+                #_(let [metadata (<! find_metadata|)]
+                    (when metadata
+                      (put! torrent| metadata)
+                      (pprint (select-keys metadata [:seeder-count])))
+                    (swap! count-discovery-activeA dec)
+                    (swap! in-progressA dissoc infohash)
+                    (println :dicovery-done))
+                (take! find_metadata|
+                       (fn [metadata]
+                         (when metadata
+                           (put! torrent| metadata)
+                           #_(pprint (select-keys metadata [:seeder-count])))
+                         (swap! count-discovery-activeA dec)
+                         (swap! in-progressA dissoc infohash))))))
+          (recur (timeout 500)))))))
 
 #_(defn request-metadata-multiple
     [{:keys [address port] :as node} idB infohashes cancel|]

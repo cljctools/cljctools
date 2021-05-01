@@ -89,7 +89,7 @@
                                                      :nodes| dht-keyspace-nodes|
                                                      :send-krpc-request send-krpc-request
                                                      :socket socket
-                                                     :routing-table-max-size 64})
+                                                     :routing-table-max-size 128})
 
           nodes-to-sample| (chan (sliding-buffer 1024)
                                  (filter valid-node?))

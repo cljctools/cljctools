@@ -87,6 +87,7 @@
          (let [state @stateA
                not-find-noded? (fn [[id node]]
                                  (not (get (:routing-table-find-noded state) id)))]
+           
            (doseq [[id node] (sequence
                               (comp
                                (filter not-find-noded?)
@@ -117,6 +118,7 @@
                                (comp
                                 (filter not-find-noded?)
                                 (take 1))))]
+             (<! (timeout 400))
              (swap! stateA update-in [:routing-table-find-noded] assoc id {:node node
                                                                            :timestamp (js/Date.now)})
              (take!
