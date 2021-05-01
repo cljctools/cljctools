@@ -267,12 +267,14 @@
 
   (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
         in-processA (atom {})
+        already-searchedA (atom #{})
         in-progress| (chan 30)]
     (go
       (loop []
         (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
           (let [infohash (.toString infohashB "hex")]
-            (when-not (get @in-processA infohash)
+            (when-not (or (get @in-processA infohash)
+                          (get @already-searchedA infohash))
               (>! in-progress| infohashB)
               (let [state @stateA
                     closest-key (->>
@@ -291,6 +293,7 @@
                                                    :infohashB infohashB
                                                    :cancel| (chan 1)})]
                 (swap! in-processA assoc infohash find_metadata|)
+                (swap! already-searchedA conj infohash)
                 (swap! count-discoveryA inc)
                 (swap! count-discovery-activeA inc)
                 #_(let [metadata (<! find_metadata|)]

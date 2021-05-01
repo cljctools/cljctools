@@ -62,7 +62,7 @@
 (defn decode-values
   [values]
   (->>
-   values
+   (flatten [values])
    (sequence
     (comp
      (filter (fn [peer-infoB] (instance? js/Buffer peer-infoB)))
