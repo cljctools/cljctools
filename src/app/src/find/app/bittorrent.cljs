@@ -1036,54 +1036,55 @@
             nodes| (chan 1
                          (comp
                           (filter (fn [node]
-                                    (not (get (:routing-table-sampled @stateA) (:id node)))))))
-            nodes|mix (mix nodes|)]
+                                    (not (get (:routing-table-sampled @stateA) (:id node)))))))]
         (swap! procsA conj stop|)
-        (admix nodes|mix nodes-to-sample|)
+        (pipe nodes-to-sample| nodes|)
         (go
           (loop [n 4
                  i n
                  ts (js/Date.now)
                  time-total 0]
-            (when (and (= i 0) (< time-total 1000))
-              (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
-              (<! (timeout (+ time-total (- 1000 time-total))))
-              (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
-              (recur n n (js/Date.now) 0))
-            (alt!
-              nodes|
-              ([node]
-               (let []
-                 (swap! stateA update-in [:routing-table-sampled] assoc (:id node) (merge node
-                                                                                          {:timestamp (js/Date.now)}))
-                 (let [alternative-infohash-targetB (.randomBytes crypto 20)
-                       txn-idB (.randomBytes crypto 4)]
-                   (when-let [value (<! (send-krpc-request
-                                         socket
-                                         (clj->js
-                                          {:t txn-idB
-                                           :y "q"
-                                           :q "sample_infohashes"
-                                           :a {:id self-idB
-                                               :target alternative-infohash-targetB}})
-                                         (clj->js node)
-                                         (timeout 2000)))]
-                     (let [{:keys [msg rinfo]} value
-                           {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
-                       (when samples
-                         (doseq [infohashB (decode-samples samples)]
-                           #_(println :info_hash (.toString infohashB "hex"))
-                           (put! infohash| {:infohashB infohashB
-                                            :rinfo rinfo})))
-                       (when interval
-                         (swap! stateA update-in [:routing-table-sampled (:id node)] merge {:interval interval}))
-                       #_(when nodes
-                           (put! nodes-to-sample| nodes))))))
 
-               (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
+            (let [timeout| (when (and (= i 0) (< time-total 1000))
+                             (timeout (+ time-total (- 1000 time-total))))
+                  [value port] (alts! (if timeout|
+                                        [timeout|]
+                                        [nodes|])
+                                      :priority true)]
+              (when (or value (= port timeout|))
+                (condp = port
 
-              stop|
-              (do :stop)))))
+                  timeout|
+                  (do nil
+                      (recur n n (js/Date.now) 0))
+
+                  nodes|
+                  (let [node value]
+                    (swap! stateA update-in [:routing-table-sampled] assoc (:id node) (merge node
+                                                                                             {:timestamp (js/Date.now)}))
+                    (when-let [value (<! (send-krpc-request
+                                          socket
+                                          (clj->js
+                                           {:t (.randomBytes crypto 4)
+                                            :y "q"
+                                            :q "sample_infohashes"
+                                            :a {:id self-idB
+                                                :target (.randomBytes crypto 20)}})
+                                          (clj->js node)
+                                          (timeout 2000)))]
+                      (let [{:keys [msg rinfo]} value
+                            {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                        (when samples
+                          (doseq [infohashB (decode-samples samples)]
+                            #_(println :info_hash (.toString infohashB "hex"))
+                            (put! infohash| {:infohashB infohashB
+                                             :rinfo rinfo})))
+                        (when interval
+                          (swap! stateA update-in [:routing-table-sampled (:id node)] merge {:interval interval}))
+                        #_(when nodes
+                            (put! nodes-to-sample| nodes))))
+
+                    (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))))))))
 
       ; ask for infohashes, then for metadata using one tcp connection
       #_(let [stop| (chan 1)
