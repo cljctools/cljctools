@@ -93,32 +93,40 @@
     (throw (ex-info "xor-distance: buffers should have same length" {})))
   (reduce
    (fn [result i]
-     (aset result i (bit-xor (aget buffer1B i) (aget buffer2B i)))
-     result)
-   (js/Buffer.allocUnsafe (.-length buffer1B))
-   (range 0 (.-length buffer1B))))
-
-(defn distance-compare
-  [distance1B distance2B]
-  (when-not (= (.-length distance1B) (.-length distance2B))
-    (throw (ex-info "distance-compare: buffers should have same length" {})))
-  (reduce
-   (fn [result i]
-     (let [a (aget distance1B i)
-           b (aget distance2B i)]
-       (cond
-         (= a b) 0
-         (< a b) (reduced -1)
-         (> a b) (reduced 1))))
+     (+ result (bit-xor (aget buffer1B i) (aget buffer2B i))))
    0
-   (range 0 (.-length distance1B))))
+   (range 0 (.-length buffer1B)))
+  #_(reduce
+     (fn [result i]
+       (aset result i (bit-xor (aget buffer1B i) (aget buffer2B i)))
+       result)
+     (js/Buffer.allocUnsafe (.-length buffer1B))
+     (range 0 (.-length buffer1B))))
+
+#_(defn distance-compare
+    [distance1B distance2B]
+    (when-not (= (.-length distance1B) (.-length distance2B))
+      (throw (ex-info "distance-compare: buffers should have same length" {})))
+    (reduce
+     (fn [result i]
+       (let [a (aget distance1B i)
+             b (aget distance2B i)]
+         (cond
+           (= a b) 0
+           (< a b) (reduced -1)
+           (> a b) (reduced 1))))
+     0
+     (range 0 (.-length distance1B))))
 
 (defn hash-key-comparator-fn
   [targetB]
   (fn [id1 id2]
-    (distance-compare
+    (compare
      (xor-distance targetB (js/Buffer.from id1 "hex"))
-     (xor-distance targetB (js/Buffer.from id2 "hex")))))
+     (xor-distance targetB (js/Buffer.from id2 "hex")))
+    #_(distance-compare
+       (xor-distance targetB (js/Buffer.from id1 "hex"))
+       (xor-distance targetB (js/Buffer.from id2 "hex")))))
 
 (defn send-krpc-request-fn
   [{:as opts
