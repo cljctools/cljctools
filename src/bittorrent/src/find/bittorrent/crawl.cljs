@@ -14,7 +14,7 @@
    [cljs.reader :refer [read-string]]
 
    [tick.alpha.api :as t]
-   [find.bittorrent.core :refer [hash-key-comparator-fn
+   [find.bittorrent.core :refer [hash-key-distance-comparator-fn
                                  send-krpc-request-fn
                                  send-krpc
                                  encode-nodes
@@ -94,7 +94,7 @@
                                                      :socket socket
                                                      :routing-table-max-size 128})
 
-          nodes-to-sample| (chan (sorted-map-buffer (hash-key-comparator-fn  self-idB))
+          nodes-to-sample| (chan (sorted-map-buffer (hash-key-distance-comparator-fn  self-idB))
                                  (filter (fn [[id node]] (valid-node? node))))
 
           _ (doseq [[id node] (take 8 (shuffle (:routing-table @stateA)))]

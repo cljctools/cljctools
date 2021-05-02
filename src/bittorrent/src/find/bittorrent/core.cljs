@@ -113,7 +113,7 @@
    0
    (range 0 (.-length distance1B))))
 
-(defn hash-key-comparator-fn
+(defn hash-key-distance-comparator-fn
   [targetB]
   (fn [id1 id2]
     (distance-compare

@@ -14,7 +14,7 @@
    [goog.object]
    [cljs.reader :refer [read-string]]
 
-   [find.bittorrent.core :refer [hash-key-comparator-fn
+   [find.bittorrent.core :refer [hash-key-distance-comparator-fn
                                  decode-nodes
                                  decode-values
                                  sorted-map-buffer]]))
@@ -99,8 +99,8 @@
             seeder| (chan 1)
             cancel-channelsA (atom [])
 
-            nodes| (chan (sorted-map-buffer (hash-key-comparator-fn infohashB)))
-            routing-table-nodes| (chan (sorted-map-buffer (hash-key-comparator-fn infohashB)
+            nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)))
+            routing-table-nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)
                                                           #_(fn [id1 id2]
                                                               (distance-compare
                                                                (xor-distance infohashB (js/Buffer.from id1 "hex"))
@@ -113,7 +113,7 @@
                                                                          (xor-distance infohashB (:idB node1))
                                                                          (xor-distance infohashB (:idB node2)))))))
 
-            _ (<! (a/onto-chan! routing-table-nodes| (sort-by first (hash-key-comparator-fn infohashB) routing-table) false))
+            _ (<! (a/onto-chan! routing-table-nodes| (sort-by first (hash-key-distance-comparator-fn infohashB) routing-table) false))
 
             send-get-peers (fn [node]
                              (go
@@ -265,7 +265,7 @@
                       closest-key (->>
                                    (keys (:dht-keyspace state))
                                    (concat [self-id])
-                                   (sort-by identity (hash-key-comparator-fn infohashB))
+                                   (sort-by identity (hash-key-distance-comparator-fn infohashB))
                                    (first))
                       closest-routing-table (if (= closest-key self-id)
                                               (:routing-table state)

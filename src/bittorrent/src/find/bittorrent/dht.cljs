@@ -13,7 +13,7 @@
    [goog.object]
    [cljs.reader :refer [read-string]]
 
-   [find.bittorrent.core :refer [hash-key-comparator-fn]]))
+   [find.bittorrent.core :refer [hash-key-distance-comparator-fn]]))
 
 (defonce crypto (js/require "crypto"))
 
@@ -33,7 +33,7 @@
            routing-table-max-size]}]
   (let [_ (swap! stateA merge {:routing-table (sorted-map)})
 
-        routing-table-comparator (hash-key-comparator-fn self-idB)
+        routing-table-comparator (hash-key-distance-comparator-fn self-idB)
 
         stop| (chan 1)]
 
@@ -133,7 +133,7 @@
            send-krpc-request
            socket
            routing-table-max-size]}]
-  (let [routing-table-comparator (hash-key-comparator-fn self-idB)
+  (let [routing-table-comparator (hash-key-distance-comparator-fn self-idB)
         stop| (chan 1)]
     (swap! stateA merge {:dht-keyspace (into {}
                                              (comp
@@ -147,7 +147,7 @@
                                              ["0"  "2"  "4"  "6"  "8"  "a"  "c"  "e"]
                                              #_["0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "a" "b" "c" "d" "e" "f"])})
     (doseq [[id routing-table] (:dht-keyspace @stateA)]
-      (swap! stateA update-in [:dht-keyspace id] (partial into (sorted-map-by (hash-key-comparator-fn (js/Buffer.from id "hex"))))))
+      (swap! stateA update-in [:dht-keyspace id] (partial into (sorted-map-by (hash-key-distance-comparator-fn (js/Buffer.from id "hex"))))))
     (swap! stateA update :dht-keyspace (partial into (sorted-map)))
 
     ; add nodes to routing table
@@ -161,7 +161,7 @@
             (doseq [node nodes]
               (let [closest-key (->>
                                  dht-keyspace-keys
-                                 (sort-by identity (hash-key-comparator-fn (:idB node)))
+                                 (sort-by identity (hash-key-distance-comparator-fn (:idB node)))
                                  first)]
                 (swap! stateA update-in [:dht-keyspace closest-key] assoc (:id node) node)))
 
@@ -175,7 +175,7 @@
                           (map (fn [[id routing-table]]
                                  [id (->> routing-table
                                           (take routing-table-max-size)
-                                          (into (sorted-map-by (hash-key-comparator-fn (js/Buffer.from id "hex")))))]))
+                                          (into (sorted-map-by (hash-key-distance-comparator-fn (js/Buffer.from id "hex")))))]))
                           (into (sorted-map)))))
                 (recur n 0 (js/Date.now) 0))
               (recur n (inc i) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))
