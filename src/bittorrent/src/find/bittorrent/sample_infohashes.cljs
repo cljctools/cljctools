@@ -34,7 +34,7 @@
     (pipe nodes-to-sample| nodes|)
 
     (go
-      (loop [n 4
+      (loop [n 8
              i n
              ts (js/Date.now)
              time-total 0]

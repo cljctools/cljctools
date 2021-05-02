@@ -114,7 +114,7 @@
           count-discoveryA (atom 0)
           count-discovery-activeA (atom 0)
           count-messagesA (atom 0)
-          started-at (t/now)
+          started-at (js/Date.now)
 
           procsA (atom [])
           stop (fn []
@@ -193,7 +193,8 @@
                           [:routing-table (count (:routing-table state))]
                           [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
                           [:routing-table-find-noded  (count (:routing-table-find-noded state))]
-                          [:routing-table-sampled (count (:routing-table-sampled state))]]))
+                          [:routing-table-sampled (count (:routing-table-sampled state))]
+                          [:time (str (int (/ (- (js/Date.now) started-at) 1000 60)) "min")]]))
                (recur))
 
               stop|

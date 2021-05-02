@@ -49,7 +49,7 @@
         (.on "timeout" (fn []
                          #_(println "request-metadata-socket timeout")
                          (close! error|)))
-        (.setTimeout 1000))
+        (.setTimeout 1500))
       (.connect socket port address
                 (fn []
                   (let [wire (BittorrrentProtocol.)]
@@ -164,7 +164,7 @@
                         (close! cancel|)))]
 
         (go
-          (loop [n 4
+          (loop [n 6
                  i n
                  ts (js/Date.now)
                  time-total 0]
@@ -213,7 +213,7 @@
                     (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
-          (loop [n 4
+          (loop [n 5
                  i n
                  batch (transient [])]
             (when (= i 0)
@@ -250,7 +250,7 @@
 
   (let [in-processA (atom {})
         already-searchedA (atom #{})
-        in-progress| (chan 30)]
+        in-progress| (chan 50)]
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-listening|
