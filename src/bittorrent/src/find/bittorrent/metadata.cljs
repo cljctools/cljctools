@@ -240,61 +240,64 @@
            self-id
            send-krpc-request
            socket
-           infohash|mult
+           infohashes-from-sampling|
+           infohashes-from-listening|
            torrent|
            msg|mult
 
            count-discoveryA
            count-discovery-activeA]}]
 
-  (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
-        in-processA (atom {})
+  (let [in-processA (atom {})
         already-searchedA (atom #{})
         in-progress| (chan 30)]
     (go
       (loop []
-        (when-let [{:keys [infohashB rinfo]} (<! infohash|tap)]
-          (let [infohash (.toString infohashB "hex")]
-            (when-not (or (get @in-processA infohash)
-                          (get @already-searchedA infohash))
-              (>! in-progress| infohashB)
-              (let [state @stateA
-                    closest-key (->>
-                                 (keys (:dht-keyspace state))
-                                 (concat [self-id])
-                                 (sort-by identity (hash-key-comparator-fn infohashB))
-                                 (first))
-                    closest-routing-table (if (= closest-key self-id)
-                                            (:routing-table state)
-                                            (get (:dht-keyspace state) closest-key))
-                    find_metadata| (find-metadata {:routing-table closest-routing-table
-                                                   :socket socket
-                                                   :send-krpc-request send-krpc-request
-                                                   :msg|mult msg|mult
-                                                   :node-idB self-idB
-                                                   :infohashB infohashB
-                                                   :cancel| (chan 1)})]
-                (swap! in-processA assoc infohash find_metadata|)
-                (swap! already-searchedA conj infohash)
-                (swap! count-discoveryA inc)
-                (swap! count-discovery-activeA inc)
-                #_(let [metadata (<! find_metadata|)]
-                    (when metadata
-                      (put! torrent| metadata)
-                      (pprint (select-keys metadata [:seeder-count])))
-                    (swap! count-discovery-activeA dec)
-                    (swap! in-processA dissoc infohash)
-                    (println :dicovery-done))
-                (take! find_metadata|
-                       (fn [metadata]
-                         (when metadata
-                           (put! torrent| metadata)
-                           #_(pprint (select-keys metadata [:seeder-count])))
-                         (take! in-progress| (constantly nil))
+        (let [[value port] (alts! [infohashes-from-listening|
+                                   infohashes-from-sampling|]
+                                  :priority true)]
+          (when-let [{:keys [infohashB rinfo]} value]
+            (let [infohash (.toString infohashB "hex")]
+              (when-not (or (get @in-processA infohash)
+                            (get @already-searchedA infohash))
+                (>! in-progress| infohashB)
+                (let [state @stateA
+                      closest-key (->>
+                                   (keys (:dht-keyspace state))
+                                   (concat [self-id])
+                                   (sort-by identity (hash-key-comparator-fn infohashB))
+                                   (first))
+                      closest-routing-table (if (= closest-key self-id)
+                                              (:routing-table state)
+                                              (get (:dht-keyspace state) closest-key))
+                      find_metadata| (find-metadata {:routing-table closest-routing-table
+                                                     :socket socket
+                                                     :send-krpc-request send-krpc-request
+                                                     :msg|mult msg|mult
+                                                     :node-idB self-idB
+                                                     :infohashB infohashB
+                                                     :cancel| (chan 1)})]
+                  (swap! in-processA assoc infohash find_metadata|)
+                  (swap! already-searchedA conj infohash)
+                  (swap! count-discoveryA inc)
+                  (swap! count-discovery-activeA inc)
+                  #_(let [metadata (<! find_metadata|)]
+                      (when metadata
+                        (put! torrent| metadata)
+                        (pprint (select-keys metadata [:seeder-count])))
+                      (swap! count-discovery-activeA dec)
+                      (swap! in-processA dissoc infohash)
+                      (println :dicovery-done))
+                  (take! find_metadata|
+                         (fn [metadata]
+                           (when metadata
+                             (put! torrent| metadata)
+                             #_(pprint (select-keys metadata [:seeder-count])))
+                           (take! in-progress| (constantly nil))
 
-                         (swap! count-discovery-activeA dec)
-                         (swap! in-processA dissoc infohash))))))
-          (recur))))))
+                           (swap! count-discovery-activeA dec)
+                           (swap! in-processA dissoc infohash))))))
+            (recur)))))))
 
 #_(defn request-metadata-multiple
     [{:keys [address port] :as node} idB infohashes cancel|]

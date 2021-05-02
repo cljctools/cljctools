@@ -58,8 +58,10 @@
           msg|mult (mult msg|)
           torrent| (chan (sliding-buffer 100))
           torrent|mult (mult torrent|)
-          infohash| (chan (sliding-buffer 100))
-          infohash|mult (mult infohash|)
+          infohashes-from-sampling| (chan (sliding-buffer 100000))
+          infohashes-from-listening| (chan (sliding-buffer 100000))
+          infohashes-from-sampling|mult (mult infohashes-from-sampling|)
+          infohashes-from-listening|mult (mult infohashes-from-listening|)
           nodesB| (chan (sliding-buffer 100))
 
           send-krpc-request (send-krpc-request-fn {:msg|mult msg|mult})
@@ -107,7 +109,8 @@
                               :port 25401}]
 
           count-torrentsA (atom 0)
-          count-infohashesA (atom 0)
+          count-infohashes-from-samplingA (atom 0)
+          count-infohashes-from-listeningA (atom 0)
           count-discoveryA (atom 0)
           count-discovery-activeA (atom 0)
           count-messagesA (atom 0)
@@ -119,7 +122,8 @@
                    (close! stop|))
                  (close! msg|)
                  (close! torrent|)
-                 (close! infohash|)
+                 (close! infohashes-from-sampling|)
+                 (close! infohashes-from-listening|)
                  (close! nodes-to-sample|)
                  (close! nodesB|)
                  (.close socket)
@@ -177,32 +181,40 @@
               (timeout (* 5 1000))
               ([_]
                (let [state @stateA]
-                 (pprint {:count-messages @count-messagesA
-                          :count-infohashes @count-infohashesA
-                          :count-discovery @count-discoveryA
-                          :count-discovery-active @count-discovery-activeA
-                          :count-torrents @count-torrentsA
-                          :count-sockets @find.bittorrent.metadata/count-socketsA
-                          :nodes-to-sample| (count (.-buf nodes-to-sample|))
-                          :routing-table (count (:routing-table state))
-                          :dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))
-                          :routing-table-find-noded  (count (:routing-table-find-noded state))
-                          :routing-table-sampled (count (:routing-table-sampled state))}))
+                 (pprint [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA)
+                                        :sampling @count-infohashes-from-samplingA
+                                        :listening @count-infohashes-from-listeningA]]
+                          [:discovery [:total @count-discoveryA
+                                       :active @count-discovery-activeA]]
+                          [:torrents @count-torrentsA]
+                          [:nodes-to-sample| (count (.-buf nodes-to-sample|))]
+                          [:messages @count-messagesA]
+                          [:sockets @find.bittorrent.metadata/count-socketsA]
+                          [:routing-table (count (:routing-table state))]
+                          [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
+                          [:routing-table-find-noded  (count (:routing-table-find-noded state))]
+                          [:routing-table-sampled (count (:routing-table-sampled state))]]))
                (recur))
 
               stop|
               (do :stop)))))
 
       ; count
-      (let [infohash|tap (tap infohash|mult (chan (sliding-buffer 100)))
+      (let [infohashes-from-sampling|tap (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
+            infohashes-from-listening|tap (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
             torrent|tap (tap torrent|mult (chan (sliding-buffer 100)))]
         (go
           (loop []
-            (let [[value port] (alts! [infohash|tap torrent|tap])]
+            (let [[value port] (alts! [infohashes-from-sampling|tap
+                                       infohashes-from-listening|tap
+                                       torrent|tap])]
               (when value
                 (condp = port
-                  infohash|tap
-                  (swap! count-infohashesA inc)
+                  infohashes-from-sampling|tap
+                  (swap! count-infohashes-from-samplingA inc)
+
+                  infohashes-from-listening|tap
+                  (swap! count-infohashes-from-listeningA inc)
 
                   torrent|tap
                   (swap! count-torrentsA inc))
@@ -271,9 +283,9 @@
         :self-idB self-idB
         :send-krpc-request send-krpc-request
         :socket socket
-        :infohash| infohash|
+        :infohash| infohashes-from-sampling|
         :nodes-to-sample| nodes-to-sample|})
-
+      
       ; discovery
       (find.bittorrent.metadata/start-discovery
        {:stateA stateA
@@ -281,12 +293,12 @@
         :self-id self-id
         :send-krpc-request send-krpc-request
         :socket socket
-        :infohash|mult infohash|mult
+        :infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
+        :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
         :torrent| torrent|
         :msg|mult msg|mult
         :count-discoveryA count-discoveryA
         :count-discovery-activeA count-discovery-activeA})
-
 
       ; process messages
       (let [msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
@@ -349,8 +361,8 @@
                     (if (or (not txn-idB) (not= (.-length node-idB) 20) (not= (.-length infohashB) 20))
                       (println "invalid query args: get_peers")
                       (do
-                        (put! infohash| {:infohashB infohashB
-                                         :rinfo rinfo})
+                        (put! infohashes-from-listening| {:infohashB infohashB
+                                                          :rinfo rinfo})
                         (send-krpc
                          socket
                          (clj->js
@@ -371,8 +383,8 @@
                       (not txn-idB)
                       (println "invalid query args: announce_peer")
 
-                      (not= (-> infohashB (.slice 0 4) (.toString "hex")) (.toString tokenB "hex"))
-                      (println "announce_peer: token and info_hash don't match")
+                      #_(not= (-> infohashB (.slice 0 4) (.toString "hex")) (.toString tokenB "hex"))
+                      #_(println "announce_peer: token and info_hash don't match")
 
                       :else
                       (do
@@ -384,8 +396,8 @@
                            :r {:id self-idB}})
                          rinfo)
                         #_(println :info_hash (.toString infohashB "hex"))
-                        (put! infohash| {:infohashB infohashB
-                                         :rinfo rinfo}))))
+                        (put! infohashes-from-listening| {:infohashB infohashB
+                                                          :rinfo rinfo}))))
 
                   :else
                   (do nil)))
