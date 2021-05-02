@@ -16,7 +16,8 @@
 
    [find.bittorrent.core :refer [hash-key-comparator-fn
                                  decode-nodes
-                                 decode-values]]))
+                                 decode-values
+                                 sorted-map-buffer]]))
 
 (defonce crypto (js/require "crypto"))
 (defonce net (js/require "net"))
@@ -89,36 +90,7 @@
 
 (defn find-metadata
   [{:keys [send-krpc-request socket routing-table  msg|mult node-idB infohashB cancel|]}]
-  (letfn [(sorted-map-buffer
-            [infohashB]
-            (let [collA (atom
-                         (sorted-map-by (hash-key-comparator-fn infohashB))
-                         #_(sorted-map-by
-                            (fn [id1 id2]
-                              (distance-compare
-                               (xor-distance infohashB (js/Buffer.from id1 "hex"))
-                               (xor-distance infohashB (js/Buffer.from id2 "hex")))
-                              #_(cond
-                                  (and (not (:idB node1)) (not (:idB node2))) 0
-                                  (and (not (:idB node1)) (:idB node2)) -1
-                                  (and (not (:idB node2)) (:idB node1)) 1
-                                  :else (distance-compare
-                                         (xor-distance infohashB (:idB node1))
-                                         (xor-distance infohashB (:idB node2)))))))]
-              (reify
-                clojure.core.async.impl.protocols/UnblockingBuffer
-                clojure.core.async.impl.protocols/Buffer
-                (full? [this] false)
-                (remove! [this]
-                  (let [[id node :as item] (first @collA)]
-                    (swap! collA dissoc id)
-                    item))
-                (add!* [this [id node]]
-                  (swap! collA assoc id node)
-                  this)
-                (close-buf! [this])
-                cljs.core/ICounted
-                (-count [this] (count @collA)))))]
+  (letfn []
     (go
       (let [seeders-countA (atom 0)
             result| (chan 1)
@@ -127,8 +99,19 @@
             seeder| (chan 1)
             cancel-channelsA (atom [])
 
-            nodes| (chan (sorted-map-buffer infohashB))
-            routing-table-nodes| (chan (sorted-map-buffer infohashB))
+            nodes| (chan (sorted-map-buffer (hash-key-comparator-fn infohashB)))
+            routing-table-nodes| (chan (sorted-map-buffer (hash-key-comparator-fn infohashB)
+                                                          #_(fn [id1 id2]
+                                                              (distance-compare
+                                                               (xor-distance infohashB (js/Buffer.from id1 "hex"))
+                                                               (xor-distance infohashB (js/Buffer.from id2 "hex")))
+                                                              #_(cond
+                                                                  (and (not (:idB node1)) (not (:idB node2))) 0
+                                                                  (and (not (:idB node1)) (:idB node2)) -1
+                                                                  (and (not (:idB node2)) (:idB node1)) 1
+                                                                  :else (distance-compare
+                                                                         (xor-distance infohashB (:idB node1))
+                                                                         (xor-distance infohashB (:idB node2)))))))
 
             _ (<! (a/onto-chan! routing-table-nodes| (sort-by first (hash-key-comparator-fn infohashB) routing-table) false))
 

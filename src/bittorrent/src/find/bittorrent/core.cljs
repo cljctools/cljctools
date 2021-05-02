@@ -151,4 +151,20 @@
                              (swap! requestsA dissoc txn-id))))
          response|)))))
 
-  
+(defn sorted-map-buffer
+  [comparator]
+  (let [collA (atom (sorted-map-by comparator))]
+    (reify
+      clojure.core.async.impl.protocols/UnblockingBuffer
+      clojure.core.async.impl.protocols/Buffer
+      (full? [this] false)
+      (remove! [this]
+        (let [[id node :as item] (first @collA)]
+          (swap! collA dissoc id)
+          item))
+      (add!* [this [id node]]
+        (swap! collA assoc id node)
+        this)
+      (close-buf! [this])
+      cljs.core/ICounted
+      (-count [this] (count @collA)))))

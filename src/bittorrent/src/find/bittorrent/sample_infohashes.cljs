@@ -29,8 +29,8 @@
   (let [stop| (chan 1)
         nodes| (chan 1
                      (comp
-                      (filter (fn [node]
-                                (not (get (:routing-table-sampled @stateA) (:id node)))))))]
+                      (filter (fn [[id node]]
+                                (not (get (:routing-table-sampled @stateA) id))))))]
     (pipe nodes-to-sample| nodes|)
 
     (go
@@ -53,8 +53,8 @@
                   (recur n n (js/Date.now) 0))
 
               nodes|
-              (let [node value]
-                (swap! stateA update-in [:routing-table-sampled] assoc (:id node) (merge node
+              (let [[id node] value]
+                (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
                                                                                          {:timestamp (js/Date.now)}))
                 (when-let [value (<! (send-krpc-request
                                       socket
@@ -74,7 +74,7 @@
                         (put! infohash| {:infohashB infohashB
                                          :rinfo rinfo})))
                     (when interval
-                      (swap! stateA update-in [:routing-table-sampled (:id node)] merge {:interval interval}))
+                      (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
                     #_(when nodes
                         (put! nodes-to-sample| nodes))))
 

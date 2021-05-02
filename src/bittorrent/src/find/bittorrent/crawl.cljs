@@ -18,7 +18,8 @@
                                  send-krpc-request-fn
                                  send-krpc
                                  encode-nodes
-                                 decode-nodes]]
+                                 decode-nodes
+                                 sorted-map-buffer]]
    [find.bittorrent.state-file :refer [save-state load-state]]
    [find.bittorrent.dht]
    [find.bittorrent.find-nodes]
@@ -48,7 +49,7 @@
 
           self-id (:self-id @stateA)
           self-idB (:self-idB @stateA)
-          
+
           port 6881
           address "0.0.0.0"
           socket (.createSocket dgram "udp4")
@@ -91,11 +92,11 @@
                                                      :socket socket
                                                      :routing-table-max-size 128})
 
-          nodes-to-sample| (chan (sliding-buffer 1024)
+          nodes-to-sample| (chan (sorted-map-buffer (hash-key-comparator-fn  self-idB))
                                  (filter valid-node?))
 
           _ (doseq [[id node] (take 8 (shuffle (:routing-table @stateA)))]
-              (>! nodes-to-sample| node))
+              (>! nodes-to-sample| [id node]))
 
           duration (* 10 60 1000)
           nodes-bootstrap [{:address "router.bittorrent.com"
@@ -260,7 +261,7 @@
             (let [nodes (decode-nodes nodesB)]
               (>! routing-table-nodes| nodes)
               (>! dht-keyspace-nodes| nodes)
-              (<! (a/onto-chan! nodes-to-sample| nodes false)))
+              (<! (a/onto-chan! nodes-to-sample| (map (fn [node] [(:id node) node]) nodes) false)))
             #_(println :nodes-count (count (:routing-table @stateA)))
             (recur))))
 
