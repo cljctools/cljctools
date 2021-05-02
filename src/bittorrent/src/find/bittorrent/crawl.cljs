@@ -93,7 +93,7 @@
                                                      :routing-table-max-size 128})
 
           nodes-to-sample| (chan (sorted-map-buffer (hash-key-comparator-fn  self-idB))
-                                 (filter valid-node?))
+                                 (filter (fn [[id node]] (valid-node? node))))
 
           _ (doseq [[id node] (take 8 (shuffle (:routing-table @stateA)))]
               (>! nodes-to-sample| [id node]))

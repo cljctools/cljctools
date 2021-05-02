@@ -210,18 +210,17 @@
                                  (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)
                                  #_(doseq [node nodes]
                                      (put! nodesB| node))))))
-                    (recur n (mod (inc i) 4) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
+                    (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
-          (loop [i 4
+          (loop [n 4
+                 i n
                  batch (transient [])]
             (when (= i 0)
               (<! (a/map (constantly nil) (persistent! batch)))
-              (recur 4
-                     (transient [])))
+              (recur n n (transient [])))
             (when-let [seeder (<! seeder|)]
-              (recur (mod (inc i) 4)
-                     (conj! batch (request-metadata* seeder))))))
+              (recur n (mod (inc i) n) (conj! batch (request-metadata* seeder))))))
 
         (alt!
           [(timeout (* 15 1000)) cancel|]
