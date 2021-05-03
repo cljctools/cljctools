@@ -168,3 +168,50 @@
       (close-buf! [this])
       cljs.core/ICounted
       (-count [this] (count @collA)))))
+
+
+(comment
+
+  (do
+    (defn hash-string
+      [letter]
+      (clojure.string/join "" (take 40 (repeatedly (constantly letter)))))
+
+    (def targetB (js/Buffer.from (hash-string "5")  "hex"))
+
+    (def sm (sorted-map-by (hash-key-distance-comparator-fn targetB)))
+
+    (def sm (->
+             (reduce
+              (fn [result letter]
+                (assoc result (hash-string letter) letter))
+              (sorted-map-by (hash-key-distance-comparator-fn targetB))
+              (shuffle ["0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "a" "b" "c" "d" "e" "f"]))
+             (assoc (hash-string "2") "2")))
+
+
+
+    (println (take 16 (vals sm))))
+
+  ;
+  )
+
+(comment
+
+  (.-length (js/Buffer.from (hash-string "5")   "hex"))
+
+  (def targetB (js/Buffer.from (hash-string "5")  "hex"))
+
+  (.toString (xor-distance targetB (js/Buffer.from (hash-string "4")  "hex")) "hex")
+  (.toString (xor-distance targetB (js/Buffer.from (hash-string "c")  "hex")) "hex")
+  (.toString (xor-distance targetB (js/Buffer.from (hash-string "5")  "hex")) "hex")
+  (.toString (xor-distance targetB (js/Buffer.from (hash-string "d")  "hex")) "hex")
+  
+  (js/Array.from (js/Buffer.from (hash-string "6")  "hex"))
+  (js/Array.from (js/Buffer.from (hash-string "5")  "hex"))
+  (js/Array.from (js/Buffer.from (hash-string "c")  "hex"))
+  
+  (js/Array.from (js/Buffer.from (hash-string "8")  "hex"))
+
+  ;
+  )
