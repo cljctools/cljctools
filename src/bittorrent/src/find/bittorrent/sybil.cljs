@@ -39,7 +39,7 @@
         port 6882
         address "0.0.0.0"
         socket (.createSocket dgram "udp4")
-        
+
         nodes| (chan (sliding-buffer 100000)
                      (comp
                       (filter (fn [node]
@@ -74,70 +74,70 @@
              (println ::socket-error)
              (println error))))
 
-    #_(go
-        (<! (a/onto-chan! sybils| (map (fn [i]
-                                         (.randomBytes crypto 20))
-                                       (range 0 (.. sybils| -buf -n))) true))
-        (doseq [node nodes-bootstrap]
-          (take!
-           (send-krpc-request
-            socket
-            (clj->js
-             {:t (.randomBytes crypto 4)
-              :y "q"
-              :q "find_node"
-              :a {:id self-idB
-                  :target (gen-neighbor-id self-idB (.randomBytes crypto 20))}})
-            (clj->js node)
-            (timeout 2000))
-           (fn [{:keys [msg rinfo] :as value}]
-             (when value
-               (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
-                 (let [nodes (decode-nodes nodesB)]
-                   (swap! routing-tableA merge (into {} (map (fn [node] [(:id node) node]) nodes)))
-                   (a/onto-chan! nodes| nodes false)))))))
+    (go
+      (<! (a/onto-chan! sybils| (map (fn [i]
+                                       (.randomBytes crypto 20))
+                                     (range 0 (.. sybils| -buf -n))) true))
+      (doseq [node nodes-bootstrap]
+        (take!
+         (send-krpc-request
+          socket
+          (clj->js
+           {:t (.randomBytes crypto 4)
+            :y "q"
+            :q "find_node"
+            :a {:id self-idB
+                :target (gen-neighbor-id self-idB (.randomBytes crypto 20))}})
+          (clj->js node)
+          (timeout 2000))
+         (fn [{:keys [msg rinfo] :as value}]
+           (when value
+             (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
+               (let [nodes (decode-nodes nodesB)]
+                 (swap! routing-tableA merge (into {} (map (fn [node] [(:id node) node]) nodes)))
+                 (a/onto-chan! nodes| nodes false)))))))
 
-        (loop [n 16
-               i n]
-          (let [timeout| (when (= i 0)
-                           (timeout 500))
-                [value port] (alts!
-                              (concat
-                               [stop|]
-                               (if timeout|
-                                 [timeout|]
-                                 [sybils|]))
-                              :priority true)]
-            (condp = port
+      (loop [n 16
+             i n]
+        (let [timeout| (when (= i 0)
+                         (timeout 500))
+              [value port] (alts!
+                            (concat
+                             [stop|]
+                             (if timeout|
+                               [timeout|]
+                               [sybils|]))
+                            :priority true)]
+          (condp = port
 
-              timeout|
-              (recur n n)
+            timeout|
+            (recur n n)
 
-              sybils|
-              (when-let [sybil-idB value]
-                (let [state @stateA
-                      [id node] (<! nodes|)]
-                  (swap! already-sybiledA assoc id true)
-                  (take!
-                   (send-krpc-request
-                    socket
-                    (clj->js
-                     {:t (.randomBytes crypto 4)
-                      :y "q"
-                      :q "find_node"
-                      :a {:id sybil-idB
-                          :target (gen-neighbor-id self-idB (.randomBytes crypto 20))}})
-                    (clj->js node)
-                    (timeout 2000))
-                   (fn [{:keys [msg rinfo] :as value}]
-                     (when value
-                       (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
-                         (let [nodes (decode-nodes nodesB)]
-                           (a/onto-chan! nodes| nodes false)))))))
-                (recur n (mod (inc i) n)))
+            sybils|
+            (when-let [sybil-idB value]
+              (let [state @stateA
+                    [id node] (<! nodes|)]
+                (swap! already-sybiledA assoc id true)
+                (take!
+                 (send-krpc-request
+                  socket
+                  (clj->js
+                   {:t (.randomBytes crypto 4)
+                    :y "q"
+                    :q "find_node"
+                    :a {:id sybil-idB
+                        :target (gen-neighbor-id (:idB node) self-idB)}})
+                  (clj->js node)
+                  (timeout 2000))
+                 (fn [{:keys [msg rinfo] :as value}]
+                   (when value
+                     (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
+                       (let [nodes (decode-nodes nodesB)]
+                         (a/onto-chan! nodes| nodes false)))))))
+              (recur n (mod (inc i) n)))
 
-              stop|
-              (do :stop)))))
+            stop|
+            (do :stop)))))
 
 
     (let [msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
@@ -173,7 +173,7 @@
                       {:t txn-idB
                        :y "r"
                        :r {:id (gen-neighbor-id node-idB self-idB)
-                           #_:nodes #_(encode-nodes (take 8 @routing-tableA))}})
+                           :nodes (encode-nodes (take 8 @routing-tableA))}})
                      rinfo)))
 
                 (and (= msg-y "q")  (= msg-q "get_peers"))

@@ -123,7 +123,7 @@
           count-messages-sybilA (atom 0)
           started-at (js/Date.now)
 
-          sybils| (chan 10000)
+          sybils| (chan 20000)
 
           procsA (atom [])
           stop (fn []
@@ -133,6 +133,7 @@
                  (close! torrent|)
                  (close! infohashes-from-sampling|)
                  (close! infohashes-from-listening|)
+                 (close! infohashes-from-sybil|)
                  (close! nodes-to-sample|)
                  (close! nodesB|)
                  (.close socket)
@@ -190,7 +191,7 @@
               (timeout (* 5 1000))
               ([_]
                (let [state @stateA]
-                 (pprint [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA)
+                 (pprint [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA @count-infohashes-from-sybilA)
                                         :sampling @count-infohashes-from-samplingA
                                         :listening @count-infohashes-from-listeningA
                                         :sybil @count-infohashes-from-sybilA]]

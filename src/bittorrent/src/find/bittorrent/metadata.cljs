@@ -242,6 +242,7 @@
            socket
            infohashes-from-sampling|
            infohashes-from-listening|
+           infohashes-from-sybil|
            torrent|
            msg|mult
 
@@ -253,7 +254,8 @@
         in-progress| (chan 80)]
     (go
       (loop []
-        (let [[value port] (alts! [infohashes-from-listening|
+        (let [[value port] (alts! [infohashes-from-sybil|
+                                   infohashes-from-listening|
                                    infohashes-from-sampling|]
                                   :priority true)]
           (when-let [{:keys [infohashB rinfo]} value]
