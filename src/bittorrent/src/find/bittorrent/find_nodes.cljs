@@ -11,7 +11,8 @@
    [goog.string.format :as format]
    [goog.string :refer [format]]
    [goog.object]
-   [cljs.reader :refer [read-string]]))
+   [cljs.reader :refer [read-string]]
+   [find.bittorrent.core :refer [decode-nodes]]))
 
 (defonce crypto (js/require "crypto"))
 
@@ -143,30 +144,81 @@
         (do :stop)))))
 
 (defn start-sybil
-  []
-  #_(let [stop| (chan 1)]
-      (swap! procsA conj stop|)
-      (go
-        (loop [timeout| (timeout 2000)]
-          (alt!
+  [{:as opts
+    :keys [stateA
+           self-idB
+           send-krpc-request
+           socket
+           nodes-bootstrap
+           nodesB|
+           stop|
+           sybils|]}]
+  (let [already-sybiledA (atom {})
+        nodes| (chan (sliding-buffer 100000)
+                     (comp
+                      (map (fn [node] [(:id node) node]))
+                      (filter (fn [[id node]] (not (get @already-sybiledA id))))))]
+    (go
+      (<! (a/onto-chan! sybils| (map (fn [i]
+                                       (.randomBytes crypto 20))
+                                     (range 0 (.. sybils| -buf -n))) true))
+      (let [targetB (.randomBytes crypto 20)]
+        (doseq [node nodes-bootstrap]
+          (take!
+           (send-krpc-request
+            socket
+            (clj->js
+             {:t (.randomBytes crypto 4)
+              :y "q"
+              :q "find_node"
+              :a {:id self-idB
+                  :target targetB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+            (clj->js node)
+            (timeout 2000))
+           (fn [{:keys [msg rinfo] :as value}]
+             (when value
+               (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
+                 (let [nodes (decode-nodes nodesB)]
+                   (a/onto-chan! nodes| nodes false))))))))
+
+      (loop [n 8
+             i n]
+        (let [timeout| (when (= i 0)
+                         (timeout 1000))
+              [value port] (alts!
+                            (concat
+                             [stop|]
+                             (if timeout|
+                               [timeout|]
+                               [sybils|]))
+                            :priority true)]
+          (condp = port
+
             timeout|
-            ([_]
-             (doseq [[id node] (->>
-                                (sequence
-                                 (comp
-                                  (filter (fn [[id node]] (not (get (:routing-table-find-noded @stateA) id))))
-                                  (take 16))
-                                 (:routing-table @stateA))
-                                (shuffle))]
-               (swap! stateA update-in [:routing-table-find-noded] assoc id {:node node
-                                                                             :timestamp (js/Date.now)})
-               (send-find-node
-                socket
-                (clj->js
-                 node)
-                (gen-neighbor-id (:idB node) (:self-idB @stateA))))
-             (recur (timeout (* 5 1000))))
+            (recur n n)
+
+            sybils|
+            (when-let [sybil-idB value]
+              (let [state @stateA
+                    [id node] (<! nodes|)]
+                (swap! already-sybiledA assoc id true)
+                (take!
+                 (send-krpc-request
+                  socket
+                  (clj->js
+                   {:t (.randomBytes crypto 4)
+                    :y "q"
+                    :q "find_node"
+                    :a {:id sybil-idB
+                        :target sybil-idB #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}})
+                  (clj->js node)
+                  (timeout 2000))
+                 (fn [{:keys [msg rinfo] :as value}]
+                   (when value
+                     (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
+                       (let [nodes (decode-nodes nodesB)]
+                         (a/onto-chan! nodes| nodes false)))))))
+              (recur n (mod (inc i) n)))
 
             stop|
-            (do :stop)))
-        (println :proc-sybil-exits))))
+            (do :stop)))))))

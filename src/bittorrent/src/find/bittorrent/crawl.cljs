@@ -116,6 +116,8 @@
           count-messagesA (atom 0)
           started-at (js/Date.now)
 
+          sybils| (chan 4000)
+
           procsA (atom [])
           stop (fn []
                  (doseq [stop| @procsA]
@@ -194,6 +196,7 @@
                           [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
                           [:routing-table-find-noded  (count (:routing-table-find-noded state))]
                           [:routing-table-sampled (count (:routing-table-sampled state))]
+                          [:sybils| (str (- (.. sybils| -buf -n) (count (.-buf sybils|))) "/" (.. sybils| -buf -n))]
                           [:time (str (int (/ (- (js/Date.now) started-at) 1000 60)) "min")]]))
                (recur))
 
@@ -267,6 +270,18 @@
           :nodesB| nodesB|
           :stop| stop|}))
 
+      ; start sybil
+      #_(let [stop| (chan 1)]
+          (swap! procsA conj stop|)
+          (find.bittorrent.find-nodes/start-sybil
+           {:stateA stateA
+            :self-idB self-idB
+            :send-krpc-request send-krpc-request
+            :nodes-bootstrap nodes-bootstrap
+            :socket socket
+            :sybils| sybils|
+            :stop| stop|}))
+
       ; add new nodes to routing table
       (go
         (loop []
@@ -279,14 +294,14 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      (find.bittorrent.sample-infohashes/start-sampling
-       {:stateA stateA
-        :self-idB self-idB
-        :send-krpc-request send-krpc-request
-        :socket socket
-        :infohash| infohashes-from-sampling|
-        :nodes-to-sample| nodes-to-sample|})
-      
+      #_(find.bittorrent.sample-infohashes/start-sampling
+         {:stateA stateA
+          :self-idB self-idB
+          :send-krpc-request send-krpc-request
+          :socket socket
+          :infohash| infohashes-from-sampling|
+          :nodes-to-sample| nodes-to-sample|})
+
       ; discovery
       (find.bittorrent.metadata/start-discovery
        {:stateA stateA

@@ -213,7 +213,7 @@
                     (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
-          (loop [n 5
+          (loop [n 4
                  i n
                  batch (transient [])]
             (when (= i 0)
@@ -250,7 +250,7 @@
 
   (let [in-processA (atom {})
         already-searchedA (atom #{})
-        in-progress| (chan 50)]
+        in-progress| (chan 80)]
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-listening|
