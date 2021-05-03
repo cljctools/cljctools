@@ -23,6 +23,7 @@
    [find.bittorrent.state-file :refer [save-state load-state]]
    [find.bittorrent.dht]
    [find.bittorrent.find-nodes]
+   [find.bittorrent.sybil]
    [find.bittorrent.metadata]
    [find.bittorrent.sample-infohashes]))
 
@@ -60,8 +61,12 @@
           torrent|mult (mult torrent|)
           infohashes-from-sampling| (chan (sliding-buffer 100000))
           infohashes-from-listening| (chan (sliding-buffer 100000))
+          infohashes-from-sybil| (chan (sliding-buffer 100000))
+
           infohashes-from-sampling|mult (mult infohashes-from-sampling|)
           infohashes-from-listening|mult (mult infohashes-from-listening|)
+          infohashes-from-sybil|mult (mult infohashes-from-sybil|)
+
           nodesB| (chan (sliding-buffer 100))
 
           send-krpc-request (send-krpc-request-fn {:msg|mult msg|mult})
@@ -111,12 +116,14 @@
           count-torrentsA (atom 0)
           count-infohashes-from-samplingA (atom 0)
           count-infohashes-from-listeningA (atom 0)
+          count-infohashes-from-sybilA (atom 0)
           count-discoveryA (atom 0)
           count-discovery-activeA (atom 0)
           count-messagesA (atom 0)
+          count-messages-sybilA (atom 0)
           started-at (js/Date.now)
 
-          sybils| (chan 4000)
+          sybils| (chan 10000)
 
           procsA (atom [])
           stop (fn []
@@ -185,12 +192,13 @@
                (let [state @stateA]
                  (pprint [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA)
                                         :sampling @count-infohashes-from-samplingA
-                                        :listening @count-infohashes-from-listeningA]]
+                                        :listening @count-infohashes-from-listeningA
+                                        :sybil @count-infohashes-from-sybilA]]
                           [:discovery [:total @count-discoveryA
                                        :active @count-discovery-activeA]]
                           [:torrents @count-torrentsA]
                           [:nodes-to-sample| (count (.-buf nodes-to-sample|))]
-                          [:messages @count-messagesA]
+                          [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
                           [:sockets @find.bittorrent.metadata/count-socketsA]
                           [:routing-table (count (:routing-table state))]
                           [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
@@ -206,11 +214,13 @@
       ; count
       (let [infohashes-from-sampling|tap (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
             infohashes-from-listening|tap (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
+            infohashes-from-sybil|tap (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))
             torrent|tap (tap torrent|mult (chan (sliding-buffer 100)))]
         (go
           (loop []
             (let [[value port] (alts! [infohashes-from-sampling|tap
                                        infohashes-from-listening|tap
+                                       infohashes-from-sybil|tap
                                        torrent|tap])]
               (when value
                 (condp = port
@@ -219,6 +229,9 @@
 
                   infohashes-from-listening|tap
                   (swap! count-infohashes-from-listeningA inc)
+
+                  infohashes-from-sybil|tap
+                  (swap! count-infohashes-from-sybilA inc)
 
                   torrent|tap
                   (swap! count-torrentsA inc))
@@ -271,16 +284,15 @@
           :stop| stop|}))
 
       ; start sybil
-      #_(let [stop| (chan 1)]
-          (swap! procsA conj stop|)
-          (find.bittorrent.find-nodes/start-sybil
-           {:stateA stateA
-            :self-idB self-idB
-            :send-krpc-request send-krpc-request
-            :nodes-bootstrap nodes-bootstrap
-            :socket socket
-            :sybils| sybils|
-            :stop| stop|}))
+      (let [stop| (chan 1)]
+        (swap! procsA conj stop|)
+        (find.bittorrent.sybil/start
+         {:stateA stateA
+          :nodes-bootstrap nodes-bootstrap
+          :sybils| sybils|
+          :infohash| infohashes-from-sybil|
+          :stop| stop|
+          :count-messages-sybilA count-messages-sybilA}))
 
       ; add new nodes to routing table
       (go
@@ -311,6 +323,7 @@
         :socket socket
         :infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
         :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
+        :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))
         :torrent| torrent|
         :msg|mult msg|mult
         :count-discoveryA count-discoveryA
@@ -352,7 +365,7 @@
                        (clj->js
                         {:t txn-idB
                          :y "r"
-                         :r {:id (:self-idB @stateA) #_(gen-neighbor-id node-idB (:self-idB @stateA))}})
+                         :r {:id self-idB #_(gen-neighbor-id node-idB (:self-idB @stateA))}})
                        rinfo)))
 
                   (and (= msg-y "q")  (= msg-q "find_node"))
