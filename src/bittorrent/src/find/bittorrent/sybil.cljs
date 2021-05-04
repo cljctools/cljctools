@@ -76,8 +76,8 @@
 
     (go
       (<! (onto-chan! sybils| (map (fn [i]
-                                       (.randomBytes crypto 20))
-                                     (range 0 (.. sybils| -buf -n))) true))
+                                     (.randomBytes crypto 20))
+                                   (range 0 (.. sybils| -buf -n))) true))
       (doseq [node nodes-bootstrap]
         (take!
          (send-krpc-request

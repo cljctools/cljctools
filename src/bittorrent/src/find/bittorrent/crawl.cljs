@@ -60,14 +60,14 @@
           torrent| (chan (sliding-buffer 100))
           torrent|mult (mult torrent|)
 
-          unique-infohashsesA (atom {})
+          unique-infohashsesA (atom #{})
           xf-infohash (comp
                        (map (fn [{:keys [infohashB] :as value}]
                               (assoc value :infohash (.toString infohashB "hex"))))
                        (filter (fn [{:keys [infohash]}]
                                  (not (get @unique-infohashsesA infohash))))
                        (map (fn [{:keys [infohash] :as value}]
-                              (swap! unique-infohashsesA assoc infohash true)
+                              (swap! unique-infohashsesA conj infohash)
                               value)))
 
           infohashes-from-sampling| (chan (sliding-buffer 100000) xf-infohash)
@@ -109,12 +109,23 @@
                                                      :send-krpc-request send-krpc-request
                                                      :socket socket
                                                      :routing-table-max-size 128})
+          xf-node-for-sampling? (comp
+                                 (filter valid-node?)
+                                 (filter (fn [node] (not (get (:routing-table-sampled @stateA) (:id node)))))
+                                 (map (fn [node] [(:id node) node])))
 
           nodes-to-sample| (chan (sorted-map-buffer (hash-key-distance-comparator-fn  self-idB))
-                                 (filter (fn [[id node]] (valid-node? node))))
+                                 xf-node-for-sampling?)
 
-          _ (doseq [[id node] (take 8 (shuffle (:routing-table @stateA)))]
-              (>! nodes-to-sample| [id node]))
+          nodes-from-sampling| (chan (sorted-map-buffer (hash-key-distance-comparator-fn  self-idB))
+                                     xf-node-for-sampling?)
+
+          _ (<! (onto-chan! nodes-to-sample|
+                            (->> (:routing-table @stateA)
+                                 (shuffle)
+                                 (take 8)
+                                 (map second))
+                            false))
 
           duration (* 10 60 1000)
           nodes-bootstrap [{:address "router.bittorrent.com"
@@ -209,7 +220,7 @@
                           [:discovery [:total @count-discoveryA
                                        :active @count-discovery-activeA]]
                           [:torrents @count-torrentsA]
-                          [:nodes-to-sample| (count (.-buf nodes-to-sample|))]
+                          [:nodes-to-sample| (count (.-buf nodes-to-sample|)) :nodes-from-sampling| (count (.-buf nodes-from-sampling|))]
                           [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
                           [:sockets @find.bittorrent.metadata/count-socketsA]
                           [:routing-table (count (:routing-table state))]
@@ -296,15 +307,15 @@
           :stop| stop|}))
 
       ; start sybil
-      (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
-        (find.bittorrent.sybil/start
-         {:stateA stateA
-          :nodes-bootstrap nodes-bootstrap
-          :sybils| sybils|
-          :infohash| infohashes-from-sybil|
-          :stop| stop|
-          :count-messages-sybilA count-messages-sybilA}))
+      #_(let [stop| (chan 1)]
+          (swap! procsA conj stop|)
+          (find.bittorrent.sybil/start
+           {:stateA stateA
+            :nodes-bootstrap nodes-bootstrap
+            :sybils| sybils|
+            :infohash| infohashes-from-sybil|
+            :stop| stop|
+            :count-messages-sybilA count-messages-sybilA}))
 
       ; add new nodes to routing table
       (go
@@ -313,18 +324,19 @@
             (let [nodes (decode-nodes nodesB)]
               (>! routing-table-nodes| nodes)
               (>! dht-keyspace-nodes| nodes)
-              (<! (onto-chan! nodes-to-sample| (map (fn [node] [(:id node) node]) nodes) false)))
+              (<! (onto-chan! nodes-to-sample| nodes false)))
             #_(println :nodes-count (count (:routing-table @stateA)))
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      #_(find.bittorrent.sample-infohashes/start-sampling
-         {:stateA stateA
-          :self-idB self-idB
-          :send-krpc-request send-krpc-request
-          :socket socket
-          :infohash| infohashes-from-sampling|
-          :nodes-to-sample| nodes-to-sample|})
+      (find.bittorrent.sample-infohashes/start-sampling
+       {:stateA stateA
+        :self-idB self-idB
+        :send-krpc-request send-krpc-request
+        :socket socket
+        :infohash| infohashes-from-sampling|
+        :nodes-to-sample| nodes-to-sample|
+        :nodes-from-sampling| nodes-from-sampling|})
 
       ; discovery
       (find.bittorrent.metadata/start-discovery
