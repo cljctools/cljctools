@@ -102,6 +102,11 @@
                          (not= (:address node) "0.0.0.0")
                          (< 0 (:port node) 65536)))
 
+            unique-seedersA (atom {})
+
+            unique-seeder? (fn [[id node]]
+                             (not (get @unique-seedersA id)))
+            
             seeders| (chan (sliding-buffer 256))
             nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)))
             nodes-seeders| (chan (sliding-buffer 256))
@@ -190,7 +195,7 @@
                   (= port seeders|)
                   (let [seeders value]
                     (swap! seeders-countA + (count seeders))
-                    (doseq [seeder seeders]
+                    (doseq [[id seeder] seeders]
                       (>! seeder| seeder))
                     (recur n i ts time-total))
 
@@ -207,9 +212,13 @@
                                values
                                (let [seeders (->>
                                               (decode-values values)
-                                              (filter valid-ip?))]
+                                              (sequence
+                                               (comp
+                                                (filter valid-ip?)
+                                                (map (fn [node] [[(:port node) (:address node)] node]))
+                                                (filter unique-seeder?))))]
                                  (put! seeders| seeders)
-                                 (onto-chan! nodes-seeders| (map (fn [node] [nil node]) seeders) false))
+                                 (onto-chan! nodes-seeders| seeders false))
 
                                nodes
                                (let [nodes (->>
