@@ -89,7 +89,7 @@
          value)))))
 
 (defn find-metadata
-  [{:keys [ send-krpc-request socket routing-table  msg|mult self-idB infohashB cancel|]}]
+  [{:keys [ send-krpc-request socket routing-table  msg|mult self-idB self-id infohashB cancel|]}]
   (letfn []
     (go
       (let [seeders-countA (atom 0)
@@ -98,7 +98,7 @@
 
             valid-ip? (fn [node]
                         (and
-                         (not= self-idB (:self-idB node))
+                         (not= self-id (:self-id node))
                          (not= (:address node) "0.0.0.0")
                          (< 0 (:port node) 65536)))
 
@@ -167,7 +167,6 @@
             release (fn []
                       (doseq [stop| @procsA]
                         (close! stop|))
-                      (close! nodesB|)
                       (close! seeders|)
                       (close! seeder|)
                       (close! nodes|)
@@ -273,47 +272,47 @@
                                    infohashes-from-listening|
                                    infohashes-from-sampling|]
                                   :priority true)]
-          (when-let [{:keys [infohashB rinfo]} value]
-            (let [infohash (.toString infohashB "hex")]
-              (when-not (or (get @in-processA infohash)
-                            (get @already-searchedA infohash))
-                (>! in-progress| infohashB)
-                (let [state @stateA
-                      closest-key (->>
-                                   (keys (:dht-keyspace state))
-                                   (concat [self-id])
-                                   (sort-by identity (hash-key-distance-comparator-fn infohashB))
-                                   (first))
-                      closest-routing-table (if (= closest-key self-id)
-                                              (:routing-table state)
-                                              (get (:dht-keyspace state) closest-key))
-                      find_metadata| (find-metadata {:routing-table closest-routing-table
-                                                     :socket socket
-                                                     :send-krpc-request send-krpc-request
-                                                     :msg|mult msg|mult
-                                                     :self-idB self-idB
-                                                     :infohashB infohashB
-                                                     :cancel| (chan 1)})]
-                  (swap! in-processA assoc infohash find_metadata|)
-                  (swap! already-searchedA conj infohash)
-                  (swap! count-discoveryA inc)
-                  (swap! count-discovery-activeA inc)
-                  #_(let [metadata (<! find_metadata|)]
-                      (when metadata
-                        (put! torrent| metadata)
-                        (pprint (select-keys metadata [:seeder-count])))
-                      (swap! count-discovery-activeA dec)
-                      (swap! in-processA dissoc infohash)
-                      (println :dicovery-done))
-                  (take! find_metadata|
-                         (fn [metadata]
-                           (when metadata
-                             (put! torrent| metadata)
-                             #_(pprint (select-keys metadata [:seeder-count])))
-                           (take! in-progress| (constantly nil))
+          (when-let [{:keys [infohash infohashB rinfo]} value]
+            (when-not (or (get @in-processA infohash)
+                          (get @already-searchedA infohash))
+              (>! in-progress| infohashB)
+              (let [state @stateA
+                    closest-key (->>
+                                 (keys (:dht-keyspace state))
+                                 (concat [self-id])
+                                 (sort-by identity (hash-key-distance-comparator-fn infohashB))
+                                 (first))
+                    closest-routing-table (if (= closest-key self-id)
+                                            (:routing-table state)
+                                            (get (:dht-keyspace state) closest-key))
+                    find_metadata| (find-metadata {:routing-table closest-routing-table
+                                                   :socket socket
+                                                   :send-krpc-request send-krpc-request
+                                                   :msg|mult msg|mult
+                                                   :self-idB self-idB
+                                                   :self-id self-id
+                                                   :infohashB infohashB
+                                                   :cancel| (chan 1)})]
+                (swap! in-processA assoc infohash find_metadata|)
+                (swap! already-searchedA conj infohash)
+                (swap! count-discoveryA inc)
+                (swap! count-discovery-activeA inc)
+                #_(let [metadata (<! find_metadata|)]
+                    (when metadata
+                      (put! torrent| metadata)
+                      (pprint (select-keys metadata [:seeder-count])))
+                    (swap! count-discovery-activeA dec)
+                    (swap! in-processA dissoc infohash)
+                    (println :dicovery-done))
+                (take! find_metadata|
+                       (fn [metadata]
+                         (when metadata
+                           (put! torrent| metadata)
+                           #_(pprint (select-keys metadata [:seeder-count])))
+                         (take! in-progress| (constantly nil))
 
-                           (swap! count-discovery-activeA dec)
-                           (swap! in-processA dissoc infohash))))))
+                         (swap! count-discovery-activeA dec)
+                         (swap! in-processA dissoc infohash)))))
             (recur)))))))
 
 #_(defn request-metadata-multiple

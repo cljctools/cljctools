@@ -134,7 +134,7 @@
           count-messages-sybilA (atom 0)
           started-at (js/Date.now)
 
-          sybils| (chan 20000)
+          sybils| (chan 30000)
 
           procsA (atom [])
           stop (fn []
