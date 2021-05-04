@@ -108,12 +108,12 @@
                              (not (get @unique-seedersA seeder)))
 
             seeders| (chan (sliding-buffer 256))
-            nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)))
+            nodes| (chan (sorted-map-buffer 1024 (hash-key-distance-comparator-fn infohashB)))
             nodes-seeders| (chan (sliding-buffer 256))
             seeder| (chan 1)
 
 
-            routing-table-nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)
+            routing-table-nodes| (chan (sorted-map-buffer 128 (hash-key-distance-comparator-fn infohashB)
                                                           #_(fn [id1 id2]
                                                               (distance-compare
                                                                (xor-distance infohashB (js/Buffer.from id1 "hex"))

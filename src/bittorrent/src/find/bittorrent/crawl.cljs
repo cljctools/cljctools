@@ -114,10 +114,10 @@
                                  (filter (fn [node] (not (get (:routing-table-sampled @stateA) (:id node)))))
                                  (map (fn [node] [(:id node) node])))
 
-          nodes-to-sample| (chan (sorted-map-buffer (hash-key-distance-comparator-fn  self-idB))
+          nodes-to-sample| (chan (sorted-map-buffer 10000 (hash-key-distance-comparator-fn  self-idB))
                                  xf-node-for-sampling?)
 
-          nodes-from-sampling| (chan (sorted-map-buffer (hash-key-distance-comparator-fn  self-idB))
+          nodes-from-sampling| (chan (sorted-map-buffer 10000 (hash-key-distance-comparator-fn  self-idB))
                                      xf-node-for-sampling?)
 
           _ (<! (onto-chan! nodes-to-sample|
@@ -204,7 +204,13 @@
 
 
       ; print info
-      (let [stop| (chan 1)]
+      (let [stop| (chan 1)
+            filepath (.join path data-dir "state/" "find.bittorrent.crawl-log.edn")
+            _ (.removeSync fs filepath)
+            _ (.ensureFileSync fs filepath)
+            write-stream (.createWriteStream fs filepath #js {:flags "a"})
+            release (fn []
+                      (.end write-stream))]
         (swap! procsA conj stop|)
         (go
           (loop []
@@ -212,27 +218,31 @@
 
               (timeout (* 5 1000))
               ([_]
-               (let [state @stateA]
-                 (pprint [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA @count-infohashes-from-sybilA)
-                                        :sampling @count-infohashes-from-samplingA
-                                        :listening @count-infohashes-from-listeningA
-                                        :sybil @count-infohashes-from-sybilA]]
-                          [:discovery [:total @count-discoveryA
-                                       :active @count-discovery-activeA]]
-                          [:torrents @count-torrentsA]
-                          [:nodes-to-sample| (count (.-buf nodes-to-sample|)) :nodes-from-sampling| (count (.-buf nodes-from-sampling|))]
-                          [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
-                          [:sockets @find.bittorrent.metadata/count-socketsA]
-                          [:routing-table (count (:routing-table state))]
-                          [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
-                          [:routing-table-find-noded  (count (:routing-table-find-noded state))]
-                          [:routing-table-sampled (count (:routing-table-sampled state))]
-                          [:sybils| (str (- (.. sybils| -buf -n) (count (.-buf sybils|))) "/" (.. sybils| -buf -n))]
-                          [:time (str (int (/ (- (js/Date.now) started-at) 1000 60)) "min")]]))
+               (let [state @stateA
+                     info [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA @count-infohashes-from-sybilA)
+                                         :sampling @count-infohashes-from-samplingA
+                                         :listening @count-infohashes-from-listeningA
+                                         :sybil @count-infohashes-from-sybilA]]
+                           [:discovery [:total @count-discoveryA
+                                        :active @count-discovery-activeA]]
+                           [:torrents @count-torrentsA]
+                           [:nodes-to-sample| (count (.-buf nodes-to-sample|)) :nodes-from-sampling| (count (.-buf nodes-from-sampling|))]
+                           [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
+                           [:sockets @find.bittorrent.metadata/count-socketsA]
+                           [:routing-table (count (:routing-table state))]
+                           [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
+                           [:routing-table-find-noded  (count (:routing-table-find-noded state))]
+                           [:routing-table-sampled (count (:routing-table-sampled state))]
+                           [:sybils| (str (- (.. sybils| -buf -n) (count (.-buf sybils|))) "/" (.. sybils| -buf -n))]
+                           [:time (str (int (/ (- (js/Date.now) started-at) 1000 60)) "min")]]]
+                 (pprint info)
+                 (.write write-stream (with-out-str (pprint info)))
+                 (.write write-stream "\n"))
                (recur))
 
               stop|
-              (do :stop)))))
+              (do :stop)))
+          (release)))
 
       ; count
       (let [infohashes-from-sampling|tap (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))

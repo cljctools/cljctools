@@ -152,7 +152,8 @@
          response|)))))
 
 (defn sorted-map-buffer
-  [comparator]
+  "sliding according to comparator sorted-map buffer"
+  [n comparator]
   (let [collA (atom (sorted-map-by comparator))]
     (reify
       clojure.core.async.impl.protocols/UnblockingBuffer
@@ -164,6 +165,8 @@
           item))
       (add!* [this [id node]]
         (swap! collA assoc id node)
+        (when (> (count @collA) n)
+          (swap! collA dissoc (key (last @collA))))
         this)
       (close-buf! [this])
       cljs.core/ICounted
