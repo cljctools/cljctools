@@ -59,9 +59,20 @@
           msg|mult (mult msg|)
           torrent| (chan (sliding-buffer 100))
           torrent|mult (mult torrent|)
-          infohashes-from-sampling| (chan (sliding-buffer 100000))
-          infohashes-from-listening| (chan (sliding-buffer 100000))
-          infohashes-from-sybil| (chan (sliding-buffer 100000))
+
+          unique-infohashsesA (atom {})
+          xf-infohash (comp
+                       (map (fn [{:keys [infohashB] :as value}]
+                              (assoc value :infohash (.toString infohashB "hex"))))
+                       (filter (fn [{:keys [infohash]}]
+                                 (not (get @unique-infohashsesA infohash))))
+                       (map (fn [{:keys [infohash] :as value}]
+                              (swap! unique-infohashsesA assoc infohash true)
+                              value)))
+
+          infohashes-from-sampling| (chan (sliding-buffer 100000) xf-infohash)
+          infohashes-from-listening| (chan (sliding-buffer 100000) xf-infohash)
+          infohashes-from-sybil| (chan (sliding-buffer 100000) xf-infohash)
 
           infohashes-from-sampling|mult (mult infohashes-from-sampling|)
           infohashes-from-listening|mult (mult infohashes-from-listening|)
