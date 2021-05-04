@@ -32,7 +32,7 @@
 (defn request-metadata
   [{:keys [address port]} idB infohashB cancel|]
   (go
-    (let [time-out 5000
+    (let [timeout| (timeout 4000)
           error| (chan 1)
           result| (chan 1)
           socket (net.Socket.)
@@ -49,7 +49,7 @@
         (.on "timeout" (fn []
                          #_(println "request-metadata-socket timeout")
                          (close! error|)))
-        (.setTimeout 1500))
+        (.setTimeout 2000))
       (.connect socket port address
                 (fn []
                   (let [wire (BittorrrentProtocol.)]
@@ -78,8 +78,8 @@
                              (put! result| metadata)))))))
       (alt!
 
-        [(timeout time-out) cancel| error|]
-        ([_ _]
+        [timeout| cancel| error|]
+        ([value port]
          (release)
          nil)
 
@@ -174,7 +174,7 @@
                         (close! cancel|)))]
 
         (go
-          (loop [n 6
+          (loop [n 8
                  i n
                  ts (js/Date.now)
                  time-total 0]
@@ -227,7 +227,7 @@
                     (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
-          (loop [n 5
+          (loop [n 8
                  i n
                  batch (transient [])]
             (when (= i 0)
@@ -269,8 +269,8 @@
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-sybil|
-                                   infohashes-from-listening|
-                                   infohashes-from-sampling|]
+                                   infohashes-from-sampling|
+                                   infohashes-from-listening|]
                                   :priority true)]
           (when-let [{:keys [infohash infohashB rinfo]} value]
             (when-not (or (get @in-processA infohash)
