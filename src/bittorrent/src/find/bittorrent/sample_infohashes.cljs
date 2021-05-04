@@ -29,8 +29,8 @@
            socket]}]
   (let [stop| (chan 1)
 
-        node-to-sample| (chan 1)
-        node-from-sampling| (chan 1)]
+        node-to-sample| (chan 32)
+        node-from-sampling| (chan 32)]
 
     (pipe nodes-to-sample| node-to-sample| true)
     (pipe nodes-from-sampling| node-from-sampling| true)
