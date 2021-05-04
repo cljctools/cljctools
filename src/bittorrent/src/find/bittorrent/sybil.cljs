@@ -1,6 +1,6 @@
 (ns find.bittorrent.sybil
   (:require
-   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
+   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
@@ -75,7 +75,7 @@
              (println error))))
 
     (go
-      (<! (a/onto-chan! sybils| (map (fn [i]
+      (<! (onto-chan! sybils| (map (fn [i]
                                        (.randomBytes crypto 20))
                                      (range 0 (.. sybils| -buf -n))) true))
       (doseq [node nodes-bootstrap]
@@ -95,7 +95,7 @@
              (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
                (let [nodes (decode-nodes nodesB)]
                  (swap! routing-tableA merge (into {} (map (fn [node] [(:id node) node]) nodes)))
-                 (a/onto-chan! nodes| nodes false)))))))
+                 (onto-chan! nodes| nodes false)))))))
 
       (loop [n 16
              i n]
@@ -133,7 +133,7 @@
                    (when value
                      (when-let [nodesB (goog.object/getValueByKeys msg "r" "nodes")]
                        (let [nodes (decode-nodes nodesB)]
-                         (a/onto-chan! nodes| nodes false)))))))
+                         (onto-chan! nodes| nodes false)))))))
               (recur n (mod (inc i) n)))
 
             stop|

@@ -1,6 +1,6 @@
 (ns find.bittorrent.crawl
   (:require
-   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
+   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
@@ -313,7 +313,7 @@
             (let [nodes (decode-nodes nodesB)]
               (>! routing-table-nodes| nodes)
               (>! dht-keyspace-nodes| nodes)
-              (<! (a/onto-chan! nodes-to-sample| (map (fn [node] [(:id node) node]) nodes) false)))
+              (<! (onto-chan! nodes-to-sample| (map (fn [node] [(:id node) node]) nodes) false)))
             #_(println :nodes-count (count (:routing-table @stateA)))
             (recur))))
 

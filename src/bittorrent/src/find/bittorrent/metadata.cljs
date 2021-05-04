@@ -1,6 +1,6 @@
 (ns find.bittorrent.metadata
   (:require
-   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
+   [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
@@ -89,17 +89,25 @@
          value)))))
 
 (defn find-metadata
-  [{:keys [send-krpc-request socket routing-table  msg|mult node-idB infohashB cancel|]}]
+  [{:keys [ send-krpc-request socket routing-table  msg|mult self-idB infohashB cancel|]}]
   (letfn []
     (go
       (let [seeders-countA (atom 0)
             result| (chan 1)
-            nodesB| (chan (sliding-buffer 256))
-            seeders| (chan 1)
-            seeder| (chan 1)
             cancel-channelsA (atom [])
 
+            valid-ip? (fn [node]
+                        (and
+                         (not= self-idB (:self-idB node))
+                         (not= (:address node) "0.0.0.0")
+                         (< 0 (:port node) 65536)))
+
+            seeders| (chan (sliding-buffer 256))
             nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)))
+            nodes-seeders| (chan (sliding-buffer 256))
+            seeder| (chan 1)
+
+
             routing-table-nodes| (chan (sorted-map-buffer (hash-key-distance-comparator-fn infohashB)
                                                           #_(fn [id1 id2]
                                                               (distance-compare
@@ -113,7 +121,7 @@
                                                                          (xor-distance infohashB (:idB node1))
                                                                          (xor-distance infohashB (:idB node2)))))))
 
-            _ (<! (a/onto-chan! routing-table-nodes| (sort-by first (hash-key-distance-comparator-fn infohashB) routing-table) false))
+            _ (<! (onto-chan! routing-table-nodes| (sort-by first (hash-key-distance-comparator-fn infohashB) routing-table) false))
 
             send-get-peers (fn [node]
                              (go
@@ -124,7 +132,7 @@
                                    {:t (.randomBytes crypto 4)
                                     :y "q"
                                     :q "get_peers"
-                                    :a {:id node-idB
+                                    :a {:id self-idB
                                         :info_hash infohashB}})
                                   (clj->js node)
                                   (timeout 2000))
@@ -137,7 +145,7 @@
                                 (let [cancel| (chan 1)
                                       out| (chan 1)]
                                   (swap! cancel-channelsA conj cancel|)
-                                  (take! (request-metadata node node-idB infohashB cancel|)
+                                  (take! (request-metadata node self-idB infohashB cancel|)
                                          (fn [metadata]
                                            (when metadata
                                              (let [result (merge
@@ -148,9 +156,7 @@
                                                (put! out| result)))
                                            (close! out|)))
                                   out|))
-            valid-ip? (fn [node]
-                        (and (not= (:address node) "0.0.0.0")
-                             (< 0 (:port node) 65536)))
+
 
             procsA (atom [])
             release (fn []
@@ -174,7 +180,8 @@
                                        [seeders|]
                                        (if timeout|
                                          [timeout|]
-                                         [nodes|
+                                         [#_nodes-seeders|
+                                          nodes|
                                           routing-table-nodes|]))
                                       :priority true)]
               (when (or value (= port timeout|))
@@ -192,7 +199,7 @@
                     :cool-down
                     (recur n n (js/Date.now) 0))
 
-                  (or (= port nodes|) (= port routing-table-nodes|))
+                  (or (= port nodes|) (= port routing-table-nodes|) (= port nodes-seeders|))
                   (let [[id node] value]
                     (take! (send-get-peers node)
                            (fn [{:keys [token values nodes]}]
@@ -201,15 +208,14 @@
                                (let [seeders (->>
                                               (decode-values values)
                                               (filter valid-ip?))]
-                                 (put! seeders| seeders))
+                                 (put! seeders| seeders)
+                                 (onto-chan! nodes-seeders| (map (fn [node] [nil node]) seeders) false))
 
                                nodes
                                (let [nodes (->>
                                             (decode-nodes nodes)
                                             (filter valid-ip?))]
-                                 (a/onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)
-                                 #_(doseq [node nodes]
-                                     (put! nodesB| node))))))
+                                 (onto-chan! nodes| (map (fn [node] [(:id node) node]) nodes) false)))))
                     (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- (js/Date.now) ts)))))))))
 
         (go
@@ -276,7 +282,7 @@
                                                      :socket socket
                                                      :send-krpc-request send-krpc-request
                                                      :msg|mult msg|mult
-                                                     :node-idB self-idB
+                                                     :self-idB self-idB
                                                      :infohashB infohashB
                                                      :cancel| (chan 1)})]
                   (swap! in-processA assoc infohash find_metadata|)
@@ -313,7 +319,7 @@
                       (close! infohashes|)
                       (close! result|)
                       (.destroy socket))]
-        (<! (a/onto-chan! infohashes| infohashes true))
+        (<! (onto-chan! infohashes| infohashes true))
         (swap! count-socketsA inc)
         (doto socket
           (.on "error" (fn [error]
