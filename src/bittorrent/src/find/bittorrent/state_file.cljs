@@ -49,7 +49,7 @@
   [data-dir]
   (go
     (try
-      (let [state-filepath (.join path data-dir "state/" "find.app.bittorrent.edn")]
+      (let [state-filepath (.join path data-dir "state/" "find-bittorrent-crawl.transit.json")]
         (when (.pathExistsSync fs state-filepath)
           (let [data-string (-> (.readFileSync fs state-filepath)
                                 (.toString "utf-8"))]
@@ -61,7 +61,7 @@
   (go
     (try
       (let [state-dir (.join path data-dir "state/")
-            state-filepath (.join path state-dir "find.app.bittorrent.edn")
+            state-filepath (.join path state-dir "find-bittorrent-crawl.transit.json")
             data-string (transit-write state)]
         (.ensureDirSync fs state-dir)
         (.writeFileSync fs state-filepath data-string))

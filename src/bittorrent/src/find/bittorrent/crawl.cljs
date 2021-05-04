@@ -157,6 +157,7 @@
                  (close! infohashes-from-listening|)
                  (close! infohashes-from-sybil|)
                  (close! nodes-to-sample|)
+                 (close! nodes-from-sampling|)
                  (close! nodesB|)
                  (.close socket)
                  (a/merge @procsA))]
@@ -195,7 +196,7 @@
 
       ; save state to file periodically
       (go
-        (when-not (.pathExistsSync fs (.join path data-dir "state/" "find.app.bittorrent.edn"))
+        (when-not (.pathExistsSync fs (.join path data-dir "state/" "find-bittorrent-crawl.transit.json"))
           (<! (save-state data-dir @stateA)))
         (loop []
           (<! (timeout (* 4.5 1000)))
