@@ -193,7 +193,6 @@
 
                   (= port seeders|)
                   (let [seeders value]
-                    (swap! seeders-countA + (count seeders))
                     (doseq [seeder seeders]
                       (swap! unique-seedersA conj seeder)
                       (>! seeder| seeder))
@@ -216,6 +215,7 @@
                                                (comp
                                                 (filter valid-ip?)
                                                 (filter unique-seeder?))))]
+                                 (swap! seeders-countA + (count seeders))
                                  (put! seeders| seeders)
                                  (onto-chan! nodes-seeders| seeders false))
 
