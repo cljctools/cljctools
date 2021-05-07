@@ -57,7 +57,7 @@
 
           msg| (chan (sliding-buffer 100))
           msg|mult (mult msg|)
-          torrent| (chan (sliding-buffer 100))
+          torrent| (chan 5000)
           torrent|mult (mult torrent|)
 
           unique-infohashsesA (atom #{})
