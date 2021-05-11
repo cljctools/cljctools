@@ -2,6 +2,7 @@
 using go-libp2p from clojure
 
 
-## already solved
+## deprecated
 
-- instead, golang process + docker container: write libp2p-related logic in golang as a service and expose what's needed via http to main app that runs on jvm
+- it's a complexity rabbit hole
+- if library is that needed, should be written in that language
