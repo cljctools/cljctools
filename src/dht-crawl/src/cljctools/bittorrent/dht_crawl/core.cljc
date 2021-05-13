@@ -1,36 +1,35 @@
-(ns find.bittorrent.crawl
+(ns cljctools.bittorrent.dht-crawl.core
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljs.core.async.interop :refer-macros [<p!]]
    [clojure.pprint :refer [pprint]]
    [clojure.string]
-   [goog.string.format :as format]
-   [goog.string :refer [format]]
-   [goog.object]
-   [cljs.reader :refer [read-string]]
+   #?@(:cljs
+       [[goog.string.format :as format]
+        [goog.string :refer [format]]
+        [goog.object]
+        [cljs.reader :refer [read-string]]])
 
-   [tick.alpha.api :as t]
-   [find.bittorrent.core :refer [hash-key-distance-comparator-fn
-                                 send-krpc-request-fn
-                                 send-krpc
-                                 encode-nodes
-                                 decode-nodes
-                                 sorted-map-buffer]]
-   [find.bittorrent.state-file :refer [save-state load-state]]
-   [find.bittorrent.dht]
-   [find.bittorrent.find-nodes]
-   [find.bittorrent.sybil]
-   [find.bittorrent.metadata]
-   [find.bittorrent.sample-infohashes]))
+   [cljctools.bittorrent.dht-crawl.socket-spec :as dht-crawl.socket-spec]
+   [cljctools.bittorrent.dht-crawl.socket :as dht-crawl.socket]
 
-(defonce fs (js/require "fs-extra"))
-(defonce path (js/require "path"))
-(defonce bencode (js/require "bencode"))
-(defonce dgram (js/require "dgram"))
+   [cljctools.bittorrent.dht-crawl.lib :refer [hash-key-distance-comparator-fn
+                                               send-krpc-request-fn
+                                               send-krpc
+                                               encode-nodes
+                                               decode-nodes
+                                               sorted-map-buffer
+                                               save-state-file
+                                               load-state-file]]
+
+   [cljctools.bittorrent.dht-crawl.dht]
+   [cljctools.bittorrent.dht-crawl.find-nodes]
+   [cljctools.bittorrent.dht-crawl.sybil]
+   [cljctools.bittorrent.dht-crawl.metadata]
+   [cljctools.bittorrent.dht-crawl.sample-infohashes]))
 
 (defn start
   [{:as opts
@@ -95,7 +94,7 @@
                                     (map (fn [nodes] (filter valid-node? nodes))))
 
 
-          _ (find.bittorrent.dht/start-routing-table {:stateA stateA
+          _ (cljctools.bittorrent.dht/start-routing-table {:stateA stateA
                                                       :self-idB self-idB
                                                       :nodes| routing-table-nodes|
                                                       :send-krpc-request send-krpc-request
@@ -103,7 +102,7 @@
                                                       :routing-table-max-size 128})
 
 
-          _ (find.bittorrent.dht/start-dht-keyspace {:stateA stateA
+          _ (cljctools.bittorrent.dht/start-dht-keyspace {:stateA stateA
                                                      :self-idB self-idB
                                                      :nodes| dht-keyspace-nodes|
                                                      :send-krpc-request send-krpc-request
@@ -206,7 +205,7 @@
 
       ; print info
       (let [stop| (chan 1)
-            filepath (.join path data-dir "state/" "find.bittorrent.crawl-log.edn")
+            filepath (.join path data-dir "state/" "cljctools.bittorrent.crawl-log.edn")
             _ (.removeSync fs filepath)
             _ (.ensureFileSync fs filepath)
             write-stream (.createWriteStream fs filepath #js {:flags "a"})
@@ -229,7 +228,7 @@
                            [:torrents @count-torrentsA]
                            [:nodes-to-sample| (count (.-buf nodes-to-sample|)) :nodes-from-sampling| (count (.-buf nodes-from-sampling|))]
                            [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
-                           [:sockets @find.bittorrent.metadata/count-socketsA]
+                           [:sockets @cljctools.bittorrent.metadata/count-socketsA]
                            [:routing-table (count (:routing-table state))]
                            [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
                            [:routing-table-find-noded  (count (:routing-table-find-noded state))]
@@ -297,7 +296,7 @@
       ; very rarely ask bootstrap servers for nodes
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
-        (find.bittorrent.find-nodes/start-bootstrap-query
+        (cljctools.bittorrent.find-nodes/start-bootstrap-query
          {:stateA stateA
           :self-idB self-idB
           :nodes-bootstrap nodes-bootstrap
@@ -309,7 +308,7 @@
       ; periodicaly ask nodes for new nodes
       (let [stop| (chan 1)]
         (swap! procsA conj stop|)
-        (find.bittorrent.find-nodes/start-dht-query
+        (cljctools.bittorrent.find-nodes/start-dht-query
          {:stateA stateA
           :self-idB self-idB
           :send-krpc-request send-krpc-request
@@ -320,7 +319,7 @@
       ; start sybil
       #_(let [stop| (chan 1)]
           (swap! procsA conj stop|)
-          (find.bittorrent.sybil/start
+          (cljctools.bittorrent.sybil/start
            {:stateA stateA
             :nodes-bootstrap nodes-bootstrap
             :sybils| sybils|
@@ -340,7 +339,7 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      (find.bittorrent.sample-infohashes/start-sampling
+      (cljctools.bittorrent.sample-infohashes/start-sampling
        {:stateA stateA
         :self-idB self-idB
         :send-krpc-request send-krpc-request
@@ -350,7 +349,7 @@
         :nodes-from-sampling| nodes-from-sampling|})
 
       ; discovery
-      (find.bittorrent.metadata/start-discovery
+      (cljctools.bittorrent.metadata/start-discovery
        {:stateA stateA
         :self-idB self-idB
         :self-id self-id

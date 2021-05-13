@@ -1,4 +1,4 @@
-(ns find.bittorrent.core
+(ns cljctools.bittorrent.dht-crawl.lib-impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
@@ -10,15 +10,37 @@
    [clojure.string]
    [clojure.walk]
    [clojure.set]
-   [tick.alpha.api :as t]
    [cognitect.transit :as transit]
-   
+
    [goog.string.format :as format]
    [goog.string :refer [format]]
    [goog.object]
    [cljs.reader :refer [read-string]]))
 
 (defonce bencode (js/require "bencode"))
+(defonce fs (js/require "fs-extra"))
+(defonce path (js/require "path"))
+(defonce crypto (js/require "crypto"))
+
+(defn random-bytes
+  [n]
+  (.randomBytes crypto n))
+
+(defn hex-decode
+  [string]
+  (js/Buffer.from string "hex"))
+
+(defn hex-encode-string
+  [byte-data]
+  (.toString byte-data "hex"))
+
+(defn bencode-encode
+  [data]
+  (.encode bencode data))
+
+(defn bencode-decode
+  [data]
+  (.decode bencode data))
 
 (defn gen-neighbor-id
   [target-idB node-idB]
@@ -151,26 +173,51 @@
                              (swap! requestsA dissoc txn-id))))
          response|)))))
 
-(defn sorted-map-buffer
-  "sliding according to comparator sorted-map buffer"
-  [n comparator]
-  (let [collA (atom (sorted-map-by comparator))]
-    (reify
-      clojure.core.async.impl.protocols/UnblockingBuffer
-      clojure.core.async.impl.protocols/Buffer
-      (full? [this] false)
-      (remove! [this]
-        (let [[id node :as item] (first @collA)]
-          (swap! collA dissoc id)
-          item))
-      (add!* [this [id node]]
-        (swap! collA assoc id node)
-        (when (> (count @collA) n)
-          (swap! collA dissoc (key (last @collA))))
-        this)
-      (close-buf! [this])
-      cljs.core/ICounted
-      (-count [this] (count @collA)))))
+(def transit-write
+  (let [handlers {js/Buffer
+                  (transit/write-handler
+                   (fn [buffer] "js/Buffer")
+                   (fn [buffer] (.toString buffer "hex")))
+                  cljs.core.async.impl.channels/ManyToManyChannel
+                  (transit/write-handler
+                   (fn [c|] "ManyToManyChannel")
+                   (fn [c|] nil))}
+        writer (transit/writer
+                :json-verbose
+                {:handlers handlers})]
+    (fn [data]
+      (transit/write writer data))))
+
+(def transit-read
+  (let [handlers {"js/Buffer"
+                  (fn [string] (js/Buffer.from string "hex"))
+                  "ManyToManyChannel"
+                  (fn [string] nil)}
+        reader (transit/reader
+                :json-verbose
+                {:handlers handlers})]
+    (fn [data-string]
+      (transit/read reader data-string))))
+
+(defn read-state-file
+  [filepath]
+  (go
+    (try
+      (let [filepath]
+        (when (.pathExistsSync fs filepath)
+          (let [data-string (-> (.readFileSync fs filepath)
+                                (.toString "utf-8"))]
+            (transit-read data-string))))
+      (catch js/Error error (println ::read-state-file error)))))
+
+(defn write-state-file
+  [filepath data]
+  (go
+    (try
+      (let [data-string (transit-write data)]
+        (.ensureFileSync fs filepath)
+        (.writeFileSync fs filepath data-string))
+      (catch js/Error error (println ::write-state-file error)))))
 
 
 (comment
@@ -209,12 +256,33 @@
   (.toString (xor-distance targetB (js/Buffer.from (hash-string "c")  "hex")) "hex")
   (.toString (xor-distance targetB (js/Buffer.from (hash-string "5")  "hex")) "hex")
   (.toString (xor-distance targetB (js/Buffer.from (hash-string "d")  "hex")) "hex")
-  
+
   (js/Array.from (js/Buffer.from (hash-string "6")  "hex"))
   (js/Array.from (js/Buffer.from (hash-string "5")  "hex"))
   (js/Array.from (js/Buffer.from (hash-string "c")  "hex"))
-  
+
   (js/Array.from (js/Buffer.from (hash-string "8")  "hex"))
+
+  ;
+  )
+
+(comment
+
+  (extend-protocol IPrintWithWriter
+    js/Buffer
+    (-pr-writer [buffer writer _]
+      (write-all writer "#js/buffer \"" (.toString buffer) "\"")))
+
+  (cljs.reader/register-tag-parser!
+   'js/buffer
+   (fn [value]
+     (js/Buffer.from value)))
+
+  (cljs.reader/read-string
+
+   "#js/buffer \"96190f486de62449099f9caf852964b2e12058dd\"")
+
+  (println (cljs.reader/read-string {:readers {'foo identity}} "#foo :asdf"))
 
   ;
   )
