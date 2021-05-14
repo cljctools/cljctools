@@ -1,2 +1,2 @@
-# bittorrent-dht-crawl
-discover torrents using bittorrent DHT only
+# bittorrent
+bittorrent DHT libs
