@@ -12,55 +12,53 @@
 (derive clojure.lang.Sequential ::sequential?)
 (derive (Class/forName "[B") ::bytes)
 
+(def ^:const colon-int (int \:))
+(def ^:const i-int (int \i))
+(def ^:const e-int (int \e))
 (def ^:const l-int (int \l))
 (def ^:const d-int (int \d))
-(def ^:const e-int (int \e))
-(def ^:const i-int (int \i))
-(def ^:const colon-int (int \:))
 
 (defmulti encode*
-  (fn [data os]
+  (fn [data out]
     (type data)))
 
 (defmethod encode* ::byte-buffer
-  [data ^OutputStream os])
+  [data ^OutputStream out])
 
 (defmethod encode* ::number?
-  [num ^OutputStream os]
-  (.write os i-int)
-  (.write os (-> num (.toString) (.getBytes "UTF-8")))
-  (.write os e-int))
+  [num ^OutputStream out]
+  (.write out i-int)
+  (.write out (-> num (.toString) (.getBytes "UTF-8")))
+  (.write out e-int))
 
 (defmethod encode* ::string?
-  [string ^OutputStream os]
-  (encode* (.getBytes string "UTF-8") os))
+  [string ^OutputStream out]
+  (encode* (.getBytes string "UTF-8") out))
 
 (defmethod encode* ::keyword?
-  [kword ^OutputStream os]
-  (println :aaa)
-  (encode* (.getBytes (name kword) "UTF-8") os))
+  [kword ^OutputStream out]
+  (encode* (.getBytes (name kword) "UTF-8") out))
 
 (defmethod encode* ::sequential?
-  [coll ^OutputStream os]
-  (.write os l-int)
+  [coll ^OutputStream out]
+  (.write out l-int)
   (doseq [item coll]
-    (.write os (encode* item)))
-  (.write os e-int))
+    (.write out (encode* item)))
+  (.write out e-int))
 
 (defmethod encode* ::map?
-  [amap ^OutputStream os]
-  (.write os d-int)
+  [amap ^OutputStream out]
+  (.write out d-int)
   (doseq [[k v] (into (sorted-map) amap)]
-    (encode* k os)
-    (encode* v os))
-  (.write os e-int))
+    (encode* k out)
+    (encode* v out))
+  (.write out e-int))
 
 (defmethod encode* ::bytes
-  [byte-arr ^OutputStream os]
-  (println :bbbs)
-  (.write os (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
-  (.write os colon-int)
-  (.write os byte-arr))
+  [byte-arr ^OutputStream out]
+  (.write out (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
+  (.write out colon-int)
+  (.write out byte-arr))
 
 (defn encode
   [data]
@@ -69,8 +67,133 @@
     (.close baos)
     (ByteBuffer/wrap (.toByteArray baos))))
 
+(defn peek-next
+  [in]
+  (let [char-int (.read in)]
+    (when (= -1 char-int)
+      (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
+    (.unread char-int)
+    char-int))
+
+(defmulti decode*
+  (fn [in out]
+    (let [char-int (peek-next in)]
+      (condp = char-int
+        i-int :integer
+        l-int :list
+        d-int :dictionary
+        :else :bytes))))
+
+(defmethod decode* :dictionary
+  [_ in out]
+  (.read in) ; skip d char
+  (loop [result (transient [])]
+    (let [char-int (peek-next in)]
+      (cond
+
+        (= char-int e-int) ; return
+        (do
+          (.reset out)
+          (apply hash-map (persistent! result)))
+
+        (= char-int i-int)
+        (if (even? (count result))
+          (ex-info (str ::decode*-dictionary " bencode keys must be strings, got integer") {})
+          (recur (conj! result  (decode* :integer in out))))
+
+        (= char-int d-int)
+        (if (even? (count result))
+          (ex-info (str ::decode*-dictionary " bencode keys must be strings, got dictionary") {})
+          (recur (conj! result  (decode* :dictionary in out))))
+
+        (= char-int l-int)
+        (if (even? (count result))
+          (ex-info (str ::decode*-dictionary " bencode keys must be strings, got list") {})
+          (recur (conj! result  (decode* :list in out))))
+
+        :else
+        (let [next-map-element-byte-arr (decode* :bytes in out)
+              next-element (if (even? (count result))
+                             #_its_a_key
+                             (String. next-map-element-byte-arr "UTF-8")
+                             #_its_a_value
+                             next-map-element-byte-arr)]
+          (recur (conj! result next-element)))))))
+
+(defmethod decode* :list
+  [_ in out])
+
+(defmethod decode* :integer
+  [_ in out]
+  (.read in) ; skip i char
+  (loop []
+    (let [])
+    
+    )
+  
+  
+  (Integer/parseInt (String. (.toByteArray baos) "UTF-8"))
+  )
+
+(defmethod decode* :bytes
+  [_ in out]
+  (loop []
+    (let [char-int (.read in)]
+      (cond
+
+        (= char-int colon-int)
+        (let [size (-> (.toByteArray out)
+                       (String. "UTF-8")
+                       (Integer/parseInt))
+              byte-arr (byte-array size)]
+          (.read in byte-arr 0 size)
+          (.reset out)
+          byte-arr)
+
+        :else (do
+                (.write out char-int)
+                (recur))))))
+
+
 (defn decode
-  [string])
+  [string]
+  (with-open [in (->
+                  (.getBytes string "UTF-8")
+                  (ByteArrayInputStream.)
+                  (PushbackInputStream.))
+              out (ByteArrayOutputStream.)]
+    (let [resultV (volatile! nil)
+          current-datatypeV (volatile! nil)]
+      (loop []
+        (let [char-int (.read in)]
+          (when-not (= -1 chr)
+            (cond
+              (= chr colon-int)
+              (let [size (-> (.toByteArray out)
+                             (String. "UTF-8")
+                             (Integer/parseInt))
+                    byte-arr (byte-array size)]
+                (.read in byte-arr 0 size)
+
+                (.reset out))
+
+              (= chr i-int)
+              (let []
+                (vswap! current-datatypeV :integer))
+
+              (= chr e-int)
+              (let []
+                (update-decode-result
+                 resultV
+                 current-datatypeV
+                 (.toByteArray out))
+                (.reset out))
+
+              :else (.write out char-int))
+
+            (recur))))
+      @result)))
+
 
 
 (comment
@@ -105,7 +228,21 @@
   
   
   
-  ;;
+  ;
+  )
+
+
+(comment
+  
+  (do
+    (def in (java.io.ByteArrayInputStream. (.getBytes "1123:abcd" "UTF-8")))
+    (def out (java.io.ByteArrayOutputStream.))
+    (dotimes [_ 4]
+      (.write out (.read in)))
+
+    (def bb (java.nio.ByteBuffer/wrap (.toByteArray baos)))
+    (Integer/parseInt (String. (.toByteArray baos) "UTF-8")))
+  ;
   )
 
 
