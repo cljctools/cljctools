@@ -62,30 +62,32 @@
 
 (defn encode
   [data]
-  (with-open [baos (ByteArrayOutputStream.)]
-    (encode* data baos)
-    (.close baos)
-    (ByteBuffer/wrap (.toByteArray baos))))
+  (with-open [out (ByteArrayOutputStream.)]
+    (encode* data out)
+    (.close out)
+    (ByteBuffer/wrap (.toByteArray out))))
 
 (defn peek-next
   [in]
   (let [char-int (.read in)]
     (when (= -1 char-int)
       (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
-    (.unread char-int)
+    (.unread in char-int)
     char-int))
 
 (defmulti decode*
-  (fn [in out]
-    (let [char-int (peek-next in)]
-      (condp = char-int
-        i-int :integer
-        l-int :list
-        d-int :dictionary
-        :else :bytes))))
+  (fn
+    ([in out]
+     (condp = (peek-next in)
+       i-int :integer
+       l-int :list
+       d-int :dictionary
+       :else :bytes))
+    ([in out dispatch-val]
+     dispatch-val)))
 
 (defmethod decode* :dictionary
-  [_ in out]
+  [in out & args]
   (.read in) ; skip d char
   (loop [result (transient [])]
     (let [char-int (peek-next in)]
@@ -99,20 +101,20 @@
         (= char-int i-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got integer") {})
-          (recur (conj! result  (decode* :integer in out))))
+          (recur (conj! result  (decode* in out :integer))))
 
         (= char-int d-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got dictionary") {})
-          (recur (conj! result  (decode* :dictionary in out))))
+          (recur (conj! result  (decode* in out :dictionary))))
 
         (= char-int l-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got list") {})
-          (recur (conj! result  (decode* :list in out))))
+          (recur (conj! result  (decode* in out :list))))
 
         :else
-        (let [next-map-element-byte-arr (decode* :bytes in out)
+        (let [next-map-element-byte-arr (decode* in out :bytes)
               next-element (if (even? (count result))
                              #_its_a_key
                              (String. next-map-element-byte-arr "UTF-8")
@@ -121,22 +123,53 @@
           (recur (conj! result next-element)))))))
 
 (defmethod decode* :list
-  [_ in out])
+  [in out & args]
+  (.read in) ; skip l char
+  (loop [result (transient [])]
+    (let [char-int (peek-next in)]
+      (cond
+
+        (= char-int e-int) ; return
+        (do
+          (.reset out)
+          (persistent! result))
+
+        (= char-int i-int)
+        (recur (conj! result  (decode* in out :integer)))
+
+        (= char-int d-int)
+        (recur (conj! result  (decode* in out :dictionary)))
+
+        (= char-int l-int)
+        (recur (conj! result  (decode* in out :list)))
+
+        :else
+        (recur (conj! result (decode* in out :bytes)))))))
 
 (defmethod decode* :integer
-  [_ in out]
+  [in out & args]
   (.read in) ; skip i char
   (loop []
-    (let [])
-    
-    )
-  
-  
-  (Integer/parseInt (String. (.toByteArray baos) "UTF-8"))
-  )
+    (let [char-int (.read in)]
+      (cond
+
+        (= char-int e-int)
+        (let [number-string (->
+                             (.toByteArray out)
+                             (String. "UTF-8"))
+              value (try
+                      (Integer/parseInt number-string)
+                      (catch Exception e
+                        (Double/parseDouble number-string)))]
+          (.reset out)
+          value)
+
+        :else (do
+                (.write out char-int)
+                (recur))))))
 
 (defmethod decode* :bytes
-  [_ in out]
+  [in out & args]
   (loop []
     (let [char-int (.read in)]
       (cond
@@ -154,7 +187,6 @@
                 (.write out char-int)
                 (recur))))))
 
-
 (defn decode
   [string]
   (with-open [in (->
@@ -162,38 +194,7 @@
                   (ByteArrayInputStream.)
                   (PushbackInputStream.))
               out (ByteArrayOutputStream.)]
-    (let [resultV (volatile! nil)
-          current-datatypeV (volatile! nil)]
-      (loop []
-        (let [char-int (.read in)]
-          (when-not (= -1 chr)
-            (cond
-              (= chr colon-int)
-              (let [size (-> (.toByteArray out)
-                             (String. "UTF-8")
-                             (Integer/parseInt))
-                    byte-arr (byte-array size)]
-                (.read in byte-arr 0 size)
-
-                (.reset out))
-
-              (= chr i-int)
-              (let []
-                (vswap! current-datatypeV :integer))
-
-              (= chr e-int)
-              (let []
-                (update-decode-result
-                 resultV
-                 current-datatypeV
-                 (.toByteArray out))
-                (.reset out))
-
-              :else (.write out char-int))
-
-            (recur))))
-      @result)))
-
+    (decode* in out)))
 
 
 (comment
@@ -204,7 +205,7 @@
   (do
     (defn reload
       []
-      (require '[cljctools.bittorrent.bencode.core :refer [encode]] :reload)
+      (require '[cljctools.bittorrent.bencode.core :refer [encode decode]] :reload)
       (require '[cljctools.bittorrent.dht-crawl.lib-impl :refer [random-bytes
                                                                  hex-decode
                                                                  hex-encode-string
@@ -219,6 +220,7 @@
             :a {:id (random-bytes 20)}})
    (.array)
    (String.)
+   #_(decode)
    )
   
   (bencode-encode
@@ -240,8 +242,8 @@
     (dotimes [_ 4]
       (.write out (.read in)))
 
-    (def bb (java.nio.ByteBuffer/wrap (.toByteArray baos)))
-    (Integer/parseInt (String. (.toByteArray baos) "UTF-8")))
+    (def bb (java.nio.ByteBuffer/wrap (.toByteArray out)))
+    (Integer/parseInt (String. (.toByteArray out) "UTF-8")))
   ;
   )
 
