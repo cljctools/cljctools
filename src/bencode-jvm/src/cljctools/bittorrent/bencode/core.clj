@@ -60,7 +60,6 @@
   [data]
   (with-open [out (ByteArrayOutputStream.)]
     (encode* data out)
-    (.close out)
     (.toByteArray out)))
 
 (defn peek-next
