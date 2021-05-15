@@ -6,7 +6,7 @@
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
    [cognitect.transit :as transit]
-   [bencode.core])
+   [cljctools.bittorrent.bencode.core :as bencode.core])
   (:import
    (org.apache.commons.codec.binary Hex)
    (java.util Random)
@@ -28,16 +28,11 @@
 
 (defn bencode-encode
   [data]
-  (-> (doto (ByteArrayOutputStream.)
-        (bencode.core/write-bencode data))
-      (.toByteArray)))
+  (bencode.core/encode data))
 
 (defn bencode-decode
   [^bytes byte-arr]
-  (-> byte-arr
-      ByteArrayInputStream.
-      PushbackInputStream.
-      bencode.core/read-bencode))
+  (bencode.core/decode byte-arr))
 
 (comment
 

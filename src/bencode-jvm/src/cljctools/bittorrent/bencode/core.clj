@@ -204,7 +204,7 @@
 
   clj -Sdeps '{:deps {cljctools.bittorrent/bencode-jvm {:local/root "./bittorrent/src/bencode-jvm"}
                       cljctools.bittorrent/dht-crawl-jvm {:local/root "./bittorrent/src/dht-crawl-jvm"}}}'
-  
+
   (do
     (defn reload
       []
@@ -286,6 +286,12 @@
      (decode)
      (get-in ["a" "id"])
      (hex-encode-string)))
+
+  (let [data {:t (hex-decode "aabbccdd")
+              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+    (->
+     (encode data)
+     (String. "UTF-8")))
 
   ;
   )
