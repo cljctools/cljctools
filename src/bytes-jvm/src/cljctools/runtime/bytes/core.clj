@@ -4,7 +4,7 @@
    [cljctools.runtime.bytes.protocols :as bytes.protocols])
   (:import
    (java.util Random)
-   (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closable)))
+   (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closeable)))
 
 (set! *warn-on-reflection* true)
 
@@ -40,14 +40,14 @@
     [_]
     (.read in))
   (read*
-   [_ ^Number offset ^Number length]
-   (let [^bytes byte-arr (byte-array length)]
-     (.read in byte-arr offset length)
-     byte-arr))
+    [_  offset length]
+    (let [^bytes byte-arr (byte-array ^Integer length)]
+      (.read in byte-arr ^Integer offset ^Integer length)
+      byte-arr))
   (unread*
-   [_ ^Number char-int]
-   (.unread in))
-  java.io.Closable
+    [_  char-int]
+    (.unread in ^Integer char-int))
+  java.io.Closeable
   (close [_] #_(do nil)))
 
 (defn pushback-input-stream
@@ -61,15 +61,18 @@
 (deftype TOutputStream [^ByteArrayOutputStream out]
   bytes.protocols/IOutputStream
   (write*
-    [_ data]
-    (.write out data))
+    [_ char-int]
+    (.write out ^Integer char-int))
+  (write-bytes*
+    [_ byte-arr]
+    (.writeBytes out ^bytes byte-arr))
   (reset*
     [_]
     (.reset out))
-  (to-buffer*
+  (to-bytes*
     [_]
     (.toByteArray out))
-  java.io.Closable
+  java.io.Closeable
   (close [_] #_(do nil)))
 
 (defn output-stream
