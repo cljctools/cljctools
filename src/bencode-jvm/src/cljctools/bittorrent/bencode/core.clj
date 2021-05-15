@@ -1,6 +1,6 @@
 (ns cljctools.bittorrent.bencode.core
   (:import
-   (java.io ByteArrayOutputStream ByteArrayInputStream InputStream OutputStream PushbackInputStream)
+   (java.io InputStream OutputStream ByteArrayOutputStream ByteArrayInputStream PushbackInputStream)
    (java.nio ByteBuffer)
    (java.nio.charset StandardCharsets)))
 
@@ -57,9 +57,10 @@
   (.write out e-int))
 
 (defmethod encode* ::bytes
-  [^bytes byte-arr ^OutputStream out]
+  [^bytes byte-arr ^ByteArrayOutputStream out]
   (.write out (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
   (.write out colon-int)
+  (println :count-byte-arr (count byte-arr))
   (.write out byte-arr))
 
 (defn encode
@@ -89,7 +90,7 @@
      dispatch-val)))
 
 (defmethod decode* :dictionary
-  [^ByteArrayInputStream in
+  [^InputStream in
    ^ByteArrayOutputStream out
    & args]
   (.read in) ; skip d char
@@ -118,16 +119,17 @@
           (recur (conj! result  (decode* in out :list))))
 
         :else
-        (let [^bytes next-map-element-byte-arr (decode* in out :bytes)
+        (let [^bytes bytes-arr (decode* in out :bytes)
+              _ (println :count-bytes (count bytes-arr))
               next-element (if (even? (count result))
                              #_its_a_key
-                             (String. next-map-element-byte-arr "UTF-8")
+                             (String. bytes-arr "UTF-8")
                              #_its_a_value
-                             next-map-element-byte-arr)]
+                             bytes-arr)]
           (recur (conj! result next-element)))))))
 
 (defmethod decode* :list
-  [^ByteArrayInputStream in
+  [^InputStream in
    ^ByteArrayOutputStream out
    & args]
   (.read in) ; skip l char
@@ -153,7 +155,7 @@
         (recur (conj! result (decode* in out :bytes)))))))
 
 (defmethod decode* :integer
-  [^ByteArrayInputStream in
+  [^InputStream in
    ^ByteArrayOutputStream out
    & args]
   (.read in) ; skip i char
@@ -177,7 +179,7 @@
                 (recur))))))
 
 (defmethod decode* :bytes
-  [^ByteArrayInputStream in
+  [^InputStream in
    ^ByteArrayOutputStream out
    & args]
   (loop []
@@ -212,6 +214,7 @@
   clj -Sdeps '{:deps {cljctools.bittorrent/bencode-jvm {:local/root "./bittorrent/src/bencode-jvm"}
                       cljctools.bittorrent/dht-crawl-jvm {:local/root "./bittorrent/src/dht-crawl-jvm"} }}'
   
+  
   (do
     (defn reload
       []
@@ -221,8 +224,7 @@
                                                                  hex-encode-string
                                                                  bencode-encode
                                                                  bencode-decode]] :reload))
-    (reload)
-    )
+    (reload))
   
   
   (->
@@ -230,15 +232,86 @@
             :a {:id (random-bytes 20)}})
    (.array)
    (String.)
-   #_(decode)
-   )
+   (decode))
   
   (bencode-encode
-   {:t (random-bytes 2)
-    :a {:id (random-bytes 20)}}
-   )
+   {:t "aa"
+    :a {"foo" 123
+        :id "197957dab1d2900c5f6d9178656d525e22e63300" }})
+    
+  (->
+   (encode {:t (random-bytes 2)
+            :a {:id (random-bytes 20)}})
+   (.array)
+   (String.)
+   (decode))
+
   
+  (=
+   (->
+    (encode {:t "aa"
+             :a {"foo" 123
+                 "id" "197957dab1d2900c5f6d9178656d525e22e63300"}})
+    (.array)
+    (String.))
+   (bencode-encode
+    {:t "aa"
+     :a {"foo" 123
+         "id" "197957dab1d2900c5f6d9178656d525e22e63300"}}))
   
+  (let [data {:t (hex-decode "aabbccdd")
+              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+    (=
+     (bencode-encode data)
+     (->
+      (encode data)
+      (.array)
+      (String.))))
+  
+  (let [data {:t (hex-decode "aabbccdd")
+              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+    (->
+     (encode data)
+     (.array)
+     (String. "UTF-8")
+     #_(decode)))
+
+  (count (String. (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
+  
+  (let [string (String. (random-bytes 20))]
+    (prn string)
+    (count string)
+    )
+  
+  (let [ba (byte-array 4)]
+    (prn (vec ba))
+    (aset-byte ba 3 50)
+    (prn (vec ba))
+    [(String. ba)
+     (count ba)]
+    )
+  
+  ;
+  )
+
+(comment
+
+  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}}} '-M -m cljs.main --repl-env node
+
+  (do
+    (def bencode (js/require "bencode"))
+    (def crypto (js/require "crypto")))
+
+  (let [data (clj->js {:t (js/Buffer.from "aabbccdd" "hex")
+                       :a {"id" (js/Buffer.from "197957dab1d2900c5f6d9178656d525e22e63300" "hex")}})]
+    (->
+     (.encode bencode data)
+     #_(.toString)
+     #_(js/Buffer.from)
+     (->> (.decode bencode))
+     (js->clj)
+     (-> (get-in ["a" "id"]))
+     (.toString "hex")))
   
   ;
   )
