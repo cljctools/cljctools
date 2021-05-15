@@ -1,12 +1,9 @@
 (ns cljctools.bittorrent.bencode.core
   (:import
-   (java.io InputStream OutputStream ByteArrayOutputStream ByteArrayInputStream PushbackInputStream)
-   (java.nio ByteBuffer)
-   (java.nio.charset StandardCharsets)))
+   (java.io InputStream OutputStream ByteArrayOutputStream ByteArrayInputStream PushbackInputStream)))
 
 (set! *warn-on-reflection* true)
 
-(derive java.nio.ByteBuffer ::byte-buffer)
 (derive java.lang.Number ::number?)
 (derive java.lang.String ::string?)
 (derive clojure.lang.Keyword ::keyword?)
@@ -23,9 +20,6 @@
 (defmulti encode*
   (fn [data out]
     (type data)))
-
-(defmethod encode* ::byte-buffer
-  [data ^OutputStream out])
 
 (defmethod encode* ::number?
   [^Number num ^OutputStream out]
@@ -60,7 +54,6 @@
   [^bytes byte-arr ^ByteArrayOutputStream out]
   (.write out (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
   (.write out colon-int)
-  (println :count-byte-arr (count byte-arr))
   (.write out byte-arr))
 
 (defn encode
@@ -68,7 +61,7 @@
   (with-open [out (ByteArrayOutputStream.)]
     (encode* data out)
     (.close out)
-    (ByteBuffer/wrap (.toByteArray out))))
+    (.toByteArray out)))
 
 (defn peek-next
   [^PushbackInputStream in]
@@ -120,7 +113,6 @@
 
         :else
         (let [^bytes bytes-arr (decode* in out :bytes)
-              _ (println :count-bytes (count bytes-arr))
               next-element (if (even? (count result))
                              #_its_a_key
                              (String. bytes-arr "UTF-8")
@@ -200,9 +192,9 @@
                 (recur))))))
 
 (defn decode
-  [^String string]
+  [^bytes byte-arr]
   (with-open [in (->
-                  (.getBytes string "UTF-8")
+                  byte-arr
                   (ByteArrayInputStream.)
                   (PushbackInputStream.))
               out (ByteArrayOutputStream.)]
@@ -210,10 +202,9 @@
 
 
 (comment
-  
+
   clj -Sdeps '{:deps {cljctools.bittorrent/bencode-jvm {:local/root "./bittorrent/src/bencode-jvm"}
-                      cljctools.bittorrent/dht-crawl-jvm {:local/root "./bittorrent/src/dht-crawl-jvm"} }}'
-  
+                      cljctools.bittorrent/dht-crawl-jvm {:local/root "./bittorrent/src/dht-crawl-jvm"}}}'
   
   (do
     (defn reload
@@ -225,20 +216,8 @@
                                                                  bencode-encode
                                                                  bencode-decode]] :reload))
     (reload))
-  
-  
-  (->
-   (encode {:t (random-bytes 2)
-            :a {:id (random-bytes 20)}})
-   (.array)
-   (String.)
-   (decode))
-  
-  (bencode-encode
-   {:t "aa"
-    :a {"foo" 123
-        :id "197957dab1d2900c5f6d9178656d525e22e63300" }})
-    
+
+
   (->
    (encode {:t (random-bytes 2)
             :a {:id (random-bytes 20)}})
@@ -246,7 +225,19 @@
    (String.)
    (decode))
 
-  
+  (bencode-encode
+   {:t "aa"
+    :a {"foo" 123
+        :id "197957dab1d2900c5f6d9178656d525e22e63300"}})
+
+  (->
+   (encode {:t (random-bytes 2)
+            :a {:id (random-bytes 20)}})
+   (.array)
+   (String.)
+   (decode))
+
+
   (=
    (->
     (encode {:t "aa"
@@ -258,7 +249,7 @@
     {:t "aa"
      :a {"foo" 123
          "id" "197957dab1d2900c5f6d9178656d525e22e63300"}}))
-  
+
   (let [data {:t (hex-decode "aabbccdd")
               :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
     (=
@@ -267,7 +258,7 @@
       (encode data)
       (.array)
       (String.))))
-  
+
   (let [data {:t (hex-decode "aabbccdd")
               :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
     (->
@@ -277,20 +268,26 @@
      #_(decode)))
 
   (count (String. (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
-  
+
   (let [string (String. (random-bytes 20))]
     (prn string)
-    (count string)
-    )
-  
+    (count string))
+
   (let [ba (byte-array 4)]
     (prn (vec ba))
     (aset-byte ba 3 50)
     (prn (vec ba))
     [(String. ba)
-     (count ba)]
-    )
-  
+     (count ba)])
+
+  (let [data {:t (hex-decode "aabbccdd")
+              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+    (->
+     (encode data)
+     (decode)
+     (get-in ["a" "id"])
+     (hex-encode-string)))
+
   ;
   )
 
