@@ -327,3 +327,76 @@
   )
 
 
+(comment
+
+  (do
+    (set! *warn-on-reflection* true)
+    (defprotocol IFoo
+      (do-stuff* [_ a]))
+
+    (deftype Foo [^java.util.LinkedList llist]
+      IFoo
+      (do-stuff*
+        [_ a]
+        (dotimes [n a]
+          (.add llist n))
+        (reduce + 0 llist)))
+
+    (defn foo-d
+      []
+      (Foo. (java.util.LinkedList.)))
+
+    (defn foo-r
+      []
+      (let [^java.util.LinkedList llist (java.util.LinkedList.)]
+        (reify
+          IFoo
+          (do-stuff*
+            [_ a]
+            (dotimes [n a]
+              (.add llist n))
+            (reduce + 0 llist)))))
+
+    (defn mem
+      []
+      (->
+       (- (-> (Runtime/getRuntime) (.totalMemory)) (-> (Runtime/getRuntime) (.freeMemory)))
+       (/ (* 1024 1024))
+       (int)
+       (str "mb")))
+
+    [(mem)
+     (time
+      (->>
+       (map (fn [i]
+              (let [^Foo x (foo-d)]
+                (do-stuff* x 10))) (range 0 1000000))
+       (reduce + 0)))
+
+     #_(time
+        (->>
+         (map (fn [i]
+                (let [x (foo-r)]
+                  (do-stuff* x 10))) (range 0 1000000))
+         (reduce + 0)))
+     (mem)])
+
+  ; deftype 
+  ; "Elapsed time: 348.17539 msecs"
+  ; ["10mb" 45000000 "55mb"]
+
+  ; reify
+  ; "Elapsed time: 355.863333 msecs"
+  ; ["10mb" 45000000 "62mb"]
+
+
+
+
+
+
+  (let [llist (java.util.LinkedList.)]
+    (dotimes [n 10]
+      (.add llist n))
+    (reduce + 0 llist))
+  ;
+  )
