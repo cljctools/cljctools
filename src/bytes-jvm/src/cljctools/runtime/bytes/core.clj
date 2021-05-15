@@ -1,71 +1,79 @@
 (ns cljctools.runtime.bytes
+  (:refer-clojure :exclude [bytes? bytes])
+  (:require
+   [cljctools.runtime.bytes.protocols :as bytes.protocols])
   (:import
-   (java.io InputStream OutputStream ByteArrayOutputStream ByteArrayInputStream PushbackInputStream)))
+   (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closable)))
 
 (set! *warn-on-reflection* true)
 
-(defn runtime-bytes?
+(defn bytes?
   [x]
-  (bytes? x))
+  (clojure.core/bytes? x))
 
-(defprotocol IPushbackInputStream
-  (read* [_] [_ offset length])
-  (unread* [_ char-int]))
+(defn char-code
+  [^Character chr]
+  (int chr))
 
-(deftype PushbackInputStream [buffer ^:mutable offset]
-  IPushbackInputStream
+(defmulti to-bytes type)
+
+(defmethod to-bytes String
+  [^String string]
+  (.getBytes string "UTF-8"))
+
+(defn size
+  [^bytes bytes-arr]
+  (alength bytes-arr))
+
+(defn to-string
+  [^bytes bytes-arr]
+  (String. bytes-arr "UTF-8"))
+
+(defn bytes
+  [^Number length]
+  (byte-array length))
+
+(deftype TPushbackInputStream [^PushbackInputStream in]
+  bytes.protocols/IPushbackInputStream
   (read*
     [_]
-    (if (>= offset (.-length buffer))
-      -1
-      (let [char-int (.readUint8 buffer offset)]
-        (set! offset (inc offset))
-        char-int)))
+    (.read in))
   (read*
-    [_ off length]
-    (if (>= offset (.-length buffer))
-      -1
-      (let [start (+ offset off)
-            end (+ start length)
-            buf (.subarray buffer start end)]
-        (set! offset (+ offset length))
-        buf)))
-  (unread* [_ char-int]
-    (set! offset (dec offset))))
+   [_ ^Number offset ^Number length]
+   (let [^bytes byte-arr (byte-array length)]
+     (.read in byte-arr offset length)
+     byte-arr))
+  (unread*
+   [_ ^Number char-int]
+   (.unread in))
+  java.io.Closable
+  (close [_] #_(do nil)))
 
 (defn pushback-input-stream
-  [source]
-  (PushbackInputStream. source 0))
+  [^bytes byte-arr]
+  (->
+   byte-arr
+   (ByteArrayInputStream.)
+   (PushbackInputStream.)
+   (TPushbackInputStream.)))
 
-(defprotocol IOutputStream
-  (write* [_ data])
-  (to-buffer* [_])
-  (reset* [_]))
-
-(deftype OutputStream [arr]
-  IOutputStream
+(deftype TOutputStream [^ByteArrayOutputStream out]
+  bytes.protocols/IOutputStream
   (write*
     [_ data]
-    (cond
-      (int? data)
-      (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 data)))
-
-      (instance? js/Buffer data)
-      (.push arr data)
-
-      (string? data)
-      (.push arr (js/Buffer.from data "utf8"))))
+    (.write out data))
   (reset*
     [_]
-    (.splice arr 0))
+    (.reset out))
   (to-buffer*
     [_]
-    (js/Buffer.concat arr)))
+    (.toByteArray out))
+  java.io.Closable
+  (close [_] #_(do nil)))
 
 (defn output-stream
   []
-  (OutputStream. #js []))
+  (->
+   (ByteArrayOutputStream.)
+   (TOutputStream.)))
 
-(defn char-code
-  [chr]
-  (.charCodeAt chr 0))

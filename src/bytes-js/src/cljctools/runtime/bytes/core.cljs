@@ -1,17 +1,37 @@
-(ns cljctools.runtime.bytes)
+(ns cljctools.runtime.bytes.core
+  (:require
+   [cljctools.runtime.bytes.protocols :as bytes.protocols]))
 
 ; requires js/Buffer
 
-(defn runtime-bytes?
+(defn bytes?
   [x]
   (instance? js/Buffer x))
 
-(defprotocol IPushbackInputStream
-  (read* [_] [_ offset length])
-  (unread* [_ char-int]))
+(defn char-code
+  [chr]
+  (.charCodeAt chr 0))
 
-(deftype PushbackInputStream [buffer ^:mutable offset]
-  IPushbackInputStream
+(defmulti to-bytes type)
+
+(defmethod to-bytes js/String
+  [string]
+  (js/Buffer.from string "utf8"))
+
+(defn size
+  [buffer]
+  (.-length buffer))
+
+(defn to-string
+  [buffer]
+  (.toString buffer "utf8"))
+
+(defn bytes
+  [length]
+  (js/Buffer.alloc length))
+
+(deftype TPushbackInputStream [buffer ^:mutable offset]
+  bytes.protocols/IPushbackInputStream
   (read*
     [_]
     (if (>= offset (.-length buffer))
@@ -29,19 +49,16 @@
         (set! offset (+ offset length))
         buf)))
   (unread* [_ char-int]
-    (set! offset (dec offset))))
+    (set! offset (dec offset)))
+  bytes.protocols/Closable
+  (close [_] #_(do nil)))
 
 (defn pushback-input-stream
-  [source]
-  (PushbackInputStream. source 0))
+  [buffer]
+  (TPushbackInputStream. buffer 0))
 
-(defprotocol IOutputStream
-  (write* [_ data])
-  (to-buffer* [_])
-  (reset* [_]))
-
-(deftype OutputStream [arr]
-  IOutputStream
+(deftype TOutputStream [arr]
+  bytes.protocols/IOutputStream
   (write*
     [_ data]
     (cond
@@ -56,14 +73,13 @@
   (reset*
     [_]
     (.splice arr 0))
-  (to-buffer*
+  (to-bytes*
     [_]
-    (js/Buffer.concat arr)))
+    (js/Buffer.concat arr))
+  bytes.protocols/Closable
+  (close [_] #_(do nil)))
 
 (defn output-stream
   []
-  (OutputStream. #js []))
+  (TOutputStream. #js []))
 
-(defn char-code 
-  [chr] 
-  (.charCodeAt chr 0))
