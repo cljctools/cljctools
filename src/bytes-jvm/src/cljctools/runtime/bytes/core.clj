@@ -1,8 +1,9 @@
-(ns cljctools.runtime.bytes
+(ns cljctools.runtime.bytes.core
   (:refer-clojure :exclude [bytes? bytes])
   (:require
    [cljctools.runtime.bytes.protocols :as bytes.protocols])
   (:import
+   (java.util Random)
    (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closable)))
 
 (set! *warn-on-reflection* true)
@@ -77,6 +78,11 @@
    (ByteArrayOutputStream.)
    (TOutputStream.)))
 
+(defn random-bytes
+  [^Number length]
+  (let [^bytes byte-arr (byte-array length)]
+    (.nextBytes (Random.) byte-arr)
+    byte-arr))
 
 (comment
 

@@ -4,6 +4,11 @@
 
 ; requires js/Buffer
 
+(declare crypto)
+
+(when (exists? js/module)
+  (defonce crypto (js/require "crypto")))
+
 (defn bytes?
   [x]
   (instance? js/Buffer x))
@@ -83,3 +88,6 @@
   []
   (TOutputStream. #js []))
 
+(defn random-bytes
+  [length]
+  (.randomBytes crypto length))
