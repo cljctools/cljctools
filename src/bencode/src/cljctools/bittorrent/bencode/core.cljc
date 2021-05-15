@@ -1,202 +1,205 @@
 (ns cljctools.bittorrent.bencode.core
-  (:import
-   (java.io InputStream OutputStream ByteArrayOutputStream ByteArrayInputStream PushbackInputStream)))
+  (:require
+   [cljctools.runtime.bytes.protocols :as bytes.protocols]
+   [cljctools.runtime.bytes.core :as bytes.core]))
 
-(set! *warn-on-reflection* true)
-
-(derive java.lang.Number ::number?)
-(derive java.lang.String ::string?)
-(derive clojure.lang.Keyword ::keyword?)
-(derive clojure.lang.IPersistentMap ::map?)
-(derive clojure.lang.Sequential ::sequential?)
-(derive (Class/forName "[B") ::bytes)
-
-(def ^Integer ^:const colon-int (int \:))
-(def ^Integer ^:const i-int (int \i))
-(def ^Integer ^:const e-int (int \e))
-(def ^Integer ^:const l-int (int \l))
-(def ^Integer ^:const d-int (int \d))
+(def ^Integer ^:const colon-int (bytes.core/char-code \:))
+(def ^Integer ^:const i-int (bytes.core/char-code \i))
+(def ^Integer ^:const e-int (bytes.core/char-code \e))
+(def ^Integer ^:const l-int (bytes.core/char-code \l))
+(def ^Integer ^:const d-int (bytes.core/char-code \d))
 
 (defmulti encode*
-  (fn [data out]
-    (type data)))
+  (fn
+    ([data out]
+     (cond
+       (bytes.core/bytes? data) ::bytes
+       (number? data) ::number
+       (string? data) ::string
+       (keyword? data) ::keyword
+       (map? data) ::map
+       (sequential? data) ::sequential))
+    ([data out dispatch-val]
+     dispatch-val)))
 
-(defmethod encode* ::number?
-  [^Number num ^OutputStream out]
-  (.write out i-int)
-  (.write out (-> num (.toString) (.getBytes "UTF-8")))
-  (.write out e-int))
+(defmethod encode* ::number
+  [number out]
+  (bytes.protocols/write* out i-int)
+  (bytes.protocols/write* out (bytes.core/to-bytes (str number)))
+  (bytes.protocols/write* out e-int))
 
 (defmethod encode* ::string?
-  [^String string ^OutputStream out]
-  (encode* (.getBytes string "UTF-8") out))
+  [string out]
+  (encode* (bytes.core/to-bytes string) out))
 
 (defmethod encode* ::keyword?
-  [kword ^OutputStream out]
-  (encode* (.getBytes (name kword) "UTF-8") out))
+  [kword out]
+  (encode* (bytes.core/to-bytes (name kword)) out))
 
 (defmethod encode* ::sequential?
-  [coll ^OutputStream out]
-  (.write out l-int)
+  [coll out]
+  (bytes.protocols/write* out l-int)
   (doseq [item coll]
     (encode* item out))
-  (.write out e-int))
+  (bytes.protocols/write* out e-int))
 
 (defmethod encode* ::map?
-  [amap ^OutputStream out]
-  (.write out d-int)
-  (doseq [[k v] (into (sorted-map) amap)]
+  [mp out]
+  (bytes.protocols/write* out d-int)
+  (doseq [[k v] (into (sorted-map) mp)]
     (encode* k out)
     (encode* v out))
-  (.write out e-int))
+  (bytes.protocols/write* out e-int))
 
 (defmethod encode* ::bytes
-  [^bytes byte-arr ^ByteArrayOutputStream out]
-  (.write out (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
-  (.write out colon-int)
-  (.write out byte-arr))
+  [byts out]
+  (bytes.protocols/write* out (-> byts (bytes.core/size) (str) (bytes.core/to-bytes)))
+  (bytes.protocols/write* out colon-int)
+  (bytes.protocols/write* out byts))
 
 (defn encode
   [data]
-  (with-open [out (ByteArrayOutputStream.)]
+  (with-open [out (bytes.core/output-stream)]
     (encode* data out)
-    (.toByteArray out)))
+    (bytes.protocols/to-bytes* out)))
 
 (defn peek-next
-  [^PushbackInputStream in]
-  (let [char-int (.read in)]
+  [in]
+  (let [char-int (bytes.protocols/read* in)]
     (when (= -1 char-int)
       (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
-    (.unread in char-int)
+    (bytes.protocols/unread* in char-int)
     char-int))
 
 (defmulti decode*
   (fn
     ([in out]
      (condp = (peek-next in)
-       i-int :integer
-       l-int :list
-       d-int :dictionary
-       :else :bytes))
+       i-int ::integer
+       l-int ::list
+       d-int ::dictionary
+       :else ::bytes))
     ([in out dispatch-val]
      dispatch-val)))
 
-(defmethod decode* :dictionary
-  [^InputStream in
-   ^ByteArrayOutputStream out
+(defmethod decode* ::dictionary
+  [in
+   out
    & args]
-  (.read in) ; skip d char
+  (bytes.protocols/read* in) ; skip d char
   (loop [result (transient [])]
     (let [char-int (peek-next in)]
       (cond
 
         (= char-int e-int) ; return
         (do
-          (.reset out)
+          (bytes.protocols/reset* out)
           (apply hash-map (persistent! result)))
 
         (= char-int i-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got integer") {})
-          (recur (conj! result  (decode* in out :integer))))
+          (recur (conj! result  (decode* in out ::integer))))
 
         (= char-int d-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got dictionary") {})
-          (recur (conj! result  (decode* in out :dictionary))))
+          (recur (conj! result  (decode* in out ::dictionary))))
 
         (= char-int l-int)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got list") {})
-          (recur (conj! result  (decode* in out :list))))
+          (recur (conj! result  (decode* in out ::list))))
 
         :else
-        (let [^bytes bytes-arr (decode* in out :bytes)
+        (let [byts (decode* in out ::bytes)
               next-element (if (even? (count result))
                              #_its_a_key
-                             (String. bytes-arr "UTF-8")
+                             (to-string byts)
                              #_its_a_value
-                             bytes-arr)]
+                             byts)]
           (recur (conj! result next-element)))))))
 
 (defmethod decode* :list
-  [^InputStream in
-   ^ByteArrayOutputStream out
+  [in
+   out
    & args]
-  (.read in) ; skip l char
+  (bytes.protocols/read* in) ; skip l char
   (loop [result (transient [])]
     (let [char-int (peek-next in)]
       (cond
 
         (= char-int e-int) ; return
         (do
-          (.reset out)
+          (bytes.protocols/reset* out)
           (persistent! result))
 
         (= char-int i-int)
-        (recur (conj! result  (decode* in out :integer)))
+        (recur (conj! result (decode* in out ::integer)))
 
         (= char-int d-int)
-        (recur (conj! result  (decode* in out :dictionary)))
+        (recur (conj! result  (decode* in out ::dictionary)))
 
         (= char-int l-int)
-        (recur (conj! result  (decode* in out :list)))
+        (recur (conj! result  (decode* in out ::list)))
 
         :else
-        (recur (conj! result (decode* in out :bytes)))))))
+        (recur (conj! result (decode* in out ::bytes)))))))
 
 (defmethod decode* :integer
-  [^InputStream in
-   ^ByteArrayOutputStream out
+  [in
+   out
    & args]
-  (.read in) ; skip i char
+  (bytes.protocols/read* in) ; skip i char
   (loop []
-    (let [char-int (.read in)]
+    (let [char-int (bytes.protocols/read* in)]
       (cond
 
         (= char-int e-int)
         (let [number-string (->
-                             (.toByteArray out)
-                             (String. "UTF-8"))
-              value (try
-                      (Integer/parseInt number-string)
-                      (catch Exception e
-                        (Double/parseDouble number-string)))]
-          (.reset out)
-          value)
+                             (bytes.protocols/to-bytes* out)
+                             (bytes.core/to-string))
+              number (try
+                       #?(:clj (Integer/parseInt number-string)
+                          :cljs (js/Number.parseInt number-string))
+                       (catch
+                        #?(:clj Exception
+                           :cljs js/Error)
+                        error
+                         #?(:clj (Double/parseDouble number-string)
+                            :cljs (js/Number.parseFloat number-string))))]
+          (bytes.protocols/reset* out)
+          number)
 
         :else (do
-                (.write out char-int)
+                (bytes.protocols/write* out char-int)
                 (recur))))))
 
 (defmethod decode* :bytes
-  [^InputStream in
-   ^ByteArrayOutputStream out
+  [in
+   out
    & args]
   (loop []
-    (let [char-int (.read in)]
+    (let [char-int (bytes.protocols/read* in)]
       (cond
 
         (= char-int colon-int)
-        (let [size (-> (.toByteArray out)
-                       (String. "UTF-8")
-                       (Integer/parseInt))
-              byte-arr (byte-array size)]
-          (.read in byte-arr 0 size)
-          (.reset out)
-          byte-arr)
+        (let [length (-> (bytes.protocols/to-bytes* out)
+                         (bytes.core/to-string)
+                         #?(:clj (Integer/parseInt)
+                            :cljs (js/Number.parseInt)))
+              byts (bytes.core/read* in 0 length)]
+          (bytes.protocols/reset* out)
+          byts)
 
         :else (do
-                (.write out char-int)
+                (bytes.protocols/write* out char-int)
                 (recur))))))
 
 (defn decode
-  [^bytes byte-arr]
-  (with-open [in (->
-                  byte-arr
-                  (ByteArrayInputStream.)
-                  (PushbackInputStream.))
-              out (ByteArrayOutputStream.)]
+  [byts]
+  (let [in (bytes.core/pushback-input-stream byts)
+        out (bytes.core/output-stream)]
     (decode* in out)))
 
 
@@ -329,6 +332,27 @@
 
     (def bb (java.nio.ByteBuffer/wrap (.toByteArray out)))
     (Integer/parseInt (String. (.toByteArray out) "UTF-8")))
+  ;
+  )
+
+(comment
+
+  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
+                      cljctools.bittorrent/bencode-js {:local/root "./bittorrent/src/bencode-js"}}} '\
+  -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode-js" --compile cljctools.bittorrent.bencode.core --repl
+
+  (require '[cljctools.bittorrent.bencode.core :refer [encode decode]])
+
+  (let [data {:t (js/Buffer.from "aabbccdd" "hex")
+              :a {"id" (js/Buffer.from "197957dab1d2900c5f6d9178656d525e22e63300" "hex")}}]
+    (->
+     (encode data)
+     #_(.toString)
+     (decode)
+     (-> (get-in ["a" "id"]))
+     (.toString "hex")))
+
+
   ;
   )
 
