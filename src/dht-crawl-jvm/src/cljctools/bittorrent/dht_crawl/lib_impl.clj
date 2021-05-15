@@ -30,15 +30,14 @@
   [data]
   (-> (doto (ByteArrayOutputStream.)
         (bencode.core/write-bencode data))
-      (.toString)))
+      (.toByteArray)))
 
 (defn bencode-decode
-  [string]
-  (-> (.getBytes string "UTF-8")
+  [^bytes byte-arr]
+  (-> byte-arr
       ByteArrayInputStream.
       PushbackInputStream.
       bencode.core/read-bencode))
-
 
 (comment
 
@@ -88,11 +87,15 @@
    (bencode-decode)
    (bencode-encode))
 
-  (->
-   (bencode-encode {:t "aa"
-                    :a {:id (random-bytes 20)}})
-   #_(bencode-decode)
-   #_(bencode-encode))
+  (let [id (hex-decode "d05352b32fff78741f60d43dfd29de0b3bb50973")]
+    (->
+     (bencode-encode {:t "aa"
+                      :a {:id id}})
+     (bencode-decode)
+     (get-in ["a" "id"])
+     (hex-encode-string)))
+
+
 
 
   (import (com.dampcake.bencode Bencode))
