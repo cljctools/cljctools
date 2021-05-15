@@ -25,25 +25,25 @@
 (defmethod encode* ::number
   [number out]
   (bytes.protocols/write* out i-int)
-  (bytes.protocols/write* out (bytes.core/to-bytes (str number)))
+  (bytes.protocols/write-bytes* out (bytes.core/to-bytes (str number)))
   (bytes.protocols/write* out e-int))
 
-(defmethod encode* ::string?
+(defmethod encode* ::string
   [string out]
   (encode* (bytes.core/to-bytes string) out))
 
-(defmethod encode* ::keyword?
+(defmethod encode* ::keyword
   [kword out]
   (encode* (bytes.core/to-bytes (name kword)) out))
 
-(defmethod encode* ::sequential?
+(defmethod encode* ::sequential
   [coll out]
   (bytes.protocols/write* out l-int)
   (doseq [item coll]
     (encode* item out))
   (bytes.protocols/write* out e-int))
 
-(defmethod encode* ::map?
+(defmethod encode* ::map
   [mp out]
   (bytes.protocols/write* out d-int)
   (doseq [[k v] (into (sorted-map) mp)]
@@ -53,13 +53,13 @@
 
 (defmethod encode* ::bytes
   [byts out]
-  (bytes.protocols/write* out (-> byts (bytes.core/size) (str) (bytes.core/to-bytes)))
+  (bytes.protocols/write-bytes* out (-> byts (bytes.core/size) (str) (bytes.core/to-bytes)))
   (bytes.protocols/write* out colon-int)
-  (bytes.protocols/write* out byts))
+  (bytes.protocols/write-bytes* out byts))
 
 (defn encode
   [data]
-  (with-open [out (bytes.core/output-stream)]
+  (let [out (bytes.core/output-stream)]
     (encode* data out)
     (bytes.protocols/to-bytes* out)))
 
@@ -115,12 +115,12 @@
         (let [byts (decode* in out ::bytes)
               next-element (if (even? (count result))
                              #_its_a_key
-                             (to-string byts)
+                             (bytes.core/to-string byts)
                              #_its_a_value
                              byts)]
           (recur (conj! result next-element)))))))
 
-(defmethod decode* :list
+(defmethod decode* ::list
   [in
    out
    & args]
@@ -146,7 +146,7 @@
         :else
         (recur (conj! result (decode* in out ::bytes)))))))
 
-(defmethod decode* :integer
+(defmethod decode* ::integer
   [in
    out
    & args]
@@ -175,7 +175,7 @@
                 (bytes.protocols/write* out char-int)
                 (recur))))))
 
-(defmethod decode* :bytes
+(defmethod decode* ::bytes
   [in
    out
    & args]
@@ -188,7 +188,7 @@
                          (bytes.core/to-string)
                          #?(:clj (Integer/parseInt)
                             :cljs (js/Number.parseInt)))
-              byts (bytes.core/read* in 0 length)]
+              byts (bytes.protocols/read* in 0 length)]
           (bytes.protocols/reset* out)
           byts)
 
@@ -205,228 +205,42 @@
 
 (comment
 
-  clj -Sdeps '{:deps {cljctools.bittorrent/bencode-jvm {:local/root "./bittorrent/src/bencode-jvm"}
-                      cljctools.bittorrent/dht-crawl-jvm {:local/root "./bittorrent/src/dht-crawl-jvm"}}}'
+  clj -Sdeps '{:deps {github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
+                      github.cljctools.runtime/bytes-jvm {:local/root "./runtime/src/bytes-jvm"}
+                      github.cljctools.runtime/codec-jvm {:local/root "./runtime/src/codec-jvm"}}}'
 
   (do
     (defn reload
       []
-      (require '[cljctools.bittorrent.bencode.core :refer [encode decode]] :reload)
-      (require '[cljctools.bittorrent.dht-crawl.lib-impl :refer [random-bytes
-                                                                 hex-decode
-                                                                 hex-encode-string
-                                                                 bencode-encode
-                                                                 bencode-decode]] :reload))
+      (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
+      (require '[cljctools.runtime.bytes.core :as bytes.core] :reload)
+      (require '[cljctools.runtime.codec.core :as codec.core] :reload))
     (reload))
-
-
-  (->
-   (encode {:t (random-bytes 2)
-            :a {:id (random-bytes 20)}})
-   (.array)
-   (String.)
-   (decode))
-
-  (bencode-encode
-   {:t "aa"
-    :a {"foo" 123
-        :id "197957dab1d2900c5f6d9178656d525e22e63300"}})
-
-  (->
-   (encode {:t (random-bytes 2)
-            :a {:id (random-bytes 20)}})
-   (.array)
-   (String.)
-   (decode))
-
-
-  (=
-   (->
-    (encode {:t "aa"
-             :a {"foo" 123
-                 "id" "197957dab1d2900c5f6d9178656d525e22e63300"}})
-    (.array)
-    (String.))
-   (bencode-encode
-    {:t "aa"
-     :a {"foo" 123
-         "id" "197957dab1d2900c5f6d9178656d525e22e63300"}}))
-
-  (let [data {:t (hex-decode "aabbccdd")
-              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
-    (=
-     (bencode-encode data)
-     (->
-      (encode data)
-      (.array)
-      (String.))))
-
-  (let [data {:t (hex-decode "aabbccdd")
-              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
-    (->
-     (encode data)
-     (.array)
-     (String. "UTF-8")
-     #_(decode)))
-
-  (count (String. (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
-
-  (let [string (String. (random-bytes 20))]
-    (prn string)
-    (count string))
-
-  (let [ba (byte-array 4)]
-    (prn (vec ba))
-    (aset-byte ba 3 50)
-    (prn (vec ba))
-    [(String. ba)
-     (count ba)])
-
-  (let [data {:t (hex-decode "aabbccdd")
-              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
-    (->
-     (encode data)
-     (decode)
-     (get-in ["a" "id"])
-     (hex-encode-string)))
-
-  (let [data {:t (hex-decode "aabbccdd")
-              :a {"id" (hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
-    (->
-     (encode data)
-     (String. "UTF-8")))
-
-  ;
-  )
-
-(comment
-
-  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}}} '-M -m cljs.main --repl-env node
-
-  (do
-    (def bencode (js/require "bencode"))
-    (def crypto (js/require "crypto")))
-
-  (let [data (clj->js {:t (js/Buffer.from "aabbccdd" "hex")
-                       :a {"id" (js/Buffer.from "197957dab1d2900c5f6d9178656d525e22e63300" "hex")}})]
-    (->
-     (.encode bencode data)
-     #_(.toString)
-     #_(js/Buffer.from)
-     (->> (.decode bencode))
-     (js->clj)
-     (-> (get-in ["a" "id"]))
-     (.toString "hex")))
   
-  ;
-  )
-
-
-(comment
   
-  (do
-    (def in (java.io.ByteArrayInputStream. (.getBytes "1123:abcd" "UTF-8")))
-    (def out (java.io.ByteArrayOutputStream.))
-    (dotimes [_ 4]
-      (.write out (.read in)))
-
-    (def bb (java.nio.ByteBuffer/wrap (.toByteArray out)))
-    (Integer/parseInt (String. (.toByteArray out) "UTF-8")))
-  ;
-  )
-
-(comment
-
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
-                      cljctools.bittorrent/bencode-js {:local/root "./bittorrent/src/bencode-js"}}} '\
-  -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode-js" --compile cljctools.bittorrent.bencode.core --repl
+                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
+                      github.cljctools.runtime/bytes-js {:local/root "./runtime/src/bytes-js"}
+                      github.cljctools.runtime/codec-js {:local/root "./runtime/src/codec-js"}}}' \
+  -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode" --compile cljctools.bittorrent.bencode.core --repl
 
-  (require '[cljctools.bittorrent.bencode.core :refer [encode decode]])
-
-  (let [data {:t (js/Buffer.from "aabbccdd" "hex")
-              :a {"id" (js/Buffer.from "197957dab1d2900c5f6d9178656d525e22e63300" "hex")}}]
-    (->
-     (encode data)
-     #_(.toString)
-     (decode)
-     (-> (get-in ["a" "id"]))
-     (.toString "hex")))
-
-
-  ;
-  )
-
-
-(comment
-
+  (require '[cljctools.bittorrent.bencode.core :as bencode.core])
+  (require '[cljctools.runtime.bytes.core :as bytes.core])
+  (require '[cljctools.runtime.codec.core :as codec.core])
+  
   (do
-    (set! *warn-on-reflection* true)
-    (defprotocol IFoo
-      (do-stuff* [_ a]))
+    #_(def data {:t "aabbccdd"
+                 :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}})
 
-    (deftype Foo [^java.util.LinkedList llist]
-      IFoo
-      (do-stuff*
-        [_ a]
-        (dotimes [n a]
-          (.add llist n))
-        (reduce + 0 llist)))
+    (def data {:t (codec.core/hex-decode "aabbccdd")
+               :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}})
 
-    (defn foo-d
-      []
-      (Foo. (java.util.LinkedList.)))
+    (->
+     (bencode.core/encode data)
+     #_(bytes.core/to-string)
+     (bencode.core/decode)
+     (-> (get-in ["a" "id"]))
+     (codec.core/hex-encode-string)))
 
-    (defn foo-r
-      []
-      (let [^java.util.LinkedList llist (java.util.LinkedList.)]
-        (reify
-          IFoo
-          (do-stuff*
-            [_ a]
-            (dotimes [n a]
-              (.add llist n))
-            (reduce + 0 llist)))))
-
-    (defn mem
-      []
-      (->
-       (- (-> (Runtime/getRuntime) (.totalMemory)) (-> (Runtime/getRuntime) (.freeMemory)))
-       (/ (* 1024 1024))
-       (int)
-       (str "mb")))
-
-    [(mem)
-     (time
-      (->>
-       (map (fn [i]
-              (let [^Foo x (foo-d)]
-                (do-stuff* x 10))) (range 0 1000000))
-       (reduce + 0)))
-
-     #_(time
-        (->>
-         (map (fn [i]
-                (let [x (foo-r)]
-                  (do-stuff* x 10))) (range 0 1000000))
-         (reduce + 0)))
-     (mem)])
-
-  ; deftype 
-  ; "Elapsed time: 348.17539 msecs"
-  ; ["10mb" 45000000 "55mb"]
-
-  ; reify
-  ; "Elapsed time: 355.863333 msecs"
-  ; ["10mb" 45000000 "62mb"]
-
-
-
-
-
-
-  (let [llist (java.util.LinkedList.)]
-    (dotimes [n 10]
-      (.add llist n))
-    (reduce + 0 llist))
   ;
   )
