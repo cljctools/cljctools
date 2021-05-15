@@ -89,5 +89,6 @@
   (TOutputStream. #js []))
 
 (defn random-bytes
+  {:nodejs-only true}
   [length]
   (.randomBytes crypto length))
