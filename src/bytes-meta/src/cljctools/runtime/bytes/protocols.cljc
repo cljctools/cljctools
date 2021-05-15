@@ -5,7 +5,8 @@
   (unread* [_ char-int]))
 
 (defprotocol IOutputStream
-  (write* [_ data])
+  (write* [_ char-int])
+  (write-bytes* [_ byts])
   (to-bytes* [_])
   (reset* [_]))
 

@@ -1,4 +1,5 @@
 (ns cljctools.runtime.bytes.core
+  (:refer-clojure :exclude [bytes])
   (:require
    [cljctools.runtime.bytes.protocols :as bytes.protocols]))
 
@@ -65,16 +66,11 @@
 (deftype TOutputStream [arr]
   bytes.protocols/IOutputStream
   (write*
-    [_ data]
-    (cond
-      (int? data)
-      (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 data)))
-
-      (instance? js/Buffer data)
-      (.push arr data)
-
-      (string? data)
-      (.push arr (js/Buffer.from data "utf8"))))
+    [_ char-int]
+    (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 char-int))))
+  (write-bytes*
+   [_ buffer]
+   (.push arr buffer))
   (reset*
     [_]
     (.splice arr 0))
