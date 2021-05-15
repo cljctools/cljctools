@@ -1,4 +1,4 @@
-(ns cljctools.runtime.code.core
+(ns cljctools.runtime.codec.core
   (:import
    (org.apache.commons.codec.binary Hex)))
 
