@@ -4,6 +4,8 @@
    (java.nio ByteBuffer)
    (java.nio.charset StandardCharsets)))
 
+(set! *warn-on-reflection* true)
+
 (derive java.nio.ByteBuffer ::byte-buffer)
 (derive java.lang.Number ::number?)
 (derive java.lang.String ::string?)
@@ -12,11 +14,11 @@
 (derive clojure.lang.Sequential ::sequential?)
 (derive (Class/forName "[B") ::bytes)
 
-(def ^:const colon-int (int \:))
-(def ^:const i-int (int \i))
-(def ^:const e-int (int \e))
-(def ^:const l-int (int \l))
-(def ^:const d-int (int \d))
+(def ^Integer ^:const colon-int (int \:))
+(def ^Integer ^:const i-int (int \i))
+(def ^Integer ^:const e-int (int \e))
+(def ^Integer ^:const l-int (int \l))
+(def ^Integer ^:const d-int (int \d))
 
 (defmulti encode*
   (fn [data out]
@@ -26,13 +28,13 @@
   [data ^OutputStream out])
 
 (defmethod encode* ::number?
-  [num ^OutputStream out]
+  [^Number num ^OutputStream out]
   (.write out i-int)
   (.write out (-> num (.toString) (.getBytes "UTF-8")))
   (.write out e-int))
 
 (defmethod encode* ::string?
-  [string ^OutputStream out]
+  [^String string ^OutputStream out]
   (encode* (.getBytes string "UTF-8") out))
 
 (defmethod encode* ::keyword?
@@ -43,7 +45,7 @@
   [coll ^OutputStream out]
   (.write out l-int)
   (doseq [item coll]
-    (.write out (encode* item)))
+    (encode* item out))
   (.write out e-int))
 
 (defmethod encode* ::map?
@@ -55,7 +57,7 @@
   (.write out e-int))
 
 (defmethod encode* ::bytes
-  [byte-arr ^OutputStream out]
+  [^bytes byte-arr ^OutputStream out]
   (.write out (-> byte-arr (alength) (Integer/toString) (.getBytes "UTF-8")))
   (.write out colon-int)
   (.write out byte-arr))
@@ -68,7 +70,7 @@
     (ByteBuffer/wrap (.toByteArray out))))
 
 (defn peek-next
-  [in]
+  [^PushbackInputStream in]
   (let [char-int (.read in)]
     (when (= -1 char-int)
       (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
@@ -87,7 +89,9 @@
      dispatch-val)))
 
 (defmethod decode* :dictionary
-  [in out & args]
+  [^ByteArrayInputStream in
+   ^ByteArrayOutputStream out
+   & args]
   (.read in) ; skip d char
   (loop [result (transient [])]
     (let [char-int (peek-next in)]
@@ -114,7 +118,7 @@
           (recur (conj! result  (decode* in out :list))))
 
         :else
-        (let [next-map-element-byte-arr (decode* in out :bytes)
+        (let [^bytes next-map-element-byte-arr (decode* in out :bytes)
               next-element (if (even? (count result))
                              #_its_a_key
                              (String. next-map-element-byte-arr "UTF-8")
@@ -123,7 +127,9 @@
           (recur (conj! result next-element)))))))
 
 (defmethod decode* :list
-  [in out & args]
+  [^ByteArrayInputStream in
+   ^ByteArrayOutputStream out
+   & args]
   (.read in) ; skip l char
   (loop [result (transient [])]
     (let [char-int (peek-next in)]
@@ -147,7 +153,9 @@
         (recur (conj! result (decode* in out :bytes)))))))
 
 (defmethod decode* :integer
-  [in out & args]
+  [^ByteArrayInputStream in
+   ^ByteArrayOutputStream out
+   & args]
   (.read in) ; skip i char
   (loop []
     (let [char-int (.read in)]
@@ -169,7 +177,9 @@
                 (recur))))))
 
 (defmethod decode* :bytes
-  [in out & args]
+  [^ByteArrayInputStream in
+   ^ByteArrayOutputStream out
+   & args]
   (loop []
     (let [char-int (.read in)]
       (cond
@@ -188,7 +198,7 @@
                 (recur))))))
 
 (defn decode
-  [string]
+  [^String string]
   (with-open [in (->
                   (.getBytes string "UTF-8")
                   (ByteArrayInputStream.)
