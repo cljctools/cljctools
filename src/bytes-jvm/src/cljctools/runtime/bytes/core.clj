@@ -156,3 +156,32 @@
     (reduce + 0 llist))
   ;
   )
+
+
+
+(comment
+
+  (do
+    (defn bar1
+      [^Integer num ^java.io.ByteArrayOutputStream out]
+      (.write out num))
+
+    (defn bar2
+      [num ^java.io.ByteArrayOutputStream out]
+      (.write out (int num)))
+
+    (time
+     (with-open [out (java.io.ByteArrayOutputStream.)]
+       (dotimes [i 100000000]
+         (bar1 i out))))
+
+    (time
+     (with-open [out (java.io.ByteArrayOutputStream.)]
+       (dotimes [i 100000000]
+         (bar2 i out)))))
+
+  ; "Elapsed time: 1352.17024 msecs"
+  ; "Elapsed time: 1682.777967 msecs"
+
+  ;
+  )
