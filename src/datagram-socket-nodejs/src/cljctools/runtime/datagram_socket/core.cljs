@@ -39,13 +39,15 @@
             [_]
             (go
               (try
-                (.bind raw-socket port host)
                 (doto raw-socket
-                  (.on "listening" on-listening)
+                  (.on "listening" (fn []
+                                     (on-listening)))
                   (.on "message" (fn [buffer rinfo]
                                    (on-message buffer {:host (.-address rinfo)
                                                        :port  (.-port rinfo)})))
-                  (.on "error" on-error))
+                  (.on "error" (fn [error]
+                                 (on-error error))))
+                (.bind raw-socket port host)
                 (catch js/Error error
                   (on-error error)))))
           (send*
