@@ -1,13 +1,14 @@
 (ns cljctools.bittorrent.bencode.core
   (:require
    [cljctools.runtime.bytes.protocols :as bytes.protocols]
-   [cljctools.runtime.bytes.core :as bytes.core]))
+   [cljctools.runtime.bytes.core :as bytes.core]
+   [cljctools.runtime.core :as runtime.core]))
 
-(def ^Integer ^:const colon-int (bytes.core/char-code \:))
-(def ^Integer ^:const i-int (bytes.core/char-code \i))
-(def ^Integer ^:const e-int (bytes.core/char-code \e))
-(def ^Integer ^:const l-int (bytes.core/char-code \l))
-(def ^Integer ^:const d-int (bytes.core/char-code \d))
+(def ^Integer ^:const colon-int8 (runtime.core/char-code \:))
+(def ^Integer ^:const i-int8 (runtime.core/char-code \i))
+(def ^Integer ^:const e-int8 (runtime.core/char-code \e))
+(def ^Integer ^:const l-int8 (runtime.core/char-code \l))
+(def ^Integer ^:const d-int8 (runtime.core/char-code \d))
 
 (defmulti encode*
   (fn
@@ -24,9 +25,9 @@
 
 (defmethod encode* ::number
   [number out]
-  (bytes.protocols/write* out i-int)
+  (bytes.protocols/write* out i-int8)
   (bytes.protocols/write-bytes* out (bytes.core/to-bytes (str number)))
-  (bytes.protocols/write* out e-int))
+  (bytes.protocols/write* out e-int8))
 
 (defmethod encode* ::string
   [string out]
@@ -38,23 +39,23 @@
 
 (defmethod encode* ::sequential
   [coll out]
-  (bytes.protocols/write* out l-int)
+  (bytes.protocols/write* out l-int8)
   (doseq [item coll]
     (encode* item out))
-  (bytes.protocols/write* out e-int))
+  (bytes.protocols/write* out e-int8))
 
 (defmethod encode* ::map
   [mp out]
-  (bytes.protocols/write* out d-int)
+  (bytes.protocols/write* out d-int8)
   (doseq [[k v] (into (sorted-map) mp)]
     (encode* k out)
     (encode* v out))
-  (bytes.protocols/write* out e-int))
+  (bytes.protocols/write* out e-int8))
 
 (defmethod encode* ::bytes
   [byts out]
   (bytes.protocols/write-bytes* out (-> byts (bytes.core/size) (str) (bytes.core/to-bytes)))
-  (bytes.protocols/write* out colon-int)
+  (bytes.protocols/write* out colon-int8)
   (bytes.protocols/write-bytes* out byts))
 
 (defn encode
@@ -65,19 +66,19 @@
 
 (defn peek-next
   [in]
-  (let [char-int (bytes.protocols/read* in)]
-    (when (= -1 char-int)
+  (let [int8 (bytes.protocols/read* in)]
+    (when (= -1 int8)
       (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
-    (bytes.protocols/unread* in char-int)
-    char-int))
+    (bytes.protocols/unread* in int8)
+    int8))
 
 (defmulti decode*
   (fn
     ([in out]
      (condp = (peek-next in)
-       i-int ::integer
-       l-int ::list
-       d-int ::dictionary
+       i-int8 ::integer
+       l-int8 ::list
+       d-int8 ::dictionary
        :else ::bytes))
     ([in out dispatch-val]
      dispatch-val)))
@@ -88,25 +89,25 @@
    & args]
   (bytes.protocols/read* in) ; skip d char
   (loop [result (transient [])]
-    (let [char-int (peek-next in)]
+    (let [int8 (peek-next in)]
       (cond
 
-        (= char-int e-int) ; return
+        (= int8 e-int8) ; return
         (do
           (bytes.protocols/reset* out)
           (apply hash-map (persistent! result)))
 
-        (= char-int i-int)
+        (= int8 i-int8)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got integer") {})
           (recur (conj! result  (decode* in out ::integer))))
 
-        (= char-int d-int)
+        (= int8 d-int8)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got dictionary") {})
           (recur (conj! result  (decode* in out ::dictionary))))
 
-        (= char-int l-int)
+        (= int8 l-int8)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got list") {})
           (recur (conj! result  (decode* in out ::list))))
@@ -126,21 +127,21 @@
    & args]
   (bytes.protocols/read* in) ; skip l char
   (loop [result (transient [])]
-    (let [char-int (peek-next in)]
+    (let [int8 (peek-next in)]
       (cond
 
-        (= char-int e-int) ; return
+        (= int8 e-int8) ; return
         (do
           (bytes.protocols/reset* out)
           (persistent! result))
 
-        (= char-int i-int)
+        (= int8 i-int8)
         (recur (conj! result (decode* in out ::integer)))
 
-        (= char-int d-int)
+        (= int8 d-int8)
         (recur (conj! result  (decode* in out ::dictionary)))
 
-        (= char-int l-int)
+        (= int8 l-int8)
         (recur (conj! result  (decode* in out ::list)))
 
         :else
@@ -152,10 +153,10 @@
    & args]
   (bytes.protocols/read* in) ; skip i char
   (loop []
-    (let [char-int (bytes.protocols/read* in)]
+    (let [int8 (bytes.protocols/read* in)]
       (cond
 
-        (= char-int e-int)
+        (= int8 e-int8)
         (let [number-string (->
                              (bytes.protocols/to-bytes* out)
                              (bytes.core/to-string))
@@ -172,7 +173,7 @@
           number)
 
         :else (do
-                (bytes.protocols/write* out char-int)
+                (bytes.protocols/write* out int8)
                 (recur))))))
 
 (defmethod decode* ::bytes
@@ -180,10 +181,10 @@
    out
    & args]
   (loop []
-    (let [char-int (bytes.protocols/read* in)]
+    (let [int8 (bytes.protocols/read* in)]
       (cond
 
-        (= char-int colon-int)
+        (= int8 colon-int8)
         (let [length (-> (bytes.protocols/to-bytes* out)
                          (bytes.core/to-string)
                          #?(:clj (Integer/parseInt)
@@ -193,7 +194,7 @@
           byts)
 
         :else (do
-                (bytes.protocols/write* out char-int)
+                (bytes.protocols/write* out int8)
                 (recur))))))
 
 (defn decode
@@ -206,6 +207,7 @@
 (comment
 
   clj -Sdeps '{:deps {github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
+                      github.cljctools.runtime/core-jvm {:local/root "./runtime/src/core-jvm"}
                       github.cljctools.runtime/bytes-jvm {:local/root "./runtime/src/bytes-jvm"}
                       github.cljctools.runtime/codec-jvm {:local/root "./runtime/src/codec-jvm"}}}'
 
@@ -220,6 +222,7 @@
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
+                      github.cljctools.runtime/core-js {:local/root "./runtime/src/core-js"}
                       github.cljctools.runtime/bytes-js {:local/root "./runtime/src/bytes-js"}
                       github.cljctools.runtime/codec-js {:local/root "./runtime/src/codec-js"}}}' \
   -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode" --compile cljctools.bittorrent.bencode.core --repl
