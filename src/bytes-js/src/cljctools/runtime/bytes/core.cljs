@@ -14,10 +14,6 @@
   [x]
   (instance? js/Buffer x))
 
-(defn char-code
-  [chr]
-  (.charCodeAt chr 0))
-
 (defmulti to-bytes type)
 
 (defmethod to-bytes js/String
@@ -42,9 +38,9 @@
     [_]
     (if (>= offset (.-length buffer))
       -1
-      (let [char-int (.readUint8 buffer offset)]
+      (let [int8 (.readUint8 buffer offset)]
         (set! offset (inc offset))
-        char-int)))
+        int8)))
   (read*
     [_ off length]
     (if (>= offset (.-length buffer))
@@ -54,7 +50,7 @@
             buf (.subarray buffer start end)]
         (set! offset (+ offset length))
         buf)))
-  (unread* [_ char-int]
+  (unread* [_ int8]
     (set! offset (dec offset)))
   bytes.protocols/Closable
   (close [_] #_(do nil)))
@@ -66,8 +62,8 @@
 (deftype TOutputStream [arr]
   bytes.protocols/IOutputStream
   (write*
-    [_ char-int]
-    (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 char-int))))
+    [_ int8]
+    (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 int8))))
   (write-bytes*
    [_ buffer]
    (.push arr buffer))

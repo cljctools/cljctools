@@ -12,21 +12,17 @@
   [x]
   (clojure.core/bytes? x))
 
-(defn char-code
-  [^Character chr]
-  (int chr))
-
 (defmulti to-bytes type)
 
-(defmethod to-bytes String
+(defmethod to-bytes String ^bytes
   [^String string]
   (.getBytes string "UTF-8"))
 
-(defn size
+(defn size ^Integer
   [^bytes bytes-arr]
   (alength bytes-arr))
 
-(defn to-string
+(defn to-string ^String
   [^bytes bytes-arr]
   (String. bytes-arr "UTF-8"))
 
@@ -45,8 +41,8 @@
       (.read in byte-arr ^Integer offset ^Integer length)
       byte-arr))
   (unread*
-    [_  char-int]
-    (.unread in ^Integer char-int))
+    [_  int8]
+    (.unread in ^Integer int8))
   java.io.Closeable
   (close [_] #_(do nil)))
 
@@ -61,8 +57,8 @@
 (deftype TOutputStream [^ByteArrayOutputStream out]
   bytes.protocols/IOutputStream
   (write*
-    [_ char-int]
-    (.write out ^Integer char-int))
+    [_ int8]
+    (.write out ^Integer int8))
   (write-bytes*
     [_ byte-arr]
     (.writeBytes out ^bytes byte-arr))
@@ -81,7 +77,7 @@
    (ByteArrayOutputStream.)
    (TOutputStream.)))
 
-(defn random-bytes
+(defn random-bytes ^bytes
   [^Number length]
   (let [^bytes byte-arr (byte-array length)]
     (.nextBytes (Random.) byte-arr)
