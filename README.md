@@ -1,10 +1,9 @@
 # socket
 clojure(script) sockets abstracted as core.async channels
 
-## deprecated
+## archived
 
-- better use sockets directly and implement reconnecting logic and event handling per application
-- for example, stream-based sockets like java.net need application level decisions on how input/output streams are used
+- continues as part of https://github.com/cljctools/runtime
 
 ## content
 
