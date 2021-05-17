@@ -8,10 +8,15 @@
    [clojure.spec.alpha :as s]
 
    [cljctools.socket.spec :as socket.spec]
-   [cljctools.socket.protocols :as socket.protocols])
+   [cljctools.socket.protocols :as socket.protocols]
+
+   [manifold.deferred :as d]
+   [manifold.stream :as sm]
+   [aleph.tcp])
   (:import
-   (java.io InputStream OutputStream)
-   (java.net Socket InetSocketAddress)))
+   (java.net InetSocketAddress)
+   (io.netty.bootstrap Bootstrap)
+   (io.netty.channel ChannelPipeline)))
 
 (set! *warn-on-reflection* true)
 
@@ -31,13 +36,9 @@
            ::socket.spec/on-message
            ::socket.spec/on-error]
     :or {time-out 0}}]
-  {:pre [(s/assert ::opts %)]
+  {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
   (let [stateA (atom {})
-
-        ^Socket raw-socket (Socket.)
-        ^InputStream in (.getInputStream raw-socket)
-        ^OutputStream out (.getOutputStream raw-socket)
 
         socket
         ^{:type ::socket.spec/socket}
@@ -45,27 +46,32 @@
           socket.protocols/Socket
           (connect*
             [_]
-            (a/thread
-              (try
-                (.connect raw-socket (InetSocketAddress. ^String host ^int port))
-                (.setSoTimeout raw-socket ^int time-out)
+            (try
+              (let [stream @(aleph.tcp/client {:host host
+                                               :port port
+                                               :insecure? true})]
+                (swap! stateA assoc :stream stream)
                 (on-connected)
-                (loop []
-                  (let [^bytes byte-arr (.readAllBytes in)]
-                    (on-message byte-arr))
-                  (recur))
-                (catch Exception ex
-                  (on-error ex)))))
+                (d/loop []
+                  (->
+                   (sm/take! stream ::none)
+                   (d/chain
+                    (fn [byte-arr]
+                      (when-not (identical? byte-arr ::none)
+                        (on-message byte-arr)
+                        (d/recur)))))))
+              (catch Exception ex
+                (on-error ex))))
           (send*
             [_ byte-arr]
-            (.write out ^bytes byte-arr))
+            (sm/put! (:stream @stateA) byte-arr))
           (close*
             [_]
-            (.close raw-socket))
+            (sm/close! (:stream @stateA)))
           clojure.lang.IDeref
           (deref [_] @stateA))]
 
-    (reset! stateA {:raw-socket raw-socket
+    (reset! stateA {:stream nil
                     :opts opts})
     socket))
 
@@ -82,8 +88,14 @@
                                                 pub sub unsub mult tap untap mix admix unmix pipe
                                                 timeout to-chan  sliding-buffer dropping-buffer
                                                 pipeline pipeline-async]])
-    (require '[cljctools.socket.core :as socket.core]))
-  
+    (require '[cljctools.socket.core :as socket.core])
+    (require '[manifold.deferred :as d])
+    (require '[manifold.stream :as sm]))
+   
+
+  (def s (sm/stream))
+  (sm/consume #(prn %) s)
+  (sm/put! s 1)
   
   ;
   )

@@ -3,5 +3,5 @@
 (defprotocol Socket
   (close* [_])
   (connect* [_])
-  (send* [_ data address])
+  (send* [_ data])
   #_IDeref)
