@@ -29,8 +29,10 @@
   (.toString buffer "utf8"))
 
 (defn bytes
-  [length]
-  (js/Buffer.alloc length))
+  [size-or-seq]
+  (if (number? size-or-seq)
+    (js/Buffer.alloc length)
+    (js/Buffer.from size-or-seq)))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream

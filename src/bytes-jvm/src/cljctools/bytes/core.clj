@@ -27,8 +27,8 @@
   (String. bytes-arr "UTF-8"))
 
 (defn bytes
-  [^Number length]
-  (byte-array length))
+  [size-or-seq]
+  (byte-array size-or-seq))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
