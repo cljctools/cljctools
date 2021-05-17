@@ -38,8 +38,8 @@
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::datagram-socket.spec/socket %)]}
   (let [stateA (atom {})
+        streamV (volatile! nil)
 
-        socket
         ^{:type ::datagram-socket.spec/socket}
         (reify
           datagram-socket.protocols/Socket
@@ -48,7 +48,7 @@
             (try
               (let [stream @(aleph.udp/socket {:socket-address (InetSocketAddress. ^String host ^int port)
                                                :insecure? true})]
-                (swap! stateA assoc :stream stream)
+                (vreset! streamV stream)
                 (on-listening)
                 (d/loop []
                   (->
@@ -62,17 +62,17 @@
                 (on-error ex))))
           (send*
             [_ byte-arr {:keys [host port]}]
-            (sm/put! (:stream @stateA) {:host host
-                                        :port port
-                                        :message byte-arr}))
+            (sm/put! @streamV {:host host
+                               :port port
+                               :message byte-arr}))
           (close*
             [_]
-            (sm/close! (:stream @stateA)))
+            (sm/close! @streamV))
           clojure.lang.IDeref
           (deref [_] @stateA))]
 
-    (reset! stateA {:stream nil
-                    :opts opts})
+    (reset! stateA {:opts opts
+                    :streamV streamV})
     socket))
 
 

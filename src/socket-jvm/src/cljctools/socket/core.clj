@@ -39,7 +39,7 @@
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
   (let [stateA (atom {})
-
+        streamV (volatile! nil)
         socket
         ^{:type ::socket.spec/socket}
         (reify
@@ -50,7 +50,7 @@
               (let [stream @(aleph.tcp/client {:host host
                                                :port port
                                                :insecure? true})]
-                (swap! stateA assoc :stream stream)
+                (vreset! streamV stream)
                 (on-connected)
                 (d/loop []
                   (->
@@ -64,14 +64,14 @@
                 (on-error ex))))
           (send*
             [_ byte-arr]
-            (sm/put! (:stream @stateA) byte-arr))
+            (sm/put! @streamV byte-arr))
           (close*
             [_]
-            (sm/close! (:stream @stateA)))
+            (sm/close! @streamV))
           clojure.lang.IDeref
           (deref [_] @stateA))]
 
-    (reset! stateA {:stream nil
+    (reset! stateA {:streamV streamV
                     :opts opts})
     socket))
 
