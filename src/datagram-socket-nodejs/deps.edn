@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {github.cljctools.runtime/datagram-socket-meta {:local/root "../datagram-socket-meta"}}}

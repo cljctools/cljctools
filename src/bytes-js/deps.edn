@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {github.cljctools.runtime/bytes-meta {:local/root "../bytes-meta"}}}

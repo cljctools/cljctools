@@ -1,2 +1,2 @@
 # cljctools
-cljctools libraries
+jvm, nodejs, js common abstractions to write cljc code
