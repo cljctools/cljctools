@@ -4,11 +4,11 @@
    [cljctools.bytes.core :as bytes.core]
    [cljctools.core :as cljctools.core]))
 
-(def ^Integer ^:const colon-int8 (cljctools.core/char-code \:))
-(def ^Integer ^:const i-int8 (cljctools.core/char-code \i))
-(def ^Integer ^:const e-int8 (cljctools.core/char-code \e))
-(def ^Integer ^:const l-int8 (cljctools.core/char-code \l))
-(def ^Integer ^:const d-int8 (cljctools.core/char-code \d))
+(def ^:const ^Integer colon-int8 (cljctools.core/char-code \:))
+(def ^:const ^Integer i-int8 (cljctools.core/char-code \i))
+(def ^:const ^Integer e-int8 (cljctools.core/char-code \e))
+(def ^:const ^Integer l-int8 (cljctools.core/char-code \l))
+(def ^:const ^Integer d-int8 (cljctools.core/char-code \d))
 
 (defmulti encode*
   (fn
