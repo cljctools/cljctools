@@ -1,14 +1,14 @@
 (ns cljctools.bittorrent.bencode.core
   (:require
-   [cljctools.runtime.bytes.protocols :as bytes.protocols]
-   [cljctools.runtime.bytes.core :as bytes.core]
-   [cljctools.runtime.core :as runtime.core]))
+   [cljctools.bytes.protocols :as bytes.protocols]
+   [cljctools.bytes.core :as bytes.core]
+   [cljctools.core :as cljctools.core]))
 
-(def ^Integer ^:const colon-int8 (runtime.core/char-code \:))
-(def ^Integer ^:const i-int8 (runtime.core/char-code \i))
-(def ^Integer ^:const e-int8 (runtime.core/char-code \e))
-(def ^Integer ^:const l-int8 (runtime.core/char-code \l))
-(def ^Integer ^:const d-int8 (runtime.core/char-code \d))
+(def ^Integer ^:const colon-int8 (cljctools.core/char-code \:))
+(def ^Integer ^:const i-int8 (cljctools.core/char-code \i))
+(def ^Integer ^:const e-int8 (cljctools.core/char-code \e))
+(def ^Integer ^:const l-int8 (cljctools.core/char-code \l))
+(def ^Integer ^:const d-int8 (cljctools.core/char-code \d))
 
 (defmulti encode*
   (fn
@@ -207,29 +207,29 @@
 (comment
 
   clj -Sdeps '{:deps {github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.runtime/core-jvm {:local/root "./runtime/src/core-jvm"}
-                      github.cljctools.runtime/bytes-jvm {:local/root "./runtime/src/bytes-jvm"}
-                      github.cljctools.runtime/codec-jvm {:local/root "./runtime/src/codec-jvm"}}}'
+                      github.cljctools/core-jvm {:local/root "./cljctools/src/core-jvm"}
+                      github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                      github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}}}'
 
   (do
     (defn reload
       []
       (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
-      (require '[cljctools.runtime.bytes.core :as bytes.core] :reload)
-      (require '[cljctools.runtime.codec.core :as codec.core] :reload))
+      (require '[cljctools.bytes.core :as bytes.core] :reload)
+      (require '[cljctools.codec.core :as codec.core] :reload))
     (reload))
   
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.runtime/core-js {:local/root "./runtime/src/core-js"}
-                      github.cljctools.runtime/bytes-js {:local/root "./runtime/src/bytes-js"}
-                      github.cljctools.runtime/codec-js {:local/root "./runtime/src/codec-js"}}}' \
+                      github.cljctools/core-js {:local/root "./cljctools/src/core-js"}
+                      github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
+                      github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}}}' \
   -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode" --compile cljctools.bittorrent.bencode.core --repl
 
   (require '[cljctools.bittorrent.bencode.core :as bencode.core])
-  (require '[cljctools.runtime.bytes.core :as bytes.core])
-  (require '[cljctools.runtime.codec.core :as codec.core])
+  (require '[cljctools.bytes.core :as bytes.core])
+  (require '[cljctools.codec.core :as codec.core])
   
   (do
     #_(def data {:t "aabbccdd"
