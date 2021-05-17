@@ -8,29 +8,36 @@
    [clojure.spec.alpha :as s]
 
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
-   [cljctools.datagram-socket.protocols :as datagram-socket.protocols])
+   [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
+   [manifold.deferred :as d]
+   [manifold.stream :as sm]
+   [aleph.udp])
   (:import
-   (java.net DatagramSocket InetSocketAddress DatagramPacket)))
+   (java.net InetSocketAddress)
+   (io.netty.bootstrap Bootstrap)
+   (io.netty.channel ChannelPipeline)))
 
 (set! *warn-on-reflection* true)
 
-(s/def ::packet-size int?)
+(s/def ::opts (s/keys :req [::datagram-socket.spec/host
+                            ::datagram-socket.spec/port
+                            ::datagram-socket.spec/on-listening
+                            ::datagram-socket.spec/on-message
+                            ::datagram-socket.spec/on-error]
+                      :opt []))
 
 (defn create
   [{:as opts
-    :keys [::packet-size
+    :keys [::datagram-socket.spec/host
            ::datagram-socket.spec/port
-           ::datagram-socket.spec/host
            ::datagram-socket.spec/on-listening
            ::datagram-socket.spec/on-message
            ::datagram-socket.spec/on-error]
-    :or {port 6881
-         host "0.0.0.0"
-         packet-size 512}}]
-  {:post [(s/assert ::datagram-socket.spec/socket %)]}
+    :or {host "0.0.0.0"
+         port 6881}}]
+  {:pre [(s/assert ::opts opts)]
+   :post [(s/assert ::datagram-socket.spec/socket %)]}
   (let [stateA (atom {})
-
-        ^DatagramSocket raw-socket (DatagramSocket. nil)
 
         socket
         ^{:type ::datagram-socket.spec/socket}
@@ -38,33 +45,33 @@
           datagram-socket.protocols/Socket
           (listen*
             [_]
-            (a/thread
-              (try
-                (.bind raw-socket (InetSocketAddress. ^String host ^int port))
+            (try
+              (let [stream @(aleph.udp/socket {:socket-address (InetSocketAddress. ^String host ^int port)
+                                               :insecure? true})]
+                (swap! stateA assoc :stream stream)
                 (on-listening)
-                (loop []
-                  (let [^bytes byte-arr (byte-array packet-size)
-                        ^DatagramPacket packet (DatagramPacket. byte-arr packet-size)
-                        _ (.receive raw-socket packet)]
-                    (on-message (.getData packet) {:host (.. packet (getAddress) (getHostAddress))
-                                                   :port (.getPort packet)}))
-                  (recur))
-                (catch Exception ex
-                  (on-error ex)))))
+                (d/loop []
+                  (->
+                   (sm/take! stream ::none)
+                   (d/chain
+                    (fn [msg]
+                      (when-not (identical? msg ::none)
+                        (on-message (:message msg) (select-keys msg [:host :port]))
+                        (d/recur)))))))
+              (catch Exception ex
+                (on-error ex))))
           (send*
             [_ byte-arr {:keys [host port]}]
-            (let [^DatagramPacket packet (DatagramPacket.
-                                          ^bytes byte-arr
-                                          ^int (alength ^bytes byte-arr)
-                                          (InetSocketAddress. ^String host ^int port))]
-              (.send raw-socket packet)))
+            (sm/put! (:stream @stateA) {:host host
+                                        :port port
+                                        :message byte-arr}))
           (close*
             [_]
-            (.close raw-socket))
+            (sm/close! (:stream @stateA)))
           clojure.lang.IDeref
           (deref [_] @stateA))]
 
-    (reset! stateA {:raw-socket raw-socket
+    (reset! stateA {:stream nil
                     :opts opts})
     socket))
 
