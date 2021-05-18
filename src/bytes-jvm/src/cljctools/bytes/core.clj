@@ -221,15 +221,17 @@
 
 (comment
   
-   clj -Sdeps '{:deps {github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}}}'
+  clj -Sdeps '{:deps {github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                      byte-streams/byte-streams  {:mvn/version "0.2.5-alpha2"}}}'
   
   (do
+    (set! *warn-on-reflection* true)
     (defn reload
       []
       (require '[cljctools.bytes.core :as bytes.core] :reload))
     (reload))
 
-  
+  (in-ns 'cljctools.bytes.core)
   
   (do
     (in-ns 'cljctools.bytes.core)
@@ -240,5 +242,45 @@
     (bytes.protocols/set* b 10)
     (println (bytes.protocols/to-array* b)))
   
+  ;
+  )
+
+
+(comment
+
+
+  (vec (byte-streams/to-byte-array [(byte-array [1 2 3]) (byte-array [4 5 6])]))
+
+  (defn bb-concat
+    [byte-arrs]
+    (let [^int size (reduce + 0 (map alength byte-arrs))
+          ^java.nio.ByteBuffer bb (java.nio.ByteBuffer/allocate size)]
+      (doseq [^bytes byte-arr byte-arrs]
+        (.put bb byte-arr))
+      (count (.array bb))))
+
+  (time
+   (bb-concat (repeatedly 100000 #(random-bytes 100))))
+  ; "Elapsed time: 1346.136136 msecs"
+
+  (defn out-concat
+    [byte-arrs]
+    (with-open [out (java.io.ByteArrayOutputStream.)]
+      (doseq [^bytes byte-arr byte-arrs]
+        (.write out byte-arr))
+      (count (.toByteArray out))))
+
+  (time
+   (out-concat (repeatedly 100000 #(random-bytes 100))))
+  ; "Elapsed time: 84.665219 msecs"
+
+  (defn streams-concat
+    [byte-arrs]
+    (count (byte-streams/to-byte-array byte-arrs)))
+
+  (time
+   (streams-concat (repeatedly 100000 #(random-bytes 100))))
+  ; "Elapsed time: 708.307393 msecs"
+
   ;
   )
