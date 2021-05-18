@@ -1,41 +1,93 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [bytes? bytes concat])
+  (:refer-clojure :exclude [alength byte-array concat])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols])
   (:import
    (java.util Random BitSet)
+   (java.nio ByteBuffer)
    (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closeable)))
 
 (set! *warn-on-reflection* true)
 
-(defn bytes?
+(defonce types
+  (-> (make-hierarchy)
+      (derive java.lang.Number ::number)
+      (derive java.lang.String ::string)
+      (derive clojure.lang.Keyword ::keyword)
+      (derive clojure.lang.IPersistentMap ::map)
+      (derive clojure.lang.Sequential ::sequential)
+      (derive (Class/forName "[B") ::byte-array)
+      (derive java.nio.ByteBuffer ::byte-buffer)))
+
+(defn random-bytes ^bytes
+  [^Number length]
+  (let [^bytes byte-arr (clojure.core/byte-array length)]
+    (.nextBytes (Random.) byte-arr)
+    byte-arr))
+
+(defn byte-array?
   [x]
   (clojure.core/bytes? x))
 
-(defmulti to-bytes type)
+(defmulti to-byte-array type :hierarchy #'types)
 
-(defmethod to-bytes String ^bytes
+(defmethod to-byte-array ::string ^bytes
   [^String string]
   (.getBytes string "UTF-8"))
 
-(defn size ^Integer
-  [^bytes bytes-arr]
-  (alength bytes-arr))
+(defmethod to-byte-array ::byte-buffer ^bytes
+  [^ByteBuffer buffer]
+  (.array buffer))
 
-(defn to-string ^String
-  [^bytes bytes-arr]
-  (String. bytes-arr "UTF-8"))
+(defn alength ^Integer
+  [^bytes byte-arr]
+  (clojure.core/alength byte-arr))
 
-(defn bytes
+(defmulti to-string type :hierarchy #'types)
+
+(defmethod to-string ::byte-array ^String
+  [^bytes byte-arr]
+  (String. byte-arr "UTF-8"))
+
+(defn byte-array
   [size-or-seq]
-  (byte-array size-or-seq))
+  (clojure.core/byte-array size-or-seq))
 
-(defn concat
+(defmulti concat
+  (fn [xs] (type (first xs))) :hierarchy #'types)
+
+(defmethod concat ::byte-array ^bytes
   [byte-arrs]
   (with-open [out (java.io.ByteArrayOutputStream.)]
     (doseq [^bytes byte-arr byte-arrs]
       (.write out byte-arr))
     (.toByteArray out)))
+
+(defmethod concat :default
+  [xs]
+  xs)
+
+(defn byte-buffer ^ByteBuffer
+  [size]
+  (ByteBuffer/allocate ^int size))
+
+(defn buffer-wrap ^ByteBuffer
+  ([^bytes byte-arr]
+   (ByteBuffer/wrap byte-arr))
+  ([^bytes byte-arr offset length]
+   (ByteBuffer/wrap byte-arr ^int offset ^int length)))
+
+(defn get-byte
+  [^ByteBuffer buffer index]
+  (.get buffer ^int index))
+
+(defn get-int 
+  [^ByteBuffer buffer index]
+  (.getInt buffer ^int index))
+
+(defn size
+  [^ByteBuffer buffer]
+  (.capacity buffer))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
@@ -44,7 +96,7 @@
     (.read in))
   (read*
     [_  offset length]
-    (let [^bytes byte-arr (byte-array ^Integer length)]
+    (let [^bytes byte-arr (clojure.core/byte-array ^Integer length)]
       (.read in byte-arr ^Integer offset ^Integer length)
       byte-arr))
   (unread*
@@ -66,14 +118,14 @@
   (write*
     [_ int8]
     (.write out ^Integer int8))
-  (write-bytes*
+  (write-byte-array*
     [_ byte-arr]
     (.writeBytes out ^bytes byte-arr))
   (reset*
     [_]
     (.reset out))
-  bytes.protocols/IToBytes
-  (to-bytes*
+  bytes.protocols/IToByteArray
+  (to-byte-array*
     [_]
     (.toByteArray out))
   java.io.Closeable
@@ -85,11 +137,7 @@
    (ByteArrayOutputStream.)
    (TOutputStream.)))
 
-(defn random-bytes ^bytes
-  [^Number length]
-  (let [^bytes byte-arr (byte-array length)]
-    (.nextBytes (Random.) byte-arr)
-    byte-arr))
+
 
 (deftype TBitSet [^BitSet bitset]
   bytes.protocols/IBitSet
@@ -105,14 +153,10 @@
   (set*
     [_ bit-index value]
     (.set bitset ^int bit-index ^boolean value))
-  bytes.protocols/IToBytes
-  (to-bytes*
+  bytes.protocols/IToByteArray
+  (to-byte-array*
     [_]
-    (.toByteArray bitset))
-  bytes.protocols/IToArray
-  (to-array*
-    [_]
-    (vec (.toByteArray bitset))))
+    (.toByteArray bitset)))
 
 (defn bitset
   ([]

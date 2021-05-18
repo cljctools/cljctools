@@ -1,5 +1,5 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [bytes concat])
+  (:refer-clojure :exclude [alength concat])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    ["randombytes" :as randomBytes]
@@ -11,33 +11,74 @@
 #_(when (exists? js/module)
     (defonce crypto (js/require "crypto")))
 
-(defn bytes?
+(defonce types
+  (-> (make-hierarchy)
+      (derive Buffer ::byte-array)
+      (derive js/String ::string)
+      (derive Buffer ::byte-buffer)))
+
+(defn random-bytes
+  [length]
+  (randomBytes length))
+
+(defn byte-array?
   [x]
   (instance? Buffer x))
 
-(defmulti to-bytes type)
+(defmulti to-byte-array type :hierarchy #'types)
 
-(defmethod to-bytes js/String
+(defmethod to-byte-array ::string
   [string]
   (Buffer.from string "utf8"))
+
+(defmethod to-byte-array ::byte-buffer
+  [buffer]
+  buffer)
+
+(defn alength
+  [buffer]
+  (.-length buffer))
+
+(defmulti to-string type :hierarchy #'types)
+
+(defmethod to-string ::byte-array
+  [buffer]
+  (.toString buffer "utf8"))
+
+(defn byte-array
+  [size-or-seq]
+  (if (number? size-or-seq)
+    (Buffer.alloc size-or-seq)
+    (Buffer.from (clj->js size-or-seq))))
+
+(defmulti concat
+  (fn [xs] (type (first xs))) :hierarchy #'types)
+
+(defmethod concat ::byte-array
+  [buffers]
+  (Buffer.concat buffers))
+
+(defn byte-buffer
+  [size]
+  (Buffer.alloc size))
+
+(defn buffer-wrap
+  ([buffer]
+   (Buffer.from buffer))
+  ([buffer offset length]
+   (Buffer.subarray buffer offset (+ offset length))))
+
+(defn get-byte
+  [buffer index]
+  (.readUInt8 buffer index))
+
+(defn get-int
+  [buffer index]
+  (.readUInt32BE buffer index))
 
 (defn size
   [buffer]
   (.-length buffer))
-
-(defn to-string
-  [buffer]
-  (.toString buffer "utf8"))
-
-(defn bytes
-  [size-or-seq]
-  (if (number? size-or-seq)
-    (Buffer.alloc size-or-seq)
-    (Buffer.from size-or-seq)))
-
-(defn concat
-  [buffers]
-  (Buffer.concat buffers))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream
@@ -71,14 +112,14 @@
   (write*
     [_ int8]
     (.push arr (doto (Buffer.allocUnsafe 1) (.writeInt8 int8))))
-  (write-bytes*
+  (write-byte-array*
     [_ buffer]
     (.push arr buffer))
   (reset*
     [_]
     (.splice arr 0))
-  bytes.protocols/IToBytes
-  (to-bytes*
+  bytes.protocols/IToByteArray
+  (to-byte-array*
     [_]
     (Buffer.concat arr))
   bytes.protocols/Closable
@@ -88,10 +129,6 @@
   []
   (TOutputStream. #js []))
 
-(defn random-bytes
-  [length]
-  (randomBytes length))
-
 (deftype TBitSet [bitfield]
   bytes.protocols/IBitSet
   (get*
@@ -100,22 +137,18 @@
   (get-subset*
     [_ from-index to-index]
     (TBitSet. (new (.-default Bitfield)
-               (.slice (.-buffer bitfield) from-index to-index)
-               #js {:grow (* 50000 8)})))
+                   (.slice (.-buffer bitfield) from-index to-index)
+                   #js {:grow (* 50000 8)})))
   (set*
     [_ bit-index]
     (.set bitfield bit-index))
   (set*
     [_ bit-index value]
     (.set bitfield  bit-index ^boolean value))
-  bytes.protocols/IToBytes
-  (to-bytes*
+  bytes.protocols/IToByteArray
+  (to-byte-array*
     [_]
-    (.-buffer bitfield))
-  bytes.protocols/IToArray
-  (to-array*
-   [_]
-   (js/Array.from (.-buffer bitfield))))
+    (.-buffer bitfield)))
 
 (defn bitset
   ([]
