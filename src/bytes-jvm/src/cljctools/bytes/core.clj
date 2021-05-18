@@ -1,5 +1,5 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [bytes? bytes])
+  (:refer-clojure :exclude [bytes? bytes concat])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols])
   (:import
@@ -29,6 +29,13 @@
 (defn bytes
   [size-or-seq]
   (byte-array size-or-seq))
+
+(defn concat
+  [byte-arrs]
+  (with-open [out (java.io.ByteArrayOutputStream.)]
+    (doseq [^bytes byte-arr byte-arrs]
+      (.write out byte-arr))
+    (.toByteArray out)))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream

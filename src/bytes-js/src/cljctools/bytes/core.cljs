@@ -1,5 +1,5 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [bytes])
+  (:refer-clojure :exclude [bytes concat])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    ["randombytes" :as randomBytes]
@@ -34,6 +34,10 @@
   (if (number? size-or-seq)
     (Buffer.alloc size-or-seq)
     (Buffer.from size-or-seq)))
+
+(defn concat
+  [buffers]
+  (Buffer.concat buffers))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream
