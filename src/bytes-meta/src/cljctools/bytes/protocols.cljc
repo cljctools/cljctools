@@ -23,6 +23,5 @@
   (get* [_ bit-index])
   (get-subset* [_ from-index to-index])
   (set* [_ bit-index] [_ bit-index value])
-  (size* [_])
   #_IToBytes
   #_IToArray)

@@ -91,16 +91,13 @@
     (.get bitset ^int bit-index))
   (get-subset*
     [_ from-index to-index]
-    (.get bitset ^int from-index ^int to-index))
+    (TBitSet. (.get bitset ^int from-index ^int to-index)))
   (set*
     [_ bit-index]
     (.set bitset ^int bit-index))
   (set*
     [_ bit-index value]
     (.set bitset ^int bit-index ^boolean value))
-  (size*
-    [_]
-    (.size bitset))
   bytes.protocols/IToBytes
   (to-bytes*
     [_]
@@ -108,12 +105,14 @@
   bytes.protocols/IToArray
   (to-array*
     [_]
-    (.toLongArray bitset)))
+    (vec (.toByteArray bitset))))
 
 (defn bitset
   ([]
    (TBitSet. (BitSet.)))
   ([nbits]
+   (bitset nbits nil))
+  ([nbits opts]
    (TBitSet. (BitSet. nbits))))
 
 (comment
@@ -216,5 +215,30 @@
   ; "Elapsed time: 1352.17024 msecs"
   ; "Elapsed time: 1682.777967 msecs"
 
+  ;
+  )
+
+
+(comment
+  
+   clj -Sdeps '{:deps {github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}}}'
+  
+  (do
+    (defn reload
+      []
+      (require '[cljctools.bytes.core :as bytes.core] :reload))
+    (reload))
+
+  
+  
+  (do
+    (in-ns 'cljctools.bytes.core)
+    (def b (bitset 0))
+    (bytes.protocols/set* b 3)
+    (println (bytes.protocols/to-array* b))
+
+    (bytes.protocols/set* b 10)
+    (println (bytes.protocols/to-array* b)))
+  
   ;
   )
