@@ -1,24 +1,24 @@
 (ns cljctools.bytes.core
   (:refer-clojure :exclude [bytes])
   (:require
-   [cljctools.bytes.protocols :as bytes.protocols]))
+   [cljctools.bytes.protocols :as bytes.protocols]
+   ["randombytes" :as randomBytes]
+   ["safe-buffer" :refer [Buffer]]))
 
-; requires js/Buffer
+#_(declare crypto)
 
-(declare crypto)
-
-(when (exists? js/module)
-  (defonce crypto (js/require "crypto")))
+#_(when (exists? js/module)
+    (defonce crypto (js/require "crypto")))
 
 (defn bytes?
   [x]
-  (instance? js/Buffer x))
+  (instance? Buffer x))
 
 (defmulti to-bytes type)
 
 (defmethod to-bytes js/String
   [string]
-  (js/Buffer.from string "utf8"))
+  (Buffer.from string "utf8"))
 
 (defn size
   [buffer]
@@ -31,8 +31,8 @@
 (defn bytes
   [size-or-seq]
   (if (number? size-or-seq)
-    (js/Buffer.alloc length)
-    (js/Buffer.from size-or-seq)))
+    (Buffer.alloc size-or-seq)
+    (Buffer.from size-or-seq)))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream
@@ -65,7 +65,7 @@
   bytes.protocols/IOutputStream
   (write*
     [_ int8]
-    (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 int8))))
+    (.push arr (doto (Buffer.allocUnsafe 1) (.writeInt8 int8))))
   (write-bytes*
     [_ buffer]
     (.push arr buffer))
@@ -75,7 +75,7 @@
   bytes.protocols/IToBytes
   (to-bytes*
     [_]
-    (js/Buffer.concat arr))
+    (Buffer.concat arr))
   bytes.protocols/Closable
   (close [_] #_(do nil)))
 
@@ -84,6 +84,27 @@
   (TOutputStream. #js []))
 
 (defn random-bytes
-  {:nodejs-only true}
   [length]
-  (.randomBytes crypto length))
+  (randomBytes length))
+
+
+(comment
+
+  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
+                      github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
+                      github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}}}' \
+  -M -m cljs.main -co '{:npm-deps {"randombytes" "2.1.0"
+                                   "safe-buffer" "5.2.1"}
+                        :install-deps true}' \
+  --repl-env node --compile cljctools.bytes.core --repl
+  
+  (require '[cljctools.bytes.core :as bytes.core] :reload)
+  
+  (bytes.core/random-bytes 20)
+  
+  (in-ns 'cljctools.bytes.core)
+
+  (= Buffer js/Buffer)
+
+  ;
+  )
