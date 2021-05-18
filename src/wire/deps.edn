@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {}}
+ :deps {github.cljctools.bittorrent/spec {:local/root "../spec"}}}
