@@ -38,8 +38,7 @@
     :or {time-out 0}}]
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
-  (let [stateA (atom {})
-        streamV (volatile! nil)
+  (let [streamV (volatile! nil)
         socket
         ^{:type ::socket.spec/socket}
         (reify
@@ -69,10 +68,8 @@
             [_]
             (sm/close! @streamV))
           clojure.lang.IDeref
-          (deref [_] @stateA))]
+          (deref [_] @streamV))]
 
-    (reset! stateA {:streamV streamV
-                    :opts opts})
     socket))
 
 

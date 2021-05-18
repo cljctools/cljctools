@@ -37,9 +37,9 @@
          port 6881}}]
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::datagram-socket.spec/socket %)]}
-  (let [stateA (atom {})
-        streamV (volatile! nil)
-
+  (let [streamV (volatile! nil)
+        
+        socket
         ^{:type ::datagram-socket.spec/socket}
         (reify
           datagram-socket.protocols/Socket
@@ -69,10 +69,8 @@
             [_]
             (sm/close! @streamV))
           clojure.lang.IDeref
-          (deref [_] @stateA))]
+          (deref [_] @streamV))]
 
-    (reset! stateA {:opts opts
-                    :streamV streamV})
     socket))
 
 

@@ -35,9 +35,7 @@
            ::socket.spec/on-error]}]
   {:pre [(s/assert ::opts %)]
    :post [(s/assert ::socket.spec/socket %)]}
-  (let [stateA (atom {})
-        
-        raw-socket (net.Socket.)
+  (let [raw-socket (net.Socket.)
 
         socket
         ^{:type ::socket.spec/socket}
@@ -68,10 +66,8 @@
             [_]
             (.end raw-socket))
           cljs.core/IDeref
-          (-deref [_] @stateA))]
+          (-deref [_] raw-socket))]
 
-    (reset! stateA {:raw-socket raw-socket
-                    :opts opts})
     socket))
 
 

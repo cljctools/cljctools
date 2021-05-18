@@ -28,8 +28,7 @@
     :or {port 6881
          host "0.0.0.0"}}]
   {:post [(s/assert ::datagram-socket.spec/socket %)]}
-  (let [stateA (atom {})
-        raw-socket (.createSocket dgram "udp4")
+  (let [raw-socket (.createSocket dgram "udp4")
 
         socket
         ^{:type ::datagram-socket.spec/socket}
@@ -57,10 +56,8 @@
             [_]
             (.close raw-socket))
           cljs.core/IDeref
-          (-deref [_] @stateA))]
+          (-deref [_] raw-socket))]
 
-    (reset! stateA {:raw-socket raw-socket
-                    :opts opts})
     socket))
 
 
