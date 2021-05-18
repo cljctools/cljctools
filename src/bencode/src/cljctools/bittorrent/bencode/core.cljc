@@ -14,7 +14,7 @@
   (fn
     ([data out]
      (cond
-       (bytes.core/bytes? data) ::bytes
+       (bytes.core/byte-array? data) ::byte-array
        (number? data) ::number
        (string? data) ::string
        (keyword? data) ::keyword
@@ -26,16 +26,16 @@
 (defmethod encode* ::number
   [number out]
   (bytes.protocols/write* out i-int8)
-  (bytes.protocols/write-bytes* out (bytes.core/to-bytes (str number)))
+  (bytes.protocols/write-byte-array* out (bytes.core/to-byte-array (str number)))
   (bytes.protocols/write* out e-int8))
 
 (defmethod encode* ::string
   [string out]
-  (encode* (bytes.core/to-bytes string) out))
+  (encode* (bytes.core/to-byte-array string) out))
 
 (defmethod encode* ::keyword
   [kword out]
-  (encode* (bytes.core/to-bytes (name kword)) out))
+  (encode* (bytes.core/to-byte-array (name kword)) out))
 
 (defmethod encode* ::sequential
   [coll out]
@@ -52,17 +52,17 @@
     (encode* v out))
   (bytes.protocols/write* out e-int8))
 
-(defmethod encode* ::bytes
-  [byts out]
-  (bytes.protocols/write-bytes* out (-> byts (bytes.core/size) (str) (bytes.core/to-bytes)))
+(defmethod encode* ::byte-array
+  [byte-arr out]
+  (bytes.protocols/write-byte-array* out (-> byte-arr (bytes.core/alength) (str) (bytes.core/to-byte-array)))
   (bytes.protocols/write* out colon-int8)
-  (bytes.protocols/write-bytes* out byts))
+  (bytes.protocols/write-byte-array* out byte-arr))
 
 (defn encode
   [data]
   (let [out (bytes.core/output-stream)]
     (encode* data out)
-    (bytes.protocols/to-bytes* out)))
+    (bytes.protocols/to-byte-array* out)))
 
 (defn peek-next
   [in]
@@ -79,7 +79,7 @@
        i-int8 ::integer
        l-int8 ::list
        d-int8 ::dictionary
-       :else ::bytes))
+       :else ::byte-array))
     ([in out dispatch-val]
      dispatch-val)))
 
@@ -113,12 +113,12 @@
           (recur (conj! result  (decode* in out ::list))))
 
         :else
-        (let [byts (decode* in out ::bytes)
+        (let [byte-arr (decode* in out ::byte-array)
               next-element (if (even? (count result))
                              #_its_a_key
-                             (bytes.core/to-string byts)
+                             (bytes.core/to-string byte-arr)
                              #_its_a_value
-                             byts)]
+                             byte-arr)]
           (recur (conj! result next-element)))))))
 
 (defmethod decode* ::list
@@ -145,7 +145,7 @@
         (recur (conj! result  (decode* in out ::list)))
 
         :else
-        (recur (conj! result (decode* in out ::bytes)))))))
+        (recur (conj! result (decode* in out ::byte-array)))))))
 
 (defmethod decode* ::integer
   [in
@@ -158,7 +158,7 @@
 
         (= int8 e-int8)
         (let [number-string (->
-                             (bytes.protocols/to-bytes* out)
+                             (bytes.protocols/to-byte-array* out)
                              (bytes.core/to-string))
               number (try
                        #?(:clj (Integer/parseInt number-string)
@@ -176,7 +176,7 @@
                 (bytes.protocols/write* out int8)
                 (recur))))))
 
-(defmethod decode* ::bytes
+(defmethod decode* ::byte-array
   [in
    out
    & args]
@@ -185,21 +185,21 @@
       (cond
 
         (= int8 colon-int8)
-        (let [length (-> (bytes.protocols/to-bytes* out)
+        (let [length (-> (bytes.protocols/to-byte-array* out)
                          (bytes.core/to-string)
                          #?(:clj (Integer/parseInt)
                             :cljs (js/Number.parseInt)))
-              byts (bytes.protocols/read* in 0 length)]
+              byte-arr (bytes.protocols/read* in 0 length)]
           (bytes.protocols/reset* out)
-          byts)
+          byte-arr)
 
         :else (do
                 (bytes.protocols/write* out int8)
                 (recur))))))
 
 (defn decode
-  [byts]
-  (let [in (bytes.core/pushback-input-stream byts)
+  [byte-arr]
+  (let [in (bytes.core/pushback-input-stream byte-arr)
         out (bytes.core/output-stream)]
     (decode* in out)))
 
@@ -212,12 +212,9 @@
                       github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}}}'
 
   (do
-    (defn reload
-      []
-      (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
-      (require '[cljctools.bytes.core :as bytes.core] :reload)
-      (require '[cljctools.codec.core :as codec.core] :reload))
-    (reload))
+    (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
+    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.codec.core :as codec.core] :reload))
   
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
