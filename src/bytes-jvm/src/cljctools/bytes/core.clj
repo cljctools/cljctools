@@ -3,7 +3,7 @@
   (:require
    [cljctools.bytes.protocols :as bytes.protocols])
   (:import
-   (java.util Random)
+   (java.util Random BitSet)
    (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closeable)))
 
 (set! *warn-on-reflection* true)
@@ -65,6 +65,7 @@
   (reset*
     [_]
     (.reset out))
+  bytes.protocols/IToBytes
   (to-bytes*
     [_]
     (.toByteArray out))
@@ -82,6 +83,38 @@
   (let [^bytes byte-arr (byte-array length)]
     (.nextBytes (Random.) byte-arr)
     byte-arr))
+
+(deftype TBitSet [^BitSet bitset]
+  bytes.protocols/IBitSet
+  (get*
+    [_ bit-index]
+    (.get bitset ^int bit-index))
+  (get-subset*
+    [_ from-index to-index]
+    (.get bitset ^int from-index ^int to-index))
+  (set*
+    [_ bit-index]
+    (.set bitset ^int bit-index))
+  (set*
+    [_ bit-index value]
+    (.set bitset ^int bit-index ^boolean value))
+  (size*
+    [_]
+    (.size bitset))
+  bytes.protocols/IToBytes
+  (to-bytes*
+    [_]
+    (.toByteArray bitset))
+  bytes.protocols/IToArray
+  (to-array*
+    [_]
+    (.toLongArray bitset)))
+
+(defn bitset
+  ([]
+   (TBitSet. (BitSet.)))
+  ([nbits]
+   (TBitSet. (BitSet. nbits))))
 
 (comment
 

@@ -67,11 +67,12 @@
     [_ int8]
     (.push arr (doto (js/Buffer.allocUnsafe 1) (.writeInt8 int8))))
   (write-bytes*
-   [_ buffer]
-   (.push arr buffer))
+    [_ buffer]
+    (.push arr buffer))
   (reset*
     [_]
     (.splice arr 0))
+  bytes.protocols/IToBytes
   (to-bytes*
     [_]
     (js/Buffer.concat arr))
