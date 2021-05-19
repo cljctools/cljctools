@@ -211,23 +211,18 @@
                       github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
                       github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}}}'
 
-  (do
-    (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
-    (require '[cljctools.core :as cljctools.core] :reload)
-    (require '[cljctools.bytes.core :as bytes.core] :reload)
-    (require '[cljctools.codec.core :as codec.core] :reload))
-  
-  
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}
                       github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
                       github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}}}' \
-  -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode" --compile cljctools.bittorrent.bencode.core --repl
-
-  (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
-  (require '[cljctools.bytes.core :as bytes.core] :reload)
-  (require '[cljctools.codec.core :as codec.core] :reload)
+  -M -m cljs.main --repl-env node --compile cljctools.bittorrent.bencode.core --repl
+  
+  (do
+    (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
+    (require '[cljctools.core :as cljctools.core] :reload)
+    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.codec.core :as codec.core] :reload))
   
   (do
     #_(def data {:t "aabbccdd"
