@@ -1,7 +1,6 @@
 {
 	"dependencies": {
 		"randombytes": "2.1.0",
-    "safe-buffer": "5.2.1",
     "bitfield": "4.0.0"
 	}
 }

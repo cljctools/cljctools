@@ -3,13 +3,18 @@
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    ["randombytes" :as randomBytes]
-   ["safe-buffer" :refer [Buffer]]
-   ["bitfield" :as Bitfield]))
+   #_["buffer/index.js" :refer [Buffer]]
+   ["bitfield" :as Bitfield]
+   #_["readable-stream" :refer [Readable]]))
+
+; requires js/Buffer
 
 #_(declare crypto)
 
 #_(when (exists? js/module)
     (defonce crypto (js/require "crypto")))
+
+(defonce Buffer js/Buffer)
 
 (defonce types
   (-> (make-hierarchy)
@@ -164,7 +169,6 @@
                       github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}}}' \
   -M -m cljs.main -co '{:npm-deps {"randombytes" "2.1.0"
-                                   "safe-buffer" "5.2.1"
                                    "bitfield" "4.0.0"}
                         :install-deps true}' \
   --repl-env node --compile cljctools.bytes.core --repl
