@@ -224,9 +224,9 @@
                       github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}}}' \
   -M -m cljs.main --repl-env node --watch "bittorrent/src/bencode" --compile cljctools.bittorrent.bencode.core --repl
 
-  (require '[cljctools.bittorrent.bencode.core :as bencode.core])
-  (require '[cljctools.bytes.core :as bytes.core])
-  (require '[cljctools.codec.core :as codec.core])
+  (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
+  (require '[cljctools.bytes.core :as bytes.core] :reload)
+  (require '[cljctools.codec.core :as codec.core] :reload)
   
   (do
     #_(def data {:t "aabbccdd"
