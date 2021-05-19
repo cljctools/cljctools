@@ -67,7 +67,8 @@
                       org.clojure/core.async {:mvn/version "1.3.618"}
                       github.cljctools/datagram-socket-meta {:local/root "./cljctools/src/datagram-socket-meta"}
                       github.cljctools/datagram-socket-nodejs {:local/root "./cljctools/src/datagram-socket-nodejs"}}}' \
-  -M -m cljs.main --repl-env node --repl
+  -M -m cljs.main --repl-env node --compile cljctools.datagram-socket.core --repl
+
   
   (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                               pub sub unsub mult tap untap mix admix unmix pipe

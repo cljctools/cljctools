@@ -277,10 +277,7 @@
   
   (do
     (set! *warn-on-reflection* true)
-    (defn reload
-      []
-      (require '[cljctools.bytes.core :as bytes.core] :reload))
-    (reload))
+    (require '[cljctools.bytes.core :as bytes.core] :reload))
 
   (in-ns 'cljctools.bytes.core)
   

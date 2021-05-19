@@ -77,7 +77,7 @@
                       org.clojure/core.async {:mvn/version "1.3.618"}
                       github.cljctools/socket-meta {:local/root "./cljctools/src/socket-meta"}
                       github.cljctools/socket-nodejs {:local/root "./cljctools/src/socket-nodejs"}}}' \
-  -M -m cljs.main --repl-env node --repl
+  -M -m cljs.main --repl-env node --compile cljctools.socket.core --repl
   
   (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                               pub sub unsub mult tap untap mix admix unmix pipe
