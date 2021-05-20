@@ -63,6 +63,24 @@
       (.write out byte-arr))
     (.toByteArray out)))
 
+(defmethod concat ::byte-buffer ^ByteBuffer
+  [buffers]
+  (let [^int size (->>
+                   buffers
+                   (map
+                    (fn [^ByteBuffer buffer]
+                      (.capacity buffer)))
+                   (reduce + 0))
+        byte-arrs (->>
+                   buffers
+                   (map
+                    (fn [^ByteBuffer buffer]
+                      (.array buffer))))]
+    (with-open [out (java.io.ByteArrayOutputStream.)]
+      (doseq [^bytes byte-arr byte-arrs]
+        (.write out byte-arr))
+      (ByteBuffer/wrap (.toByteArray out)))))
+
 (defmethod concat :default
   [xs]
   xs)

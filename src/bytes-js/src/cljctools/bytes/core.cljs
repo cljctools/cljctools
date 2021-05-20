@@ -63,6 +63,10 @@
   [buffers]
   (Buffer.concat buffers))
 
+(defmethod concat ::byte-buffer
+  [buffers]
+  (Buffer.concat buffers))
+
 (defn byte-buffer
   [size]
   (Buffer.alloc size))
