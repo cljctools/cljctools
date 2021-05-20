@@ -10,16 +10,16 @@
    [cljctools.bittorrent.bencode.core :as bencode.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]))
 
-(defprotocol Wire
+(defprotocol WireProtocol
   (handshake* [_ infohash peer-id]))
 
 (defprotocol Extension
   (foo* [_]))
 
-(s/def ::wire #(and
-                (satisfies? Wire %)
-                #?(:clj (satisfies? clojure.lang.IDeref %))
-                #?(:cljs (satisfies? cljs.core/IDeref %))))
+(s/def ::wire-protocol #(and
+                         (satisfies? WireProtocol %)
+                         #?(:clj (satisfies? clojure.lang.IDeref %))
+                         #?(:cljs (satisfies? cljs.core/IDeref %))))
 
 (s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
                     :cljs #(instance? cljs.core.async.impl.channels/ManyToManyChannel %)))
@@ -27,9 +27,14 @@
 (s/def ::recv| ::channel)
 (s/def ::send| ::channel)
 
+(s/def ::on-error ifn?)
+(s/def ::on-message ifn?)
+
 (s/def ::create-wire-opts
   (s/keys :req [::send|
-                ::recv|]
+                ::recv|
+                ::on-error
+                ::on-message]
           :opt []))
 
 (def msg-protocol (bytes.core/to-byte-array "\u0013BitTorrent protocol"))
@@ -45,54 +50,63 @@
 (defn buffer-messages
   [{:as opts
     :keys [::recv|
-           ::next-msg-length|
-           ::msg-buffer|]}]
+           ::buffer-messages|
+           ::msg-buffer|
+           :close?]}]
   (go
     (loop [recv-bufferT (transient [])
+           prev-msg-buffer nil
            total-size 0]
-      (when-let [buffer (<! recv|)]
-        (let [next-total-size (+ total-size (bytes.core/size buffer))
-              next-msg-length (<! next-msg-length|)]
-          (cond
-            (== next-total-size next-msg-length)
-            (let [msg-buffer (bytes.core/concat (persistent! (conj! recv-bufferT buffer)))]
-              (>! msg-buffer| msg-buffer)
-              (recur (transient []) 0))
+      (when-let [{:keys [next-msg-length
+                         incomplete?]} (<! buffer-messages|)]
+        (when-let [buffer (<! recv|)]
+          (let [total-size (if incomplete? (+ total-size  (bytes.core/size prev-msg-buffer)) total-size)
+                buffer (if incomplete? (bytes.core/concat [prev-msg-buffer buffer]) buffer)
+                next-total-size (+ total-size (bytes.core/size buffer))]
+            (cond
+              (= next-msg-length :any)
+              (let [msg-buffer (bytes.core/concat (persistent! (conj! recv-bufferT buffer)))]
+                (>! msg-buffer| msg-buffer)
+                (recur (transient []) msg-buffer 0))
 
-            (>= next-total-size next-msg-length)
-            (let [over-buffer (bytes.core/concat (persistent! (conj! recv-bufferT buffer)))
-                  msg-buffer (bytes.core/buffer-wrap over-buffer 0 next-msg-length)
-                  leftover-buffer (bytes.core/buffer-wrap over-buffer next-msg-length (- next-total-size next-msg-length))]
-              (>! msg-buffer| msg-buffer)
-              (recur (transient [leftover-buffer]) (bytes.core/size leftover-buffer)))
+              (== next-total-size next-msg-length)
+              (let [msg-buffer (bytes.core/concat (persistent! (conj! recv-bufferT buffer)))]
+                (>! msg-buffer| msg-buffer)
+                (recur (transient []) msg-buffer 0))
 
-            :else
-            (recur (conj! recv-bufferT buffer) next-total-size)))))))
+              (>= next-total-size next-msg-length)
+              (let [over-buffer (bytes.core/concat (persistent! (conj! recv-bufferT buffer)))
+                    msg-buffer (bytes.core/buffer-wrap over-buffer 0 next-msg-length)
+                    leftover-buffer (bytes.core/buffer-wrap over-buffer next-msg-length (- next-total-size next-msg-length))]
+                (>! msg-buffer| msg-buffer)
+                (recur (transient [leftover-buffer]) msg-buffer (bytes.core/size leftover-buffer)))
 
+              :else
+              (recur (conj! recv-bufferT buffer) prev-msg-buffer next-total-size))))))
+    (when close?
+      (close! msg-buffer|))))
 
-(defn create-wire
+(defn create-wire-protocol
   [{:as opts
     :keys [::send|
-           ::recv|]}]
+           ::recv|
+           ::on-error
+           ::on-message]}]
   {:pre [(s/assert ::create-wire-opts opts)]
-   :post [(s/assert ::wire %)]}
+   :post [(s/assert ::wire-protocol %)]}
   (let [stateV (volatile!
                 {:am-choking? true
                  :am-interested? false
                  :peer-choking? true
                  :peer-interested? false
-                 :extensions {}
-                 :uploaded 0
-                 :downloaded 0
-                 :peer-pieces (bytes.core/bitset 0 {:grow (* 50000 8)})})
+                 :extensions {}})
 
         msg| (chan 100)
-        handshake| (chan 1)
 
-        wire
-        ^{:type ::wire}
+        wire-protocol
+        ^{:type ::wire-protocol}
         (reify
-          Wire
+          WireProtocol
           (handshake*
             [_ infohash peer-id])
           #?@(:clj
@@ -105,58 +119,109 @@
     (go
       (loop []
         (when-let [msg (<! msg|)]
-          (let [])
-
-
+          (on-message msg)
           (recur))))
-
-    (let [msg-buffer| (chan 1)
-          next-msg-length| (chan 1)]
-      
-      (go
-        (let [handshake| (chan 100)]
-          (buffer-messages {::recv|  handshake|
-                            ::msg-buffer| msg-buffer|
-                            ::next-msg-length| next-msg-length})
-          (loop []
-            (alt!
-              msg-buffer|
-              ([buffer]
-               
-               )
-
-              recv|
-              ([buffer]
-               (>! handshake|))
-
-              :priority true))
-          (close! handshake|))
-
-        (when-let [buffer (<! recv|)]
-          (let [pstrlen (bytes.core/get-byte buffer 0)])
-
-
-          (loop [recv-buffer (transient [])
-                 total-size 0
-                 expected-size 1]
-            (when-let [buffer (<! recv|)]
-              (let [msg-length (bytes.core/get-int buffer 0)]
-                (condp == msg-length
-                  0
-                  {:message-key :keep-alive}
-                  19
-                  {})))))
-
-        (close! msg|)
-        (close! handshake|))
-      
-      )
     
-    
-    
-    
+    (go
+      (let [msg-buffer| (chan 1)
+            buffer-messages| (chan 1)
+            _ (buffer-messages {::recv|  recv|
+                                ::msg-buffer| msg-buffer|
+                                ::buffer-messages| buffer-messages|})
+            _ (>! buffer-messages| {:next-msg-length 1})
+            pstrlen (bytes.core/get-byte (<! msg-buffer|) 0)
+            _ (>! buffer-messages| {:next-msg-length (+ pstrlen 48)})
+            handshakeB (<! msg-buffer|)
+            pstr (bytes.core/to-string (bytes.core/buffer-wrap handshakeB 0 pstrlen))
+            _ (when-not (= pstr "BitTorrent protocol")
+                (on-error (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr})))
+            infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
+            peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)
+            _ (>! msg| {:message-key :handshake
+                        :peer-idB peer-idB
+                        :infohashB infohashB})]
+        (close! buffer-messages|))
 
-    wire))
+      (let [msg-buffer| (chan 1)
+            buffer-messages| (chan 1)]
+        (buffer-messages {::recv|  recv|
+                          ::msg-buffer| msg-buffer|
+                          ::buffer-messages| buffer-messages|
+                          :close? true})
+        (>! buffer-messages| {:next-msg-length :any})
+        (loop []
+          (when-let [buffer (<! msg-buffer|)]
+            (let [size (bytes.core/size buffer)]
+              (cond
+
+                (and (== size 4) (== 0 (bytes.core/get-int buffer 0)))
+                (do
+                  (>! msg| {:message-key :keep-alive})
+                  (>! buffer-messages| {:next-msg-length :any}))
+
+                (<= size 4)
+                (do
+                  (>! buffer-messages| {:next-msg-length :any :incomplete? true}))
+
+
+                :else
+                (let [msg-length (bytes.core/get-int buffer 0)
+                      msg-id (bytes.core/get-byte buffer 4)]
+                  (cond
+
+                    (not (== msg-length (- (bytes.core/size buffer) 4)))
+                    (do
+                      (println [::incomplete
+                                [:msg-id msg-id]
+                                [:expected-length msg-length :received-length (- (bytes.core/size buffer) 4)]])
+                      (>! buffer-messages| {:next-msg-length :any :incomplete? true}))
+
+                    (and (== msg-length 1) (== msg-id 0))
+                    (>! msg| {:message-key :choke})
+
+                    (and (== msg-length 1) (== msg-id 1))
+                    (>! msg| {:message-key :choke})
+
+                    (and (== msg-length 1) (== msg-id 2))
+                    (>! msg| {:message-key :interested})
+
+                    (and (== msg-length 1) (== msg-id 3))
+                    (>! msg| {:message-key :not-interested})
+
+                    (and (== msg-length 5) (== msg-id 4))
+                    (>! msg| {:message-key :have
+                              :piece-index (bytes.core/get-int buffer 5)})
+
+                    (and (== msg-id 5))
+                    (>! msg| {:message-key :bitfield})
+
+                    (and (== msg-length 13) (== msg-id 6))
+                    (let [index (bytes.core/get-int buffer 5)
+                          begin (bytes.core/get-int buffer 9)
+                          length (bytes.core/get-int buffer 13)]
+                      (>! msg| {:message-key :request
+                                :index index
+                                :begin begin
+                                :length length}))
+
+                    (and  (== msg-id 7))
+                    (let [index (bytes.core/get-int buffer 5)
+                          begin (bytes.core/get-int buffer 9)
+                          block (bytes.core/buffer-wrap (bytes.core/to-byte-array buffer) 13 (- msg-length 9))]
+                      (>! msg| {:message-key :piece
+                                :index index
+                                :begin begin
+                                :block block}))
+
+                    (and (== msg-length 13) (== msg-id 8))
+                    (>! msg| {:message-key :cancel})
+
+                    (and (== msg-length 3) (== msg-id 9))
+                    (>! msg| {:message-key :port})))))
+            (recur))))
+      (close! msg|))
+
+    wire-protocol))
 
 (defn create-ut-metadata
   [{:as opts
@@ -190,7 +255,7 @@
   clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire"}
+                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
                       github.cljctools/core-jvm {:local/root "./cljctools/src/core-jvm"}}}'
@@ -198,12 +263,12 @@
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire"}
+                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}}}' \
-   -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire.core --repl
+   -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire-protocol.core --repl
   
   (do
     (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
@@ -212,10 +277,11 @@
                                                 pipeline pipeline-async]])
     
     (require '[cljctools.bytes.core :as bytes.core] :reload)
-    (require '[cljctools.bittorrent.wire.core :as wire.core] :reload))
+    (require '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core] :reload))
   
 
-   
+   (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
+   (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)                                                                                     
   
   
   
