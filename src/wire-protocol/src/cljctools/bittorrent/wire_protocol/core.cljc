@@ -99,7 +99,9 @@
                  :am-interested? false
                  :peer-choking? true
                  :peer-interested? false
-                 :extensions {}})
+                 :extended? false
+                 :dht? false
+                 :peer-extensions {}})
 
         msg| (chan 100)
 
@@ -135,6 +137,9 @@
             pstr (bytes.core/to-string (bytes.core/buffer-wrap handshakeB 0 pstrlen))
             _ (when-not (= pstr "BitTorrent protocol")
                 (on-error (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr})))
+            reservedB (bytes.core/buffer-wrap handshakeB pstrlen 8)
+            _ (vswap! stateV merge {:extended? (bit-and (bytes.core/get-byte reservedB 5) 0x10)
+                                    :dht? (bit-and (bytes.core/get-byte reservedB 7) 0x01)})
             infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
             peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)
             _ (>! msg| {:message-key :handshake
@@ -217,7 +222,18 @@
                     (>! msg| {:message-key :cancel})
 
                     (and (== msg-length 3) (== msg-id 9))
-                    (>! msg| {:message-key :port})))))
+                    (>! msg| {:message-key :port})
+
+                    (and (== msg-id 20))
+                    (let [ext-msg-id (bytes.core/get-byte buffer 5)
+                          dataB (bytes.core/buffer-wrap buffer 6 (- msg-length 2))
+                          data (bencode.core/decode (bytes.core/to-byte-array dataB))]
+                      (cond
+                        (== ext-msg-id 0)
+                        (let []
+                          (vswap! stateV assoc :peer-extensions data)
+                          (>! msg| {:message-key :extended-handshake
+                                    :data data}))))))))
             (recur))))
       (close! msg|))
 
@@ -278,13 +294,22 @@
     
     (require '[cljctools.bytes.core :as bytes.core] :reload)
     (require '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core] :reload))
-  
+  ;
+  )
 
-   (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
-   (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)                                                                                     
-  
-  
-  
+(comment
+
+
+  (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
+  (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)
+
+
+  ; The bit selected for the extension protocol is bit 20 from the right (counting starts at 0) . 
+  ; So (reserved_byte [5] & 0x10) is the expression to use for checking if the client supports extended messaging
+  (bit-and 2r00010000  0x10)
+  ; => 16
+
+
   ;
   )
 
