@@ -1,5 +1,0 @@
-{
-	"dependencies": {
-		"cljctools-bytes-js-deps": "file:../../../cljctools/src/bytes-js"
-	}
-}
