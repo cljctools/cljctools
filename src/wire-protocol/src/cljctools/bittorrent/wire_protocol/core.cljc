@@ -37,16 +37,6 @@
                 ::on-message]
           :opt []))
 
-(def msg-protocol (bytes.core/to-byte-array "\u0013BitTorrent protocol"))
-(def msg-keep-alive (bytes.core/byte-array [0 0 0 0]))
-(def msg-choke (bytes.core/byte-array [0 0 0 1 0]))
-(def msg-unchoke (bytes.core/byte-array [0 0 0 1 1]))
-(def msg-interested (bytes.core/byte-array [0 0 0 1 2]))
-(def msg-not-interested (bytes.core/byte-array [0 0 0 1 3]))
-(def msg-have (bytes.core/byte-array [0 0 0 5 4]))
-(def msg-reserved (bytes.core/byte-array [0 0 0 0 0 0 0 0]))
-(def msg-port (bytes.core/byte-array [0 0 0 3 9 0 0]))
-
 (defn buffer-messages
   [{:as opts
     :keys [::recv|
@@ -86,12 +76,37 @@
     (when close?
       (close! msg-buffer|))))
 
+(def pstrB (-> (bytes.core/byte-array [19]) (bytes.core/buffer-wrap)))
+(def protocolB (-> (bytes.core/to-byte-array "\u0013BitTorrent protocol") (bytes.core/buffer-wrap)))
+(def reservedB (-> (bytes.core/byte-array [0 0 0 0 0 2r00010000 0 2r00000001]) (bytes.core/buffer-wrap)))
+(def extended-handshakeB (let [payloadBA (->
+                                          {:m {"ut_metadata" 0}}
+                                          (bencode.core/encode))
+                               msg-lengthB (bytes.core/byte-buffer 4)
+                               msg-length (+ 2 (bytes.core/alength payloadBA))]
+                           (bytes.core/put-int msg-lengthB 0 msg-length)
+                           (->
+                            (bytes.core/concat
+                             [(bytes.core/to-byte-array msg-lengthB)
+                              (bytes.core/byte-array [20 0])
+                              payloadBA])
+                            (bytes.core/buffer-wrap))))
+(def keep-alive-byte-arr (bytes.core/byte-array [0 0 0 0]))
+(def choke-byte-arr (bytes.core/byte-array [0 0 0 1 0]))
+(def unchoke-byte-arr (bytes.core/byte-array [0 0 0 1 1]))
+(def interested-byte-arr (bytes.core/byte-array [0 0 0 1 2]))
+(def not-interested-byte-arr (bytes.core/byte-array [0 0 0 1 3]))
+(def have-byte-arr (bytes.core/byte-array [0 0 0 5 4]))
+(def port-byte-arr (bytes.core/byte-array [0 0 0 3 9 0 0]))
+
 (defn create-wire-protocol
   [{:as opts
     :keys [::send|
            ::recv|
            ::on-error
-           ::on-message]}]
+           ::on-message
+           ::infohashB
+           ::peer-idB]}]
   {:pre [(s/assert ::create-wire-opts opts)]
    :post [(s/assert ::wire-protocol %)]}
   (let [stateV (volatile!
@@ -99,8 +114,8 @@
                  :am-interested? false
                  :peer-choking? true
                  :peer-interested? false
-                 :extended? false
-                 :dht? false
+                 :peer-extended? false
+                 :peer-dht? false
                  :peer-extensions {}})
 
         msg| (chan 100)
@@ -125,6 +140,7 @@
           (recur))))
     
     (go
+      (>! send| (bytes.core/concat [pstrB protocolB reservedB infohashB peer-idB]))
       (let [msg-buffer| (chan 1)
             buffer-messages| (chan 1)
             _ (buffer-messages {::recv|  recv|
@@ -138,13 +154,14 @@
             _ (when-not (= pstr "BitTorrent protocol")
                 (on-error (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr})))
             reservedB (bytes.core/buffer-wrap handshakeB pstrlen 8)
-            _ (vswap! stateV merge {:extended? (bit-and (bytes.core/get-byte reservedB 5) 0x10)
-                                    :dht? (bit-and (bytes.core/get-byte reservedB 7) 0x01)})
+            _ (vswap! stateV merge {:peer-extended? (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)
+                                    :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)})
             infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
             peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)
             _ (>! msg| {:message-key :handshake
                         :peer-idB peer-idB
                         :infohashB infohashB})]
+        (>! send| extended-handshakeB)
         (close! buffer-messages|))
 
       (let [msg-buffer| (chan 1)
@@ -308,6 +325,19 @@
   ; So (reserved_byte [5] & 0x10) is the expression to use for checking if the client supports extended messaging
   (bit-and 2r00010000  0x10)
   ; => 16
+
+  (->
+   (bytes.core/byte-buffer 4)
+   (bytes.core/put-int 0 16384)
+   (bytes.core/get-int 0))
+
+  (let [byte-buf  (bytes.core/byte-buffer 4)
+        _ (bytes.core/put-int byte-buf 0 16384)
+        byte-arr (bytes.core/to-byte-array byte-buf)]
+    [(bytes.core/alength byte-arr)
+     (-> byte-arr
+         (bytes.core/buffer-wrap)
+         (bytes.core/get-int 0))])
 
 
   ;
