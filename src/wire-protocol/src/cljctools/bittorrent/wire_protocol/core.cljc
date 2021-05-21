@@ -135,34 +135,7 @@
 (defn receive-handshake
   [recv|]
   (go
-    (let [cut (message-cut)
-          pstrlenV (volatile! nil)
-          expected-lengthV (volatile! nil)]
-      (loop []
-        (when-let [buffer (<! recv|)]
-          (when-let [handshakeB (cut* cut buffer @expected-lengthV)]
-            (when-not @expected-lengthV
-              (let [pstrlen (bytes.core/get-byte handshakeB 0)]
-                (vreset! pstrlenV pstrlen)
-                (vreset! expected-lengthV (+ 49 pstrlen))))
-            (cond
-
-              (== (bytes.core/size handshakeB) @expected-lengthV)
-              (let [pstrlen @pstrlenV
-                    pstr (bytes.core/to-string (bytes.core/buffer-wrap handshakeB 0 pstrlen))]
-                (if-not (= pstr "BitTorrent protocol")
-                  {:ex (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr} nil)}
-                  (let [reservedB (bytes.core/buffer-wrap handshakeB pstrlen 8)
-                        infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
-                        peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)]
-                    {:peer-idB peer-idB
-                     :infohashB infohashB
-                     :peer-extended? (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)
-                     :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)})))
-              :else
-              (let []
-                (add* cut buffer)
-                (recur)))))))))
+    ))
 
 (defn create-wire-protocol
   [{:as opts
@@ -171,9 +144,7 @@
            ::on-error
            ::on-message
            ::infohashB
-           ::peer-idB
-           ::initiate-handshake?]
-    :or {initiate-handshake? true}}]
+           ::peer-idB]}]
   {:pre [(s/assert ::create-wire-opts opts)]
    :post [(s/assert ::wire-protocol %)]}
   (let [stateV (atom
@@ -217,13 +188,33 @@
 
     (go
       (try
-        (when initiate-handshake?
-          (>! send| (handshake-message infohashB peer-idB)))
-        (let [{:keys [ex] :as value} (<! (receive-handshake recv|))]
-          (when ex (throw ex))
-          (swap! stateV merge (select-keys value [:peer-extended? :peer-dht?])))
-        (when-not initiate-handshake?
-          (>! send| (handshake-message infohashB peer-idB)))
+        (>! send| (handshake-message infohashB peer-idB))
+
+        (let [cut (message-cut)
+              pstrlenV (volatile! nil)
+              expected-lengthV (volatile! nil)]
+          (loop []
+            (when-let [buffer (<! recv|)]
+              (when-let [handshakeB (cut* cut buffer @expected-lengthV)]
+                (when-not @expected-lengthV
+                  (let [pstrlen (bytes.core/get-byte handshakeB 0)]
+                    (vreset! pstrlenV pstrlen)
+                    (vreset! expected-lengthV (+ 49 pstrlen))))
+                (cond
+                  (== (bytes.core/size handshakeB) @expected-lengthV)
+                  (let [pstrlen @pstrlenV
+                        pstr (bytes.core/to-string (bytes.core/buffer-wrap handshakeB 0 pstrlen))]
+                    (if-not (= pstr "BitTorrent protocol")
+                      (throw (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr} nil))
+                      (let [reservedB (bytes.core/buffer-wrap handshakeB pstrlen 8)
+                            infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
+                            peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)]
+                        (vswap! stateV merge {:peer-extended? (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)
+                                              :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)}))))
+                  :else
+                  (let []
+                    (add* cut buffer)
+                    (recur)))))))
         (>! send| (extended-handshake-message))
 
         (let [cut (message-cut)
