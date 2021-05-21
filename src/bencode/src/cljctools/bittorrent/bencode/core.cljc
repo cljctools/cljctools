@@ -59,6 +59,7 @@
   (bytes.protocols/write-byte-array* out byte-arr))
 
 (defn encode
+  "Takes clojure data, returns byte array"
   [data]
   (let [out (bytes.core/output-stream)]
     (encode* data out)
@@ -198,6 +199,7 @@
                 (recur))))))
 
 (defn decode
+  "Takes byte array, returns clojure data"
   [byte-arr]
   (let [in (bytes.core/pushback-input-stream byte-arr)
         out (bytes.core/output-stream)]
