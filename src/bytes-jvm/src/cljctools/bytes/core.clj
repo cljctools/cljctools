@@ -103,6 +103,10 @@
   [^ByteBuffer buffer index]
   (.getInt buffer ^int index))
 
+(defn put-int
+  [^ByteBuffer buffer index value]
+  (.putInt buffer ^int index ^int value))
+
 (defn size
   [^ByteBuffer buffer]
   (.capacity buffer))

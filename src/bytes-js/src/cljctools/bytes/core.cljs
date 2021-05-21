@@ -85,6 +85,11 @@
   [buffer index]
   (.readUInt32BE buffer index))
 
+(defn put-int
+  [buffer index value]
+  (.writeUInt32BE buffer value index)
+  buffer)
+
 (defn size
   [buffer]
   (.-length buffer))
