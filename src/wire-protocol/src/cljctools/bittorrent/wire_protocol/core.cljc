@@ -26,46 +26,80 @@
 (s/def ::send| ::channel)
 (s/def ::ex| ::channel)
 
-(defprotocol BufferCut
+#_(defprotocol BufferCut
   (cut* [_ recv| expected-size]))
 
+#_(defn buffer-cut
+    []
+    (let [buffersV (volatile! (transient []))
+          total-sizeV (volatile! 0)]
+      (reify
+        BufferCut
+        (cut*
+          [_ recv| expected-size]
+          (go
+            (loop []
+              (let [total-size @total-sizeV]
+                (cond
+
+                  (== total-size expected-size)
+                  (let [resultB (if (== 1 (count @buffersV))
+                                  (nth @buffersV 0)
+                                  (->
+                                   @buffersV
+                                   (persistent!)
+                                   (bytes.core/concat)))]
+                    (vreset! buffersV (transient []))
+                    (vreset! total-sizeV 0)
+                    resultB)
+
+                  (> total-size expected-size)
+                  (let [overB (bytes.core/concat (persistent! @buffersV))
+                        resultB (bytes.core/buffer-wrap overB 0 expected-size)
+                        leftoverB (bytes.core/buffer-wrap overB expected-size (- total-size expected-size))]
+                    (vreset! buffersV (transient [leftoverB]))
+                    (vreset! total-sizeV (bytes.core/size leftoverB))
+                    resultB)
+
+                  :else
+                  (when-let [recvB (<! recv|)]
+                    (vswap! buffersV conj! recvB)
+                    (vreset! total-sizeV (+ total-size (bytes.core/size recvB)))
+                    (recur))))))))))
+
 (defn buffer-cut
-  []
-  (let [buffersV (volatile! (transient []))
-        total-sizeV (volatile! 0)]
-    (reify
-      BufferCut
-      (cut*
-        [_ recv| expected-size]
-        (go
-          (loop []
-            (let [total-size @total-sizeV]
-              (cond
-                
-                (== total-size expected-size)
-                (let [resultB (if (== 1 (count @buffersV))
-                                (nth @buffersV 0)
-                                (->
-                                 @buffersV
-                                 (persistent!)
-                                 (bytes.core/concat)))]
-                  (vreset! buffersV (transient []))
-                  (vreset! total-sizeV 0)
-                  resultB)
+  [{:as opts
+    :keys [::from|
+           ::expected-size|
+           ::to|
+           :close?]}]
+  (go
+    (loop [buffersT (transient [])
+           total-size 0
+           expected-size (<! expected-size|)]
+      (when expected-size
+        (cond
+          (== total-size expected-size)
+          (let [resultB (if (== 1 (count buffersT))
+                          (nth buffersT 0)
+                          (->
+                           buffersT
+                           (persistent!)
+                           (bytes.core/concat)))]
+            (>! to| resultB)
+            (recur (transient []) 0 (<! expected-size|)))
 
-                (> total-size expected-size)
-                (let [overB (bytes.core/concat (persistent! @buffersV))
-                      resultB (bytes.core/buffer-wrap overB 0 expected-size)
-                      leftoverB (bytes.core/buffer-wrap overB expected-size (- total-size expected-size))]
-                  (vreset! buffersV (transient [leftoverB]))
-                  (vreset! total-sizeV (bytes.core/size leftoverB))
-                  resultB)
+          (> total-size expected-size)
+          (let [overB (bytes.core/concat (persistent! buffersT))
+                resultB (bytes.core/buffer-wrap overB 0 expected-size)
+                leftoverB (bytes.core/buffer-wrap overB expected-size (- total-size expected-size))]
+            (>! to| resultB)
+            (recur (transient [leftoverB]) (bytes.core/size leftoverB) (<! expected-size|)))
 
-                :else
-                (when-let [recvB (<! recv|)]
-                  (vswap! buffersV conj! recvB)
-                  (vreset! total-sizeV (+ total-size (bytes.core/size recvB)))
-                  (recur))))))))))
+          :else
+          (when-let [recvB (<! from|)]
+            (recur (conj! buffersT recvB) (+ total-size (bytes.core/size recvB)) expected-size)))))
+    (close! to|)))
 
 (def pstrB (-> (bytes.core/byte-array [19]) (bytes.core/buffer-wrap)))
 (def protocolB (-> (bytes.core/to-byte-array "\u0013BitTorrent protocol") (bytes.core/buffer-wrap)))
@@ -130,7 +164,8 @@
         ex| (chan 1)
         op| (chan 100)
 
-        cut (buffer-cut)
+        expected-size| (chan 1)
+        cut| (chan 1)
 
         wire-protocol
         ^{:type ::wire-protocol}
@@ -150,7 +185,13 @@
                (-deref [_] @stateV)]))
 
         release (fn []
+                  (close! expected-size|)
                   (close! msg|))]
+
+    (buffer-cut {::from| recv|
+                 ::expected-size| expected-size|
+                 ::to| cut|
+                 :close? true})
 
     (take! ex|
            (fn [ex]
@@ -167,7 +208,8 @@
                         :op :pstrlen
                         :pstrlen nil
                         :msg-length nil})]
-          (when-let [msgB (<! (cut* cut recv| (:expected-size stateT)))]
+          (>! expected-size| (:expected-size stateT))
+          (when-let [msgB (<! cut|)]
 
             (condp = (:op stateT)
 
