@@ -20,9 +20,9 @@
 
 (s/def ::opts (s/keys :req [::socket.spec/port
                             ::socket.spec/host
-                            ::socket.spec/on-connected
-                            ::socket.spec/on-message
-                            ::socket.spec/on-error]
+                            ::socket.spec/evt|
+                            ::socket.spec/msg|
+                            ::socket.spec/ex|]
                       :opt [::socket.spec/time-out]))
 
 (defn create
@@ -30,10 +30,10 @@
     :keys [::socket.spec/port
            ::socket.spec/host
            ::socket.spec/time-out
-           ::socket.spec/on-connected
-           ::socket.spec/on-message
-           ::socket.spec/on-error]}]
-  {:pre [(s/assert ::opts %)]
+           ::socket.spec/evt|
+           ::socket.spec/msg|
+           ::socket.spec/ex|]}]
+  {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
   (let [raw-socket (net.Socket.)
 
@@ -42,23 +42,24 @@
         (reify
           socket.protocols/Socket
           (connect*
-            [_]
+            [t]
             (go
               (try
                 (doto raw-socket
                   (.on "connect" (fn []
-                                   (on-connected)))
+                                   (put! evt| {:op :connected})))
                   (.on "data" (fn [buffer]
-                                (on-message buffer)))
+                                (put! msg| buffer)))
                   (.on "error" (fn [error]
-                                 (on-error error))))
+                                 (put! ex| error))))
                 (when time-out
                   (.setTimeout raw-socket time-out))
                 (.connect raw-socket (clj->js
                                       (select-keys opts [::socket.spec/host
                                                          ::socket.spec/port])))
                 (catch js/Error error
-                  (on-error error)))))
+                  (put! ex| error)
+                  (socket.protocols/close* t)))))
           (send*
             [_ buffer]
             (.write raw-socket buffer))

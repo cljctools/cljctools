@@ -7,6 +7,7 @@
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.spec.alpha :as s]
 
+   [cljctools.bytes.core :as bytes.core]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [manifold.deferred :as d]
@@ -21,18 +22,18 @@
 
 (s/def ::opts (s/keys :req [::datagram-socket.spec/host
                             ::datagram-socket.spec/port
-                            ::datagram-socket.spec/on-listening
-                            ::datagram-socket.spec/on-message
-                            ::datagram-socket.spec/on-error]
+                            ::datagram-socket.spec/evt|
+                            ::datagram-socket.spec/msg|
+                            ::datagram-socket.spec/ex|]
                       :opt []))
 
 (defn create
   [{:as opts
     :keys [::datagram-socket.spec/host
            ::datagram-socket.spec/port
-           ::datagram-socket.spec/on-listening
-           ::datagram-socket.spec/on-message
-           ::datagram-socket.spec/on-error]
+           ::datagram-socket.spec/evt|
+           ::datagram-socket.spec/msg|
+           ::datagram-socket.spec/ex|]
     :or {host "0.0.0.0"
          port 6881}}]
   {:pre [(s/assert ::opts opts)]
@@ -44,22 +45,26 @@
         (reify
           datagram-socket.protocols/Socket
           (listen*
-            [_]
+            [t]
             (try
               (let [stream @(aleph.udp/socket {:socket-address (InetSocketAddress. ^String host ^int port)
                                                :insecure? true})]
                 (vreset! streamV stream)
-                (on-listening)
+                (put! evt| {:op :listening})
                 (d/loop []
                   (->
                    (sm/take! stream ::none)
                    (d/chain
                     (fn [msg]
                       (when-not (identical? msg ::none)
-                        (on-message (:message msg) (select-keys msg [:host :port]))
-                        (d/recur)))))))
+                        (put! msg| {:msgB (bytes.core/buffer-wrap (:message msg))
+                                    :host (:host msg)
+                                    :port (:port msg)})
+                        (d/recur))))
+                   (d/catch Exception #(put! ex| %)))))
               (catch Exception ex
-                (on-error ex))))
+                (put! ex| ex)
+                (datagram-socket.protocols/close* t))))
           (send*
             [_ byte-arr {:keys [host port]}]
             (sm/put! @streamV {:host host
@@ -79,6 +84,8 @@
   
   clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
+                      github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                      github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
                       github.cljctools/datagram-socket-jvm {:local/root "./cljctools/src/datagram-socket-jvm"}}}'
   
   (do

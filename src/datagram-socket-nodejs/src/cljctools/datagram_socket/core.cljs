@@ -22,9 +22,9 @@
   [{:as opts
     :keys [::datagram-socket.spec/port
            ::datagram-socket.spec/host
-           ::datagram-socket.spec/on-listening
-           ::datagram-socket.spec/on-message
-           ::datagram-socket.spec/on-error]
+           ::datagram-socket.spec/evt|
+           ::datagram-socket.spec/msg|
+           ::datagram-socket.spec/ex|]
     :or {port 6881
          host "0.0.0.0"}}]
   {:post [(s/assert ::datagram-socket.spec/socket %)]}
@@ -35,20 +35,22 @@
         (reify
           datagram-socket.protocols/Socket
           (listen*
-            [_]
-            (go
-              (try
-                (doto raw-socket
-                  (.on "listening" (fn []
-                                     (on-listening)))
-                  (.on "message" (fn [buffer rinfo]
-                                   (on-message buffer {:host (.-address rinfo)
-                                                       :port  (.-port rinfo)})))
-                  (.on "error" (fn [error]
-                                 (on-error error))))
-                (.bind raw-socket port host)
-                (catch js/Error error
-                  (on-error error)))))
+           [t]
+           (go
+             (try
+               (doto raw-socket
+                 (.on "listening" (fn []
+                                    (put! evt| {:op :listening})))
+                 (.on "message" (fn [buffer rinfo]
+                                  (put! msg| {:msgB buffer
+                                              :host (.-address rinfo)
+                                              :port (.-port rinfo)})))
+                 (.on "error" (fn [error]
+                                (put! ex| error))))
+               (.bind raw-socket port host)
+               (catch js/Error error
+                 (put! ex| error)
+                 (datagram-socket.protocols/close* t)))))
           (send*
             [_ buffer {:keys [host port]}]
             (.send raw-socket buffer 0 (.-length buffer) port host))

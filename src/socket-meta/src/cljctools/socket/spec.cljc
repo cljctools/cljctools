@@ -6,9 +6,13 @@
 (s/def ::host string?)
 (s/def ::port int?)
 
-(s/def ::on-message ifn?)
-(s/def ::on-connected ifn?)
-(s/def ::on-error ifn?)
+(s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
+                    :cljs #(instance? cljs.core.async.impl.channels/ManyToManyChannel %)))
+
+(s/def ::msg| ::channel)
+(s/def ::evt| ::channel)
+(s/def ::ex| ::channel)
+
 (s/def ::time-out int?)
 
 (s/def ::socket #(and

@@ -7,6 +7,7 @@
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.spec.alpha :as s]
 
+   [cljctools.bytes.core :as bytes.core]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.protocols :as socket.protocols]
 
@@ -22,9 +23,9 @@
 
 (s/def ::opts (s/keys :req [::socket.spec/port
                             ::socket.spec/host
-                            ::socket.spec/on-connected
-                            ::socket.spec/on-message
-                            ::socket.spec/on-error]
+                            ::socket.spec/evt|
+                            ::socket.spec/msg|
+                            ::socket.spec/ex|]
                       :opt [::socket.spec/time-out]))
 
 (defn create
@@ -32,9 +33,9 @@
     :keys [::socket.spec/port
            ::socket.spec/host
            ::socket.spec/time-out
-           ::socket.spec/on-connected
-           ::socket.spec/on-message
-           ::socket.spec/on-error]
+           ::socket.spec/evt|
+           ::socket.spec/msg|
+           ::socket.spec/ex|]
     :or {time-out 0}}]
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
@@ -44,23 +45,25 @@
         (reify
           socket.protocols/Socket
           (connect*
-            [_]
+            [t]
             (try
               (let [stream @(aleph.tcp/client {:host host
                                                :port port
                                                :insecure? true})]
                 (vreset! streamV stream)
-                (on-connected)
+                (put! evt| {:op :connected})
                 (d/loop []
                   (->
                    (sm/take! stream ::none)
                    (d/chain
                     (fn [byte-arr]
                       (when-not (identical? byte-arr ::none)
-                        (on-message byte-arr)
-                        (d/recur)))))))
+                        (put! msg| (bytes.core/buffer-wrap byte-arr))
+                        (d/recur))))
+                   (d/catch Exception #(put! ex| %)))))
               (catch Exception ex
-                (on-error ex))))
+                (put! ex| ex)
+                (socket.protocols/close* t))))
           (send*
             [_ byte-arr]
             (sm/put! @streamV byte-arr))
@@ -78,6 +81,8 @@
   
   clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
+                      github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                      github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
                       github.cljctools/socket-jvm {:local/root "./cljctools/src/socket-jvm"}}}'
   
   (do
