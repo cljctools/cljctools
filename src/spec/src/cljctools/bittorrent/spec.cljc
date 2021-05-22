@@ -4,7 +4,7 @@
    [cljctools.bytes.spec :as bytes.spec]))
 
 (s/def ::infohash string?)
-(s/def ::infohashB ::bytes.spec/bytes)
+(s/def ::infohashB ::bytes.spec/byte-buffer)
 
 (s/def ::peer-id string?)
-(s/def ::peer-idB ::bytes.spec/bytes)
+(s/def ::peer-idB ::bytes.spec/byte-buffer)

@@ -5,10 +5,11 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
-   [cljctools.bytes.protocols :as bytes.protocols]
+   [cljctools.bytes.spec :as bytes.spec]
    [cljctools.bytes.core :as bytes.core]
    [cljctools.bittorrent.bencode.core :as bencode.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]))
+
 
 (defprotocol WireProtocol
   (handshake* [_]))
@@ -25,77 +26,64 @@
 (s/def ::send| ::channel)
 (s/def ::ex| ::channel)
 
+(defprotocol BufferCut
+  (concut* [_ bufferB])
+  (cut* [_ bufferB expected-length])
+  (add* [_ bufferB] [_ bufferB next-total-size]))
 
-(s/def ::on-error ifn?)
-(s/def ::on-message ifn?)
-(s/def ::initiate-handshake? boolean?)
-
-
-(s/def ::create-wire-opts
-  (s/keys :req [::send|
-                ::recv|
-                ::on-error
-                ::on-message]
-          :opt [::ex|
-                ::initiate-handshake?]))
-
-
-
-(defprotocol MessageCut
-  (concut* [_ buffer])
-  (cut* [_ buffer expected-length])
-  (add* [_ buffer] [_ buffer next-total-size]))
-
-(defn message-cut
+(defn buffer-cut
   []
   (let [buffersV (volatile! (transient []))
         prev-resultBV (volatile! nil)
         total-sizeV (volatile! 0)]
     (reify
-      MessageCut
+      BufferCut
       (concut*
-        [_ buffer]
+        [_ bufferB]
         (let [resultB (->
                        @buffersV
-                       (conj! buffer)
+                       (conj! bufferB)
                        (persistent!)
                        (bytes.core/concat))]
           (vreset! buffersV (transient []))
           (vreset! total-sizeV 0)
-          (vreset! prev-resultBV nil)
+          (vreset! prev-resultBV resultB)
           resultB))
       (add*
-        [t buffer]
-        (add* t buffer (+ @total-sizeV (bytes.core/size buffer))))
+        [t bufferB]
+        (add* t bufferB (+ @total-sizeV (bytes.core/size bufferB))))
       (add*
-        [_ buffer next-total-size]
-        (vswap! buffersV conj! buffer)
+        [_ bufferB next-total-size]
+        (vswap! buffersV conj! bufferB)
         (vreset! total-sizeV  next-total-size)
         nil)
       (cut*
-        [t buffer expected-length]
+        [t bufferB expected-length]
         (cond
           (and (not expected-length) (== 0 (count @buffersV)))
-          buffer
+          (let []
+            (vreset! prev-resultBV bufferB)
+            bufferB)
 
           (not expected-length)
-          (concut* t buffer)
+          (concut* t bufferB)
 
           :else
-          (let [next-total-size (+ @total-sizeV (bytes.core/size buffer))]
+          (let [next-total-size (+ @total-sizeV (bytes.core/size bufferB))]
             (cond
               (== expected-length next-total-size)
-              (concut* t buffer)
+              (concut* t bufferB)
 
               (>= next-total-size expected-length)
-              (let [overB (bytes.core/concat (persistent! (conj! @buffersV buffer)))
+              (let [overB (bytes.core/concat (persistent! (conj! @buffersV bufferB)))
                     resultB (bytes.core/buffer-wrap overB 0 expected-length)
                     leftoverB (bytes.core/buffer-wrap overB expected-length (- next-total-size expected-length))]
                 (vreset! buffersV (transient [leftoverB]))
+                (vreset! prev-resultBV resultB)
                 resultB)
 
               :else
-              (add* t buffer next-total-size))))))))
+              (add* t bufferB next-total-size))))))))
 
 (def pstrB (-> (bytes.core/byte-array [19]) (bytes.core/buffer-wrap)))
 (def protocolB (-> (bytes.core/to-byte-array "\u0013BitTorrent protocol") (bytes.core/buffer-wrap)))
@@ -108,7 +96,7 @@
 (def have-byte-arr (bytes.core/byte-array [0 0 0 5 4]))
 (def port-byte-arr (bytes.core/byte-array [0 0 0 3 9 0 0]))
 
-(defn extended-message
+(defn extended-msg
   [ext-msg-id data]
   (let [payloadBA (->
                    data
@@ -123,28 +111,28 @@
        payloadBA])
      (bytes.core/buffer-wrap))))
 
-(defn handshake-message
+(defn handshake-msg
   [infohashB peer-idB]
   (bytes.core/concat [pstrB protocolB reservedB infohashB peer-idB]))
 
-(defn extended-handshake-message
+(defn extended-handshake-msg
   []
-  (extended-message 0 {:m {"ut_metadata" 3}
+  (extended-msg 0 {:m {"ut_metadata" 3}
                        :metadata_size 0}))
 
-(defn receive-handshake
-  [recv|]
-  (go
-    ))
+(s/def ::create-wire-opts
+  (s/keys :req [::send|
+                ::recv|
+                ::bittorrent.spec/infohashB
+                ::bittorrent.spec/peer-idB]
+          :opt [::ex|]))
 
 (defn create-wire-protocol
   [{:as opts
     :keys [::send|
            ::recv|
-           ::on-error
-           ::on-message
-           ::infohashB
-           ::peer-idB]}]
+           ::bittorrent.spec/infohashB
+           ::bittorrent.spec/peer-idB]}]
   {:pre [(s/assert ::create-wire-opts opts)]
    :post [(s/assert ::wire-protocol %)]}
   (let [stateV (atom
@@ -188,14 +176,14 @@
 
     (go
       (try
-        (>! send| (handshake-message infohashB peer-idB))
+        (>! send| (handshake-msg infohashB peer-idB))
 
-        (let [cut (message-cut)
+        (let [cut (buffer-cut)
               pstrlenV (volatile! nil)
               expected-lengthV (volatile! nil)]
           (loop []
-            (when-let [buffer (<! recv|)]
-              (when-let [handshakeB (cut* cut buffer @expected-lengthV)]
+            (when-let [bufferB (<! recv|)]
+              (when-let [handshakeB (cut* cut bufferB @expected-lengthV)]
                 (when-not @expected-lengthV
                   (let [pstrlen (bytes.core/get-byte handshakeB 0)]
                     (vreset! pstrlenV pstrlen)
@@ -213,85 +201,86 @@
                                               :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)}))))
                   :else
                   (let []
-                    (add* cut buffer)
+                    (add* cut bufferB)
                     (recur)))))))
-        (>! send| (extended-handshake-message))
 
-        (let [cut (message-cut)
+        (>! send| (extended-handshake-msg))
+
+        (let [cut (buffer-cut)
               expected-lengthV (volatile! nil)]
           (loop []
-            (when-let [buffer (<! recv|)]
-              (when-let [msgB (cut* cut buffer @expected-lengthV)]
-                (let [size (bytes.core/size buffer)]
+            (when-let [bufferB (<! recv|)]
+              (when-let [msgB (cut* cut bufferB @expected-lengthV)]
+                (let [size (bytes.core/size msgB)]
                   (cond
 
                     (<= size 4)
-                    (do nil :message-incomplete :recur)
+                    (do nil :msg-incomplete :recur)
 
-                    (and (== size 4) (== 0 (bytes.core/get-int buffer 0)))
-                    (>! msg| {:message-key :keep-alive})
+                    (and (== size 4) (== 0 (bytes.core/get-int msgB 0)))
+                    (>! msg| {:msg-key :keep-alive})
 
                     :else
-                    (let [msg-length (bytes.core/get-int buffer 0)
-                          msg-id (bytes.core/get-byte buffer 4)]
+                    (let [msg-length (bytes.core/get-int msgB 0)
+                          msg-id (bytes.core/get-byte msgB 4)]
                       (cond
 
-                        (not (== msg-length (- (bytes.core/size buffer) 4)))
+                        (not (== msg-length (- (bytes.core/size msgB) 4)))
                         (println [::incomplete
                                   [:msg-id msg-id]
-                                  [:expected-length msg-length :received-length (- (bytes.core/size buffer) 4)]])
+                                  [:expected-length msg-length :received-length (- (bytes.core/size msgB) 4)]])
 
                         (and (== msg-length 1) (== msg-id 0))
-                        (>! msg| {:message-key :choke})
+                        (>! msg| {:msg-key :choke})
 
                         (and (== msg-length 1) (== msg-id 1))
-                        (>! msg| {:message-key :choke})
+                        (>! msg| {:msg-key :choke})
 
                         (and (== msg-length 1) (== msg-id 2))
-                        (>! msg| {:message-key :interested})
+                        (>! msg| {:msg-key :interested})
 
                         (and (== msg-length 1) (== msg-id 3))
-                        (>! msg| {:message-key :not-interested})
+                        (>! msg| {:msg-key :not-interested})
 
                         (and (== msg-length 5) (== msg-id 4))
-                        (>! msg| {:message-key :have
-                                  :piece-index (bytes.core/get-int buffer 5)})
+                        (>! msg| {:msg-key :have
+                                  :piece-index (bytes.core/get-int msgB 5)})
 
                         (and (== msg-id 5))
-                        (>! msg| {:message-key :bitfield})
+                        (>! msg| {:msg-key :bitfield})
 
                         (and (== msg-length 13) (== msg-id 6))
-                        (let [index (bytes.core/get-int buffer 5)
-                              begin (bytes.core/get-int buffer 9)
-                              length (bytes.core/get-int buffer 13)]
-                          (>! msg| {:message-key :request
+                        (let [index (bytes.core/get-int msgB 5)
+                              begin (bytes.core/get-int msgB 9)
+                              length (bytes.core/get-int msgB 13)]
+                          (>! msg| {:msg-key :request
                                     :index index
                                     :begin begin
                                     :length length}))
 
                         (and  (== msg-id 7))
-                        (let [index (bytes.core/get-int buffer 5)
-                              begin (bytes.core/get-int buffer 9)
-                              block (bytes.core/buffer-wrap (bytes.core/to-byte-array buffer) 13 (- msg-length 9))]
-                          (>! msg| {:message-key :piece
+                        (let [index (bytes.core/get-int msgB 5)
+                              begin (bytes.core/get-int msgB 9)
+                              block (bytes.core/buffer-wrap (bytes.core/to-byte-array msgB) 13 (- msg-length 9))]
+                          (>! msg| {:msg-key :piece
                                     :index index
                                     :begin begin
                                     :block block}))
 
                         (and (== msg-length 13) (== msg-id 8))
-                        (>! msg| {:message-key :cancel})
+                        (>! msg| {:msg-key :cancel})
 
                         (and (== msg-length 3) (== msg-id 9))
-                        (>! msg| {:message-key :port})
+                        (>! msg| {:msg-key :port})
 
                         (and (== msg-id 20))
-                        (let [ext-msg-id (bytes.core/get-byte buffer 5)
-                              dataB (bytes.core/buffer-wrap buffer 6 (- msg-length 2))
+                        (let [ext-msg-id (bytes.core/get-byte msgB 5)
+                              dataB (bytes.core/buffer-wrap msgB 6 (- msg-length 2))
                               data (bencode.core/decode (bytes.core/to-byte-array dataB))]
                           (cond
                             (== ext-msg-id 0)
                             (let []
-                              (>! msg| {:message-key :extended-handshake
+                              (>! msg| {:msg-key :extended-handshake
                                         :data data})))))))))
               (recur))))
         (catch #?(:clj Exception :cljs :default) ex (put! ex| ex)))
@@ -301,7 +290,7 @@
       (loop []
         (when-let [msg (<! msg|)]
 
-          (condp = (:message-key msg)
+          (condp = (:msg-key msg)
 
             :extended-handshake
             (let [{:keys [data]} msg
@@ -309,19 +298,15 @@
               (vswap! stateV assoc :peer-extended-payload data)
               (when ut-metadata-id
                 (let [metadata-size (get-in data ["metadata_size"])]
-                  (>! send| (extended-message ut-metadata-id {:msg_type 0
-                                                              :piece 0})))))
+                  (>! send| (extended-msg ut-metadata-id {:msg_type 0
+                                                          :piece 0})))))
             nil)
 
-          (on-message msg)
+
           (recur))))
 
     wire-protocol))
 
-(defn request-metadata
-  []
-  
-  )
 
 
 (comment
