@@ -1,7 +1,8 @@
 (ns cljctools.bytes.core
   (:refer-clojure :exclude [alength byte-array concat])
   (:require
-   [cljctools.bytes.protocols :as bytes.protocols])
+   [cljctools.bytes.protocols :as bytes.protocols]
+   [cljctools.bytes.spec :as bytes.spec])
   (:import
    (java.util Random BitSet)
    (java.nio ByteBuffer)
@@ -16,8 +17,8 @@
       (derive clojure.lang.Keyword ::keyword)
       (derive clojure.lang.IPersistentMap ::map)
       (derive clojure.lang.Sequential ::sequential)
-      (derive (Class/forName "[B") ::byte-array)
-      (derive java.nio.ByteBuffer ::byte-buffer)))
+      (derive (Class/forName "[B") ::bytes.spec/byte-array)
+      (derive java.nio.ByteBuffer ::bytes.spec/byte-buffer)))
 
 (defn random-bytes ^bytes
   [^Number length]
@@ -35,7 +36,7 @@
   [^String string]
   (.getBytes string "UTF-8"))
 
-(defmethod to-byte-array ::byte-buffer ^bytes
+(defmethod to-byte-array ::bytes.spec/byte-buffer ^bytes
   [^ByteBuffer buffer]
   (.array buffer))
 
@@ -45,7 +46,7 @@
 
 (defmulti to-string type :hierarchy #'types)
 
-(defmethod to-string ::byte-array ^String
+(defmethod to-string ::bytes.spec/byte-array ^String
   [^bytes byte-arr]
   (String. byte-arr "UTF-8"))
 
@@ -56,14 +57,14 @@
 (defmulti concat
   (fn [xs] (type (first xs))) :hierarchy #'types)
 
-(defmethod concat ::byte-array ^bytes
+(defmethod concat ::bytes.spec/byte-array ^bytes
   [byte-arrs]
   (with-open [out (java.io.ByteArrayOutputStream.)]
     (doseq [^bytes byte-arr byte-arrs]
       (.write out byte-arr))
     (.toByteArray out)))
 
-(defmethod concat ::byte-buffer ^ByteBuffer
+(defmethod concat ::bytes.spec/byte-buffer ^ByteBuffer
   [buffers]
   (let [^int size (->>
                    buffers

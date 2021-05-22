@@ -1,11 +1,12 @@
 (ns cljctools.bytes.core
   (:refer-clojure :exclude [alength concat])
   (:require
-   [cljctools.bytes.protocols :as bytes.protocols]
    ["randombytes" :as randomBytes]
    #_["buffer/index.js" :refer [Buffer]]
    ["bitfield" :as Bitfield]
-   #_["readable-stream" :refer [Readable]]))
+   #_["readable-stream" :refer [Readable]]
+   [cljctools.bytes.protocols :as bytes.protocols]
+   [cljctools.bytes.spec :as bytes.spec]))
 
 ; requires js/Buffer
 
@@ -18,9 +19,9 @@
 
 (defonce types
   (-> (make-hierarchy)
-      (derive Buffer ::byte-array)
+      (derive Buffer ::bytes.spec/byte-array)
       (derive js/String ::string)
-      (derive Buffer ::byte-buffer)))
+      (derive Buffer ::bytes.spec/byte-buffer)))
 
 (defn random-bytes
   [length]
@@ -36,7 +37,7 @@
   [string]
   (Buffer.from string "utf8"))
 
-(defmethod to-byte-array ::byte-buffer
+(defmethod to-byte-array ::bytes.spec/byte-buffer
   [buffer]
   buffer)
 
@@ -46,7 +47,7 @@
 
 (defmulti to-string type :hierarchy #'types)
 
-(defmethod to-string ::byte-array
+(defmethod to-string ::bytes.spec/byte-array
   [buffer]
   (.toString buffer "utf8"))
 
@@ -59,11 +60,11 @@
 (defmulti concat
   (fn [xs] (type (first xs))) :hierarchy #'types)
 
-(defmethod concat ::byte-array
+(defmethod concat ::bytes.spec/byte-array
   [buffers]
   (Buffer.concat buffers))
 
-(defmethod concat ::byte-buffer
+(defmethod concat ::bytes.spec/byte-buffer
   [buffers]
   (Buffer.concat buffers))
 
