@@ -27,63 +27,45 @@
 (s/def ::ex| ::channel)
 
 (defprotocol BufferCut
-  (concut* [_ bufferB])
-  (cut* [_ bufferB expected-length])
-  (add* [_ bufferB] [_ bufferB next-total-size]))
+  (cut* [_ recv| expected-size]))
 
 (defn buffer-cut
   []
   (let [buffersV (volatile! (transient []))
-        prev-resultBV (volatile! nil)
         total-sizeV (volatile! 0)]
     (reify
       BufferCut
-      (concut*
-        [_ bufferB]
-        (let [resultB (->
-                       @buffersV
-                       (conj! bufferB)
-                       (persistent!)
-                       (bytes.core/concat))]
-          (vreset! buffersV (transient []))
-          (vreset! total-sizeV 0)
-          (vreset! prev-resultBV resultB)
-          resultB))
-      (add*
-        [t bufferB]
-        (add* t bufferB (+ @total-sizeV (bytes.core/size bufferB))))
-      (add*
-        [_ bufferB next-total-size]
-        (vswap! buffersV conj! bufferB)
-        (vreset! total-sizeV  next-total-size)
-        nil)
       (cut*
-        [t bufferB expected-length]
-        (cond
-          (and (not expected-length) (== 0 (count @buffersV)))
-          (let []
-            (vreset! prev-resultBV bufferB)
-            bufferB)
+        [_ recv| expected-size]
+        (go
+          (loop []
+            (let [total-size @total-sizeV]
+              (cond
+                
+                (== total-size expected-size)
+                (let [resultB (if (== 1 (count @buffersV))
+                                (nth @buffersV 0)
+                                (->
+                                 @buffersV
+                                 (persistent!)
+                                 (bytes.core/concat)))]
+                  (vreset! buffersV (transient []))
+                  (vreset! total-sizeV 0)
+                  resultB)
 
-          (not expected-length)
-          (concut* t bufferB)
+                (> total-size expected-size)
+                (let [overB (bytes.core/concat (persistent! @buffersV))
+                      resultB (bytes.core/buffer-wrap overB 0 expected-size)
+                      leftoverB (bytes.core/buffer-wrap overB expected-size (- total-size expected-size))]
+                  (vreset! buffersV (transient [leftoverB]))
+                  (vreset! total-sizeV (bytes.core/size leftoverB))
+                  resultB)
 
-          :else
-          (let [next-total-size (+ @total-sizeV (bytes.core/size bufferB))]
-            (cond
-              (== expected-length next-total-size)
-              (concut* t bufferB)
-
-              (>= next-total-size expected-length)
-              (let [overB (bytes.core/concat (persistent! (conj! @buffersV bufferB)))
-                    resultB (bytes.core/buffer-wrap overB 0 expected-length)
-                    leftoverB (bytes.core/buffer-wrap overB expected-length (- next-total-size expected-length))]
-                (vreset! buffersV (transient [leftoverB]))
-                (vreset! prev-resultBV resultB)
-                resultB)
-
-              :else
-              (add* t bufferB next-total-size))))))))
+                :else
+                (when-let [recvB (<! recv|)]
+                  (vswap! buffersV conj! recvB)
+                  (vreset! total-sizeV (+ total-size (bytes.core/size recvB)))
+                  (recur))))))))))
 
 (def pstrB (-> (bytes.core/byte-array [19]) (bytes.core/buffer-wrap)))
 (def protocolB (-> (bytes.core/to-byte-array "\u0013BitTorrent protocol") (bytes.core/buffer-wrap)))
@@ -148,6 +130,8 @@
         ex| (chan 1)
         op| (chan 100)
 
+        cut (buffer-cut)
+
         wire-protocol
         ^{:type ::wire-protocol}
         (reify
@@ -178,111 +162,114 @@
       (try
         (>! send| (handshake-msg infohashB peer-idB))
 
-        (let [cut (buffer-cut)
-              pstrlenV (volatile! nil)
-              expected-lengthV (volatile! nil)]
-          (loop []
-            (when-let [bufferB (<! recv|)]
-              (when-let [handshakeB (cut* cut bufferB @expected-lengthV)]
-                (when-not @expected-lengthV
-                  (let [pstrlen (bytes.core/get-byte handshakeB 0)]
-                    (vreset! pstrlenV pstrlen)
-                    (vreset! expected-lengthV (+ 49 pstrlen))))
-                (cond
-                  (== (bytes.core/size handshakeB) @expected-lengthV)
-                  (let [pstrlen @pstrlenV
-                        pstr (bytes.core/to-string (bytes.core/buffer-wrap handshakeB 0 pstrlen))]
-                    (if-not (= pstr "BitTorrent protocol")
-                      (throw (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr} nil))
-                      (let [reservedB (bytes.core/buffer-wrap handshakeB pstrlen 8)
-                            infohashB (bytes.core/buffer-wrap handshakeB (+ pstrlen 8) 20)
-                            peer-idB (bytes.core/buffer-wrap handshakeB (+ pstrlen 28) 20)]
-                        (vswap! stateV merge {:peer-extended? (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)
-                                              :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)}))))
-                  :else
-                  (let []
-                    (add* cut bufferB)
-                    (recur)))))))
+        (loop [stateT (transient
+                       {:expected-size 1
+                        :op :pstrlen
+                        :pstrlen nil
+                        :msg-length nil})]
+          (when-let [msgB (<! (cut* cut recv| (:expected-size stateT)))]
 
-        (>! send| (extended-handshake-msg))
+            (condp = (:op stateT)
 
-        (let [cut (buffer-cut)
-              expected-lengthV (volatile! nil)]
-          (loop []
-            (when-let [bufferB (<! recv|)]
-              (when-let [msgB (cut* cut bufferB @expected-lengthV)]
-                (let [size (bytes.core/size msgB)]
-                  (cond
+              :pstrlen
+              (let [pstrlen (bytes.core/get-byte msgB 0)]
+                (recur (-> stateT
+                           (assoc! :op :handshake)
+                           (assoc! :pstrlen pstrlen)
+                           (assoc! :expected-size (+ 48 pstrlen)))))
 
-                    (<= size 4)
-                    (do nil :msg-incomplete :recur)
+              :handshake
+              (let [{:keys [pstrlen]} stateT
+                    pstr (-> (bytes.core/buffer-wrap msgB 0 pstrlen) (bytes.core/to-string))]
+                (if-not (= pstr "BitTorrent protocol")
+                  (throw (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr} nil))
+                  (let [reservedB (bytes.core/buffer-wrap msgB pstrlen 8)
+                        infohashB (bytes.core/buffer-wrap msgB (+ pstrlen 8) 20)
+                        peer-idB (bytes.core/buffer-wrap msgB (+ pstrlen 28) 20)]
+                    (vswap! stateV merge {:peer-extended? (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)
+                                          :peer-dht? (bit-and (bytes.core/get-byte reservedB 7) 2r00000001)})
 
-                    (and (== size 4) (== 0 (bytes.core/get-int msgB 0)))
+                    (>! send| (extended-handshake-msg))
+
+                    (recur (-> stateT
+                               (assoc! :op :msg-length)
+                               (assoc! :expected-size 4))))))
+
+              :msg-length
+              (let [msg-length (bytes.core/get-int msgB 0)]
+                (if  (== 0 msg-length)
+                  (do
                     (>! msg| {:msg-key :keep-alive})
+                    (recur stateT))
+                  (recur (-> stateT
+                             (assoc! :op :msg)
+                             (assoc! :msg-length msg-length)
+                             (assoc! :expected-size msg-length)))))
 
-                    :else
-                    (let [msg-length (bytes.core/get-int msgB 0)
-                          msg-id (bytes.core/get-byte msgB 4)]
-                      (cond
+              :msg
+              (let [{:keys [msg-length]} stateT
+                    msg-id (bytes.core/get-byte msgB 0)]
 
-                        (not (== msg-length (- (bytes.core/size msgB) 4)))
-                        (println [::incomplete
-                                  [:msg-id msg-id]
-                                  [:expected-length msg-length :received-length (- (bytes.core/size msgB) 4)]])
+                (cond
 
-                        (and (== msg-length 1) (== msg-id 0))
-                        (>! msg| {:msg-key :choke})
+                  (and (== msg-id 0) (== msg-length 1))
+                  (>! msg| {:msg-key :choke})
 
-                        (and (== msg-length 1) (== msg-id 1))
-                        (>! msg| {:msg-key :choke})
+                  (and (== msg-id 1) (== msg-length 1))
+                  (>! msg| {:msg-key :unchoke})
 
-                        (and (== msg-length 1) (== msg-id 2))
-                        (>! msg| {:msg-key :interested})
+                  (and (== msg-id 2) (== msg-length 1))
+                  (>! msg| {:msg-key :interested})
 
-                        (and (== msg-length 1) (== msg-id 3))
-                        (>! msg| {:msg-key :not-interested})
+                  (and (== msg-id 3) (== msg-length 1))
+                  (>! msg| {:msg-key :not-interested})
 
-                        (and (== msg-length 5) (== msg-id 4))
-                        (>! msg| {:msg-key :have
-                                  :piece-index (bytes.core/get-int msgB 5)})
+                  (and (== msg-id 4) (== msg-length 5))
+                  (>! msg| {:msg-key :have
+                            :piece-index (bytes.core/get-int msgB 1)})
 
-                        (and (== msg-id 5))
-                        (>! msg| {:msg-key :bitfield})
+                  (== msg-id 5)
+                  (>! msg| {:msg-key :bitfield})
 
-                        (and (== msg-length 13) (== msg-id 6))
-                        (let [index (bytes.core/get-int msgB 5)
-                              begin (bytes.core/get-int msgB 9)
-                              length (bytes.core/get-int msgB 13)]
-                          (>! msg| {:msg-key :request
-                                    :index index
-                                    :begin begin
-                                    :length length}))
+                  (and (== msg-id 6) (== msg-length 13))
+                  (let [index (bytes.core/get-int msgB 1)
+                        begin (bytes.core/get-int msgB 5)
+                        length (bytes.core/get-int msgB 9)]
+                    (>! msg| {:msg-key :request
+                              :index index
+                              :begin begin
+                              :length length}))
 
-                        (and  (== msg-id 7))
-                        (let [index (bytes.core/get-int msgB 5)
-                              begin (bytes.core/get-int msgB 9)
-                              block (bytes.core/buffer-wrap (bytes.core/to-byte-array msgB) 13 (- msg-length 9))]
-                          (>! msg| {:msg-key :piece
-                                    :index index
-                                    :begin begin
-                                    :block block}))
+                  (== msg-id 7)
+                  (let [index (bytes.core/get-int msgB 1)
+                        begin (bytes.core/get-int msgB 5)
+                        block (bytes.core/buffer-wrap (bytes.core/to-byte-array msgB) 9 (- msg-length 9))]
+                    (>! msg| {:msg-key :piece
+                              :index index
+                              :begin begin
+                              :block block}))
 
-                        (and (== msg-length 13) (== msg-id 8))
-                        (>! msg| {:msg-key :cancel})
+                  (and (== msg-id 8) (== msg-length 13))
+                  (>! msg| {:msg-key :cancel})
 
-                        (and (== msg-length 3) (== msg-id 9))
-                        (>! msg| {:msg-key :port})
+                  (and (== msg-id 9) (== msg-length 3))
+                  (>! msg| {:msg-key :port})
 
-                        (and (== msg-id 20))
-                        (let [ext-msg-id (bytes.core/get-byte msgB 5)
-                              dataB (bytes.core/buffer-wrap msgB 6 (- msg-length 2))
-                              data (bencode.core/decode (bytes.core/to-byte-array dataB))]
-                          (cond
-                            (== ext-msg-id 0)
-                            (let []
-                              (>! msg| {:msg-key :extended-handshake
-                                        :data data})))))))))
-              (recur))))
+                  (and (== msg-id 20))
+                  (let [ext-msg-id (bytes.core/get-byte msgB 1)
+                        dataB (bytes.core/buffer-wrap msgB 2 (- msg-length 2))
+                        data (bencode.core/decode (bytes.core/to-byte-array dataB))]
+                    (cond
+                      (== ext-msg-id 0)
+                      (>! msg| {:msg-key :extended-handshake
+                                :data data})))
+
+                  :else
+                  (println [::unknown-message :msg-id msg-id :msg-length msg-length]))
+                (recur (-> stateT
+                           (assoc! :op :msg-length)
+                           (assoc! :expected-size 4)))))))
+
         (catch #?(:clj Exception :cljs :default) ex (put! ex| ex)))
       (release))
 
@@ -441,9 +428,45 @@
     ; "Elapsed time: 665.942603 msecs"
     )
 
+  ;
+  )
 
 
 
+(comment
+  
+  (time
+   (loop [i 10000000
+          x (transient {})]
+     (when (> i 0)
+       
+       (recur (dec i) (-> x
+                          (assoc! :a 1)
+                          (assoc! :b 2)
+                          (assoc! :c 3))))))
+  ; "Elapsed time: 577.725074 msecs"
+  
+  (time
+   (loop [i 10000000
+          x {}]
+     (when (> i 0)
+       (recur (dec i) (merge x {:a 1
+                                :b 2
+                                :c 3}) ))))
+  ; "Elapsed time: 4727.433252 msecs"
+  
+  
+  (time
+   (loop [i 10000000
+          x (transient {})]
+     (when (> i 0)
 
+       (recur (dec i) (-> (transient (persistent! x))
+                          (assoc! :a 1)
+                          (assoc! :b 2)
+                          (assoc! :c 3))))))
+  ; "Elapsed time: 2309.336101 msecs"
+  
+  
   ;
   )
