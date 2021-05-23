@@ -57,7 +57,7 @@
                    (d/chain
                     (fn [msg]
                       (when-not (identical? msg ::none)
-                        (put! msg| {:msgB (bytes.core/buffer-wrap (:message msg))
+                        (put! msg| {:msgB (:message msg)
                                     :host (:host msg)
                                     :port (:port msg)})
                         (d/recur))))

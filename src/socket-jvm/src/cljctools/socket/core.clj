@@ -58,7 +58,7 @@
                    (d/chain
                     (fn [byte-arr]
                       (when-not (identical? byte-arr ::none)
-                        (put! msg| (bytes.core/buffer-wrap byte-arr))
+                        (put! msg| byte-arr)
                         (d/recur))))
                    (d/catch Exception #(put! ex| %)))))
               (catch Exception ex
