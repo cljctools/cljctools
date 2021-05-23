@@ -112,6 +112,10 @@
   [^ByteBuffer buffer index value]
   (.putInt buffer ^int index ^int value))
 
+(defn put-short
+  [^ByteBuffer buffer index value]
+  (.putShort buffer ^int index ^short value))
+
 (defn size
   [^ByteBuffer buffer]
   (.capacity buffer))

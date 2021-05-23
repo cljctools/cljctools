@@ -95,6 +95,11 @@
   (.writeUInt32BE buffer value index)
   buffer)
 
+(defn put-short
+  [buffer index value]
+  (.writeUInt16BE buffer value index)
+  buffer)
+
 (defn size
   [buffer]
   (.-length buffer))
