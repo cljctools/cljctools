@@ -39,7 +39,10 @@
 
 (defmethod to-byte-array ::bytes.spec/byte-buffer
   [buffer]
-  buffer)
+  buffer
+  #_(if (zero? (.-byteOffset buffer))
+      buffer
+      (.. js/Uint8Array -prototype -slice (call buffer))))
 
 (defn alength
   [buffer]
@@ -58,7 +61,7 @@
 (defn byte-array
   [size-or-seq]
   (if (number? size-or-seq)
-    (Buffer.alloc size-or-seq)
+    (Buffer.allocUnsafe size-or-seq)
     (Buffer.from (clj->js size-or-seq))))
 
 (defmulti concat
@@ -74,7 +77,7 @@
 
 (defn byte-buffer
   [size]
-  (Buffer.alloc size))
+  (Buffer.allocUnsafe size))
 
 (defn buffer-wrap
   ([buffer]
@@ -103,6 +106,10 @@
 (defn size
   [buffer]
   (.-length buffer))
+
+(defn aset-byte
+  [byte-arr idx val]
+  (aset byte-arr idx val))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream

@@ -1,5 +1,5 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [alength byte-array concat])
+  (:refer-clojure :exclude [alength byte-array concat aset-byte])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.spec :as bytes.spec])
@@ -38,13 +38,13 @@
 
 (defmethod to-byte-array ::bytes.spec/byte-buffer ^bytes
   [^ByteBuffer buffer]
-  (if (zero? 0 (.position buffer)
-             (.array buffer)
-             (let [^int position (.position buffer)
-                   ^bytes byte-arr (byte-array (.remaining buffer))]
-               (.get buffer byte-arr)
-               (.position buffer position)
-               byte-arr))))
+  (if (zero? (.position buffer))
+    (.array buffer)
+    (let [^int position (.position buffer)
+          ^bytes byte-arr (byte-array (.remaining buffer))]
+      (.get buffer byte-arr)
+      (.position buffer position)
+      byte-arr)))
 
 (defn alength ^Integer
   [^bytes byte-arr]
@@ -113,6 +113,10 @@
 (defn size
   [^ByteBuffer buffer]
   (.remaining buffer))
+
+(defn aset-byte
+  [^bytes byte-arr idx val]
+  (clojure.core/aset-byte byte-arr idx val))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
