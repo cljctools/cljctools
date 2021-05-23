@@ -8,6 +8,7 @@
    [clojure.spec.alpha :as s]
    [cljctools.bytes.spec :as bytes.spec]
    [cljctools.bytes.core :as bytes.core]
+   [cljctools.codec.core :as codec.core]
    [cljctools.bittorrent.bencode.core :as bencode.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [clojure.walk :refer [keywordize-keys]]))
@@ -116,6 +117,7 @@
 (def port-byte-arr (bytes.core/byte-array [0 0 0 3 9 0 0]))
 
 (def ^:const ut-metadata-block-size 16384)
+(def ^:const ut-metadata-max-size 100000)
 
 (defn extended-msg
   [ext-msg-id data]
@@ -201,6 +203,7 @@
                         :peer-choking? true
                         :peer-interested? false
                         :peer-extended? false
+                        :peer-infohashB nil
                         :peer-dht? false
                         :extensions {"ut_metadata" 3}
                         :peer-extended-data {}
@@ -227,10 +230,11 @@
                         infohashB (bytes.core/buffer-wrap msgB (+ pstrlen 8) 20)
                         peer-idB (bytes.core/buffer-wrap msgB (+ pstrlen 28) 20)]
                     (>! send| (extended-msg 0 {:m (:extensions stateT)
-                                               :metadata_size 0}))
+                                               #_:metadata_size #_0}))
                     (recur (-> stateT
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4)
+                               (assoc! :peer-infohashB infohashB)
                                (assoc! :peer-extended? (boolean (bit-and (bytes.core/get-byte reservedB 5) 2r00010000)))
                                (assoc! :peer-dht? (boolean (bit-and (bytes.core/get-byte reservedB 7) 2r00000001))))))))
 
@@ -255,19 +259,23 @@
 
                   #_:choke
                   (and (== msg-id 0) (== msg-length 1))
-                  (recur stateT)
+                  (recur (-> stateT
+                             (assoc! :peer-choking? true)))
 
                   #_:unchoke
                   (and (== msg-id 1) (== msg-length 1))
-                  (recur stateT)
+                  (recur (-> stateT
+                             (assoc! :peer-choking? false)))
 
                   #_:interested
                   (and (== msg-id 2) (== msg-length 1))
-                  (recur stateT)
+                  (recur (-> stateT
+                             (assoc! :peer-interested? true)))
 
                   #_:not-interested
                   (and (== msg-id 3) (== msg-length 1))
-                  (recur stateT)
+                  (recur (-> stateT
+                             (assoc! :peer-interested? false)))
 
                   #_:have
                   (and (== msg-id 4) (== msg-length 5))
@@ -309,11 +317,22 @@
                       #_:handshake
                       (== ext-msg-id 0)
                       (let [data (bencode.core/decode (bytes.core/to-byte-array payloadB))]
-                        #_(let  [ut-metadata-id (get-in data ["m" "ut_metadata"])]
-                            (when ut-metadata-id
-                              (let []
-                                (>! send| (extended-msg ut-metadata-id {:msg_type 0
-                                                                        :piece 0})))))
+                        (let  [ut-metadata-id (get-in data ["m" "ut_metadata"])
+                               metadata_size (get data "metadata_size")]
+                          (cond
+
+                            (not ut-metadata-id)
+                            (throw (ex-info "extended handshake: no metadata_size" data nil))
+
+                            (not (number? metadata_size))
+                            (throw (ex-info "extended handshake: metadata_size is not a number" data nil))
+
+                            (< 0 metadata_size ut-metadata-max-size)
+                            (throw (ex-info "extended handshake: metadata_size invalid size" data nil))
+                            
+                            :else
+                            (>! send| (extended-msg ut-metadata-id {:msg_type 0
+                                                                    :piece 0}))))
                         (recur (-> stateT
                                    (assoc! :peer-extended-data data))))
 
@@ -340,15 +359,20 @@
                                 downloaded (+ (:ut-metadata-downloaded stateT) (bytes.core/alength blockBA))]
                             (cond
                               (== downloaded ut-metadata-size)
-                              (let [metadataBA (bytes.core/concat (conj! (:ut-metadata-pieces stateT) blockBA))]
-                                (>! metadata| metadataBA)
+                              (let [metadataBA (bytes.core/concat (conj! (:ut-metadata-pieces stateT) blockBA))
+                                    metadata-hash (-> (bytes.core/sha1 metadataBA) (codec.core/hex-encode-string))
+                                    peer-infohash (-> (:peer-infohashB stateT) (codec.core/hex-encode-string))]
+                                (if-not (= metadata-hash peer-infohash)
+                                  (throw (ex-info "metadata hash differs from peer's infohash" {} nil))
+                                  (>! metadata| metadataBA))
                                 (recur (-> stateT
                                            (assoc! :ut-metadata-downloaded 0)
                                            (assoc! :ut-metadata-pieces (transient [])))))
 
                               (>= downloaded ut-metadata-size)
                               (let []
-                                (put! ex| (ex-info "downloaded metadata size is larger than declared" {} nil))
+                                (throw (ex-info "downloaded metadata size is larger than declared" {:downloaded downloaded
+                                                                                                    :ut-metadata-size ut-metadata-size} nil))
                                 (recur (-> stateT
                                            (assoc! :ut-metadata-downloaded 0)
                                            (assoc! :ut-metadata-pieces (transient [])))))
@@ -366,7 +390,7 @@
                           #_:reject
                           2
                           (let []
-                            (put! ex| (ex-info "metadata request rejected" {} nil))
+                            (throw (ex-info "metadata request rejected" data nil))
                             (recur stateT))
 
                           (println [::unsupported-ut-metadata-msg :ext-msg-id ext-msg-id])))
@@ -396,6 +420,7 @@
                       github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                      github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}
                       github.cljctools/core-jvm {:local/root "./cljctools/src/core-jvm"}}}'
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
@@ -404,6 +429,7 @@
                       github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
+                      github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}
                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}}}' \
    -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire-protocol.core --repl
