@@ -226,19 +226,30 @@
     (require '[cljctools.bytes.core :as bytes.core] :reload)
     (require '[cljctools.codec.core :as codec.core] :reload))
   
-  (do
-    #_(def data {:t "aabbccdd"
-                 :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}})
-
-    (def data {:t (codec.core/hex-decode "aabbccdd")
-               :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}})
+  (let [data
+        #_{:t "aabbccdd"
+           :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}}
+        {:t (codec.core/hex-decode "aabbccdd")
+         :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
 
     (->
      (bencode.core/encode data)
      #_(bytes.core/to-string)
+     #_(bytes.core/to-byte-array)
      (bencode.core/decode)
      (-> (get-in ["a" "id"]))
      (codec.core/hex-encode-string)))
+  
+  (let [data
+        {:msg_type 1
+         :piece 0
+         :total_size 3425}]
+    (->
+     (bencode.core/encode data)
+     (bytes.core/to-string)
+     (bytes.core/to-byte-array)
+     (bencode.core/decode)
+     (clojure.walk/keywordize-keys)))
 
   ;
   )
