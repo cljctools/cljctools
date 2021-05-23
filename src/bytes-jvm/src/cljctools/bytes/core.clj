@@ -193,6 +193,13 @@
   ([nbits opts]
    (TBitSet. (BitSet. nbits))))
 
+(defn sha1
+  "takes byte array, returns byte array"
+  [^bytes byte-arr]
+  (->
+   (java.security.MessageDigest/getInstance "sha1")
+   (.digest byte-arr)))
+
 (comment
 
   (do
@@ -357,5 +364,36 @@
    (streams-concat (repeatedly 100000 #(random-bytes 100))))
   ; "Elapsed time: 708.307393 msecs"
 
+  ;
+  )
+
+
+(comment
+  
+   clj -Sdeps '{:deps {github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
+                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
+                       github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}}}'
+  
+  (do
+    (set! *warn-on-reflection* true)
+    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.codec.core :as codec.core] :reload))
+  
+  (->
+   (java.security.MessageDigest/getInstance "sha1")
+   (.digest (bytes.core/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
+   (codec.core/hex-encode-string))
+  ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
+  
+  (do
+    (def crypto (js/require "crypto"))
+    (->
+     (.createHash crypto "sha1")
+     (.update (js/Buffer.from (clojure.string/join "" (repeat 1000 "aabbccdd")) "utf8"))
+     (.digest "hex")))
+  ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
+  
+  
+  
   ;
   )

@@ -10,10 +10,10 @@
 
 ; requires js/Buffer
 
-#_(declare crypto)
+(declare crypto)
 
-#_(when (exists? js/module)
-    (defonce crypto (js/require "crypto")))
+(when (exists? js/module)
+  (defonce crypto (js/require "crypto")))
 
 (defonce Buffer js/Buffer)
 
@@ -176,6 +176,14 @@
    (bitset nbits {:grow (* 50000 8)}))
   ([nbits opts]
    (TBitSet. (new (.-default Bitfield) nbits (clj->js opts)))))
+
+
+(defn ^{:nodejs-only true} sha1
+  "takes byte array, returns byte array"
+  [buffer]
+  (doto (.createHash crypto "sha1")
+    (.update buffer)
+    (.digest)))
 
 (comment
 
