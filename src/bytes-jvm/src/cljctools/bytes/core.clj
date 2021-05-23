@@ -50,6 +50,10 @@
   [^bytes byte-arr]
   (String. byte-arr "UTF-8"))
 
+(defmethod to-string ::bytes.spec/byte-buffer ^String
+  [^ByteBuffer buffer]
+  (String. (.array buffer) "UTF-8"))
+
 (defn byte-array
   [size-or-seq]
   (clojure.core/byte-array size-or-seq))
