@@ -208,6 +208,7 @@
                         :extensions {"ut_metadata" 3}
                         :peer-extended-data {}
                         :ut-metadata-downloaded 0
+                        :ut-metadata-max-rejects 0
                         :ut-metadata-pieces (transient [])})]
           (>! expected-size| (:expected-size stateT))
           (when-let [msgB (<! cut|)]
@@ -329,12 +330,13 @@
 
                             (< 0 metadata_size ut-metadata-max-size)
                             (throw (ex-info "extended handshake: metadata_size invalid size" data nil))
-                            
+
                             :else
                             (>! send| (extended-msg ut-metadata-id {:msg_type 0
                                                                     :piece 0}))))
                         (recur (-> stateT
-                                   (assoc! :peer-extended-data data))))
+                                   (assoc! :peer-extended-data data)
+                                   (assoc! :ut-metadata-max-rejects 2 #_(-> (/ metadata_size ut-metadata-block-size) (int) (+ 1))))))
 
                       (= ext-msg-id 3 #_(get-in stateT [:extensions "ut-metadata"]) #_(get-in stateT [:peer-extended-data "m" "ut_metadata"]))
                       (let [payload-str (bytes.core/to-string payloadB)
@@ -389,9 +391,13 @@
 
                           #_:reject
                           2
-                          (let []
-                            (throw (ex-info "metadata request rejected" data nil))
-                            (recur stateT))
+                          (let [ut-metadata-id (get-in stateT [:peer-extended-data "m" "ut_metadata"])]
+                            (when (== 0 (:ut-metadata-max-rejects stateT))
+                              (throw (ex-info "metadata request rejected" data nil)))
+                            (>! send| (extended-msg ut-metadata-id {:msg_type 0
+                                                                    :piece (:piece data)}))
+                            (recur (-> stateT
+                                       (assoc! :ut-metadata-max-rejects (dec (:ut-metadata-max-rejects stateT))))))
 
                           (println [::unsupported-ut-metadata-msg :ext-msg-id ext-msg-id])))
 
