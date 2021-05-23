@@ -38,7 +38,13 @@
 
 (defmethod to-byte-array ::bytes.spec/byte-buffer ^bytes
   [^ByteBuffer buffer]
-  (.array buffer))
+  (if (zero? 0 (.position buffer)
+             (.array buffer)
+             (let [^int position (.position buffer)
+                   ^bytes byte-arr (byte-array (.remaining buffer))]
+               (.get buffer byte-arr)
+               (.position buffer position)
+               byte-arr))))
 
 (defn alength ^Integer
   [^bytes byte-arr]
@@ -52,7 +58,7 @@
 
 (defmethod to-string ::bytes.spec/byte-buffer ^String
   [^ByteBuffer buffer]
-  (String. (.array buffer) "UTF-8"))
+  (String. ^bytes (to-byte-array buffer) "UTF-8"))
 
 (defn byte-array
   [size-or-seq]
@@ -70,21 +76,9 @@
 
 (defmethod concat ::bytes.spec/byte-buffer ^ByteBuffer
   [buffers]
-  (let [^int size (->>
-                   buffers
-                   (map
-                    (fn [^ByteBuffer buffer]
-                      (.capacity buffer)))
-                   (reduce + 0))
-        byte-arrs (->>
-                   buffers
-                   (map
-                    (fn [^ByteBuffer buffer]
-                      (.array buffer))))]
-    (with-open [out (java.io.ByteArrayOutputStream.)]
-      (doseq [^bytes byte-arr byte-arrs]
-        (.write out byte-arr))
-      (ByteBuffer/wrap (.toByteArray out)))))
+  (->
+   (concat (map #(to-byte-array %) buffers))
+   (ByteBuffer/wrap)))
 
 (defmethod concat :default
   [xs]
@@ -102,23 +96,23 @@
 
 (defn get-byte
   [^ByteBuffer buffer index]
-  (.get buffer ^int index))
+  (.get buffer ^int (+ (.position buffer) index) ))
 
 (defn get-int 
   [^ByteBuffer buffer index]
-  (.getInt buffer ^int index))
+  (.getInt buffer ^int (+ (.position buffer) index)))
 
 (defn put-int
   [^ByteBuffer buffer index value]
-  (.putInt buffer ^int index ^int value))
+  (.putInt buffer ^int (+ (.position buffer) index) ^int value))
 
 (defn put-short
   [^ByteBuffer buffer index value]
-  (.putShort buffer ^int index ^short value))
+  (.putShort buffer ^int (+ (.position buffer) index) ^short value))
 
 (defn size
   [^ByteBuffer buffer]
-  (.capacity buffer))
+  (.remaining buffer))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
@@ -376,6 +370,7 @@
   
    clj -Sdeps '{:deps {github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
                        github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
+                       byte-streams/byte-streams {:mvn/version "0.2.5-alpha2"}
                        github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}}}'
   
   (do
@@ -397,6 +392,11 @@
      (.digest "hex")))
   ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
   
+  
+  clj -Sdeps '{:deps {byte-streams/byte-streams {:mvn/version "0.2.5-alpha2"}}}'
+  
+  (do
+    (require '[byte-streams :as bs] :reload))
   
   
   ;
