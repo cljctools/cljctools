@@ -1,5 +1,6 @@
 (ns cljctools.bittorrent.bencode.core
   (:require
+   [clojure.walk :refer [keywordize-keys]]
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.core :as bytes.core]
    [cljctools.core :as cljctools.core]))
@@ -200,10 +201,13 @@
 
 (defn decode
   "Takes byte array, returns clojure data"
-  [byte-arr]
+  [byte-arr & {:as opts :keys [keywordize-keys?] :or {keywordize-keys? false}}]
   (let [in (bytes.core/pushback-input-stream byte-arr)
-        out (bytes.core/output-stream)]
-    (decode* in out)))
+        out (bytes.core/output-stream)
+        data (decode* in out)]
+    (if keywordize-keys?
+      (keywordize-keys data)
+      data)))
 
 
 (comment
