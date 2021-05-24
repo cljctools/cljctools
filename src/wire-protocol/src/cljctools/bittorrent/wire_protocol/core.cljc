@@ -145,7 +145,7 @@
                 ::bittorrent.spec/peer-idBA]
           :opt [::ex|]))
 
-(defn create-wire-protocol
+(defn create
   [{:as opts
     :keys [::send|
            ::recv|
