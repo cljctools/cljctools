@@ -58,6 +58,10 @@
   [buffer]
   (.toString buffer "utf8"))
 
+(defmethod to-string ::string
+  [string]
+  string)
+
 (defn byte-array
   [size-or-seq]
   (if (number? size-or-seq)
