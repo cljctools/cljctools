@@ -1,5 +1,5 @@
 (ns cljctools.fs.core
-  #?(:clj [clojure.java.io :as io]))
+  (:require [clojure.java.io :as io]))
 
 (defn path-join
   [& args]

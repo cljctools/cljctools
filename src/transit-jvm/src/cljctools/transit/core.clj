@@ -76,59 +76,59 @@
     (read-byte-array* [_ byte-arr])
     (read-string* [_ string]))
 
-  #?(:clj
-     (do
-       (deftype TWriter [^cognitect.transit.Writer writer
-                         ^ByteArrayOutputStream out]
-         IWriter
-         (write-byte-array*
-           [_ data]
-           (transit/write writer data)
-           (let [byte-arr (.toByteArray out)]
-             (.reset out)
-             byte-arr))
-         (write-string*
-           [t data]
-           (->
-            (write-byte-array* t data)
-            (bytes.core/to-string))))
+  (:clj
+   (do
+     (deftype TWriter [^cognitect.transit.Writer writer
+                       ^ByteArrayOutputStream out]
+       IWriter
+       (write-byte-array*
+         [_ data]
+         (transit/write writer data)
+         (let [byte-arr (.toByteArray out)]
+           (.reset out)
+           byte-arr))
+       (write-string*
+         [t data]
+         (->
+          (write-byte-array* t data)
+          (bytes.core/to-string))))
 
-       (defn writer
-         ([type-kw]
-          (writer  type-kw {}))
-         ([type-kw opts]
-          (let [out (ByteArrayOutputStream.)]
-            (writer  type-kw {} out)))
-         ([type-kw opts out]
-          (TWriter.
-           (transit/writer out type-kw opts)
-           out)))
+     (defn writer
+       ([type-kw]
+        (writer  type-kw {}))
+       ([type-kw opts]
+        (let [out (ByteArrayOutputStream.)]
+          (writer  type-kw {} out)))
+       ([type-kw opts out]
+        (TWriter.
+         (transit/writer out type-kw opts)
+         out)))
 
-       (deftype TReader [^cognitect.transit.Reader reader]
-         IReader
-         (read-byte-array*
-           [_ byte-arr]
-           (with-open [in (ByteArrayInputStream. byte-arr)])))))
+     (deftype TReader [^cognitect.transit.Reader reader]
+       IReader
+       (read-byte-array*
+         [_ byte-arr]
+         (with-open [in (ByteArrayInputStream. byte-arr)])))))
 
-  #?(:cljs
-     (do
-       (deftype TWriter [writer]
-         IWriter
-         (write-byte-array*
-           [t data]
-           (->
-            (write-string* t data)
-            (bytes.core/to-byte-array)))
-         (write-string*
-           [_ data]
-           (transit/write writer data)))
+  (:cljs
+   (do
+     (deftype TWriter [writer]
+       IWriter
+       (write-byte-array*
+         [t data]
+         (->
+          (write-string* t data)
+          (bytes.core/to-byte-array)))
+       (write-string*
+         [_ data]
+         (transit/write writer data)))
 
-       (defn writer
-         ([type-kw]
-          (writer  type-kw nil))
-         ([type-kw opts]
-          (TWriter.
-           (transit/writer type-kw opts))))))
+     (defn writer
+       ([type-kw]
+        (writer  type-kw nil))
+       ([type-kw opts]
+        (TWriter.
+         (transit/writer type-kw opts))))))
 
 
 
@@ -139,7 +139,7 @@
   (defn write-string
     [writer data]
     (write-string* writer data))
-  
+
 
 
   ;
