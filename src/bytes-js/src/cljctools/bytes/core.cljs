@@ -105,6 +105,10 @@
   (.writeUInt16BE buffer value index)
   buffer)
 
+(defn get-short
+  [buffer index]
+  (.readUInt16BE buffer index))
+
 (defn size
   [buffer]
   (.-length buffer))

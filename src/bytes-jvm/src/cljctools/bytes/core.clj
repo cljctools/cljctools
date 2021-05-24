@@ -118,6 +118,10 @@
   [^ByteBuffer buffer index value]
   (.putShort buffer ^int (+ (.position buffer) index) ^short value))
 
+(defn get-short
+  [^ByteBuffer buffer index]
+  (.getShort buffer ^int (+ (.position buffer) index)))
+
 (defn size
   [^ByteBuffer buffer]
   (.remaining buffer))
