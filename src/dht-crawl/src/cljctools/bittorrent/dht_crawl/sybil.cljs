@@ -8,19 +8,16 @@
    [cljs.core.async.interop :refer-macros [<p!]]
    [clojure.pprint :refer [pprint]]
    [clojure.string]
-   [goog.string.format :as format]
-   [goog.string :refer [format]]
-   [goog.object]
-   [cljs.reader :refer [read-string]]
-   [cljctools.bittorrent.core :refer [decode-nodes
-                                 send-krpc
-                                 gen-neighbor-id
-                                 encode-nodes
-                                 send-krpc-request-fn]]))
+   #?@(:cljs
+       [[goog.string.format :as format]
+        [goog.string :refer [format]]
+        [goog.object]
+        [cljs.reader :refer [read-string]]])
+   [cljctools.bittorrent.dht-crawl.impl :refer [decode-nodes
+                                                gen-neighbor-id
+                                                encode-nodes
+                                                send-krpc-request-fn]]))
 
-(defonce crypto (js/require "crypto"))
-(defonce dgram (js/require "dgram"))
-(defonce bencode (js/require "bencode"))
 
 (defn start
   [{:as opts

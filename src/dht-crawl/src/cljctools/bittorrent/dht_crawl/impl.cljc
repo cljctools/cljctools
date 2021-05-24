@@ -1,14 +1,20 @@
-(ns cljctools.bittorrent.dht-crawl.core
+(ns cljctools.bittorrent.dht-crawl.impl
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljctools.transit :as transit.core]
+   [cljctools.transit.core :as transit.core]
+   [cognitect.transit :as transit]
    [cljctools.bytes.core :as bytes.core]
    [cljctools.codec.core :as codec.core]
    [cljctools.fs.core :as fs.core]))
+
+(defn now
+  []
+  #?(:clj (System/currentTimeMillis))
+  #?(:cljs (js/Date.now)))
 
 (defn gen-neighbor-id
   [target-idBA node-idBA]
@@ -25,7 +31,7 @@
               (->>
                [(:idBA node)
                 (->>
-                 (clojure.string/split (:address node) ".")
+                 (clojure.string/split (:host node) ".")
                  (map #?(:clj #(Integer/parseInt %) :cljs js/Number.parseInt))
                  (bytes.core/byte-array))
                 (doto (bytes.core/byte-buffer 2)
@@ -42,12 +48,12 @@
         (let [idBA (-> nodesBB (bytes.core/buffer-wrap i 20) (bytes.core/to-byte-array))]
           {:id (codec.core/hex-encode-string idBA)
            :idBA idBA
-           :address (str (bytes.core/get-byte nodesBB (+ i 20)) "."
-                         (bytes.core/get-byte nodesBB (+ i 21)) "."
-                         (bytes.core/get-byte nodesBB (+ i 22)) "."
-                         (bytes.core/get-byte nodesBB (+ i 23)))
+           :host (str (bytes.core/get-byte nodesBB (+ i 20)) "."
+                      (bytes.core/get-byte nodesBB (+ i 21)) "."
+                      (bytes.core/get-byte nodesBB (+ i 22)) "."
+                      (bytes.core/get-byte nodesBB (+ i 23)))
            :port (bytes.core/get-short nodesBB (+ i 24))})))
-    (catch (:clj Exception :cljs :default) ex nil)))
+    (catch #?(:clj Exception :cljs :default) ex nil)))
 
 
 (defn decode-values
@@ -59,7 +65,7 @@
      (filter (fn [x] (bytes.core/byte-array? x)))
      (map
       (fn [peer-infoBA]
-        {:address (str (aget peer-infoBA 0) "."
+        {:host (str (aget peer-infoBA 0) "."
                        (aget peer-infoBA 1) "."
                        (aget peer-infoBA 2) "."
                        (aget peer-infoBA 3))
@@ -89,7 +95,7 @@
 
 (defn distance-compare
   [distance1BA distance2BA]
-  (let [distance1BA-length (bytes.core/alength distance1BA-length)]
+  (let [distance1BA-length (bytes.core/alength distance1BA)]
     (when-not (== distance1BA-length (bytes.core/alength distance2BA))
       (throw (ex-info "distance-compare: buffers should have same length" {})))
     (reduce
@@ -175,7 +181,7 @@
       (when (fs.core/path-exists? filepath)
         (let [data-string (bytes.core/to-string (fs.core/read-file filepath))]
           (transit-read data-string)))
-      (catch (:clj Exception :cljs :default) ex (println ::read-state-file ex)))))
+      (catch #?(:clj Exception :cljs :default) ex (println ::read-state-file ex)))))
 
 (defn write-state-file
   [filepath data]
@@ -184,43 +190,38 @@
       (let [data-string (transit-write data)]
         (fs.core/make-parents filepath)
         (fs.core/write-file filepath data-string))
-      (catch (:clj Exception :cljs :default) ex (println ::write-state-file ex)))))
+      (catch #?(:clj Exception :cljs :default) ex (println ::write-state-file ex)))))
 
-#_(defn send-krpc
-  [socket msg rinfo]
-  (let [msgB (.encode bencode msg)]
-    (.send socket msgB 0 (.-length msgB) (. rinfo -port) (. rinfo -address))))
-
-#_(defn send-krpc-request-fn
-    [{:as opts
-      :keys [msg|mult]}]
-    (let [requestsA (atom {})
-          msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
-      (go
-        (loop []
-          (when-let [{:keys [msg rinfo] :as value} (<! msg|tap)]
-            (let [txn-id (some-> (. msg -t) (.toString "hex"))]
-              (when-let [response| (get @requestsA txn-id)]
-                (put! response| value)
-                (close! response|)
-                (swap! requestsA dissoc txn-id)))
-            (recur))))
-      (fn send-krpc-request
-        ([socket msg rinfo]
-         (send-krpc-request socket msg rinfo (timeout 2000)))
-        ([socket msg rinfo timeout|]
-         (let [txn-id (.toString (. msg -t) "hex")
-               response| (chan 1)]
-           (send-krpc
-            socket
-            msg
-            rinfo)
-           (swap! requestsA assoc txn-id response|)
-           (take! timeout| (fn [_]
-                             (when-not (closed? response|)
-                               (close! response|)
-                               (swap! requestsA dissoc txn-id))))
-           response|)))))
+(defn send-krpc-request-fn
+  [{:as opts
+    :keys [msg|mult
+           send|]}]
+  (let [requestsA (atom {})
+        msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
+    (go
+      (loop []
+        (when-let [{:keys [msg] :as value} (<! msg|tap)]
+          (let [txn-id (codec.core/hex-encode-string (:t msg))]
+            (when-let [response| (get @requestsA txn-id)]
+              (put! response| value)
+              (close! response|)
+              (swap! requestsA dissoc txn-id)))
+          (recur))))
+    (fn send-krpc-request
+      ([msg node]
+       (send-krpc-request msg node (timeout 2000)))
+      ([msg {:keys [host port]} timeout|]
+       (let [txn-id (codec.core/hex-encode-string (:t msg))
+             response| (chan 1)]
+         (put! send| {:msg msg
+                      :host host
+                      :port port})
+         (swap! requestsA assoc txn-id response|)
+         (take! timeout| (fn [_]
+                           (when-not (closed? response|)
+                             (close! response|)
+                             (swap! requestsA dissoc txn-id))))
+         response|)))))
 
 
 (comment

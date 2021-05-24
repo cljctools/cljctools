@@ -1,32 +1,25 @@
-(ns cljctools.bittorrent.sample-infohashes
+(ns cljctools.bittorrent.dht-crawl.sample-infohashes
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljs.core.async.interop :refer-macros [<p!]]
-   [clojure.pprint :refer [pprint]]
-   [clojure.string]
-   [goog.string.format :as format]
-   [goog.string :refer [format]]
-   [goog.object]
-   [cljs.reader :refer [read-string]]
+   [cljctools.bytes.core :as bytes.core]
+   [cljctools.codec.core :as codec.core]
+   [cljctools.bittorrent.dht-crawl.impl :refer [decode-samples
+                                                decode-nodes
+                                                now]]))
 
-   [cljctools.bittorrent.core :refer [decode-samples
-                                 decode-nodes]]))
-
-(defonce crypto (js/require "crypto"))
 
 (defn start-sampling
   [{:as opts
     :keys [stateA
-           self-idB
+           self-idBA
            nodes-to-sample|
            nodes-from-sampling|
            infohash|
-           send-krpc-request
-           socket]}]
+           send-krpc-request]}]
   (let [stop| (chan 1)
 
         node-to-sample| (chan 32)
@@ -38,7 +31,7 @@
     (go
       (loop [n 4
              i n
-             ts (js/Date.now)
+             ts (now)
              time-total 0]
         (let [timeout| (when (and (= i 0) (< time-total 1000))
                          (timeout (+ time-total (- 1000 time-total))))
@@ -51,36 +44,35 @@
 
               (= port timeout|)
               (do nil
-                  (recur n n (js/Date.now) 0))
+                  (recur n n (now) 0))
 
               (or (= port node-from-sampling|) (= port node-to-sample|))
               (let [[id node] value]
                 (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
-                                                                                 {:timestamp (js/Date.now)}))
+                                                                                 {:timestamp (now)}))
                 (take! (send-krpc-request
-                        socket
-                        (clj->js
-                         {:t (.randomBytes crypto 4)
-                          :y "q"
-                          :q "sample_infohashes"
-                          :a {:id self-idB
-                              :target (.randomBytes crypto 20)}})
-                        (clj->js node)
+                        {:t (bytes.core/random-bytes 4)
+                         :y "q"
+                         :q "sample_infohashes"
+                         :a {:id self-idBA
+                             :target (bytes.core/random-bytes 20)}}
+                        node
                         (timeout 2000))
                        (fn [value]
                          (when value
-                           (let [{:keys [msg rinfo]} value
-                                 {:keys [interval nodes num samples]} (:r (js->clj msg :keywordize-keys true))]
+                           (let [{:keys [msg host port]} value
+                                 {:keys [interval nodes num samples]} (:r msg)]
                              (when samples
-                               (doseq [infohashB (decode-samples samples)]
+                               (doseq [infohashBA (decode-samples samples)]
                                  #_(println :info_hash (.toString infohashB "hex"))
-                                 (put! infohash| {:infohashB infohashB
-                                                  :rinfo rinfo})))
+                                 (put! infohash| {:infohashBA infohashBA
+                                                  :host host
+                                                  :port port})))
                              (when interval
                                (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
                              (when nodes
                                (onto-chan! nodes-from-sampling| (decode-nodes nodes) false))))))
-                (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now))))))))))))
+                (recur n (mod (inc i) n) (now) (+ time-total (- ts (now))))))))))))
 
 
 
@@ -100,19 +92,19 @@
     (go
       (loop [n 8
              i n
-             ts (js/Date.now)
+             ts (now)
              time-total 0]
         (when (and (= i 0) (< time-total 2000))
           (a/toggle nodes|mix {nodes-to-sample| {:pause true}})
           (<! (timeout (+ time-total (- 2000 time-total))))
           (a/toggle nodes|mix {nodes-to-sample| {:pause false}})
-          (recur n n (js/Date.now) 0))
+          (recur n n (now) 0))
         (alt!
           nodes|
           ([node]
            (let []
              (swap! stateA update-in [:routing-table-sampled] assoc (:id node) (merge node
-                                                                                      {:timestamp (js/Date.now)}))
+                                                                                      {:timestamp (now)}))
              (let [alternative-infohash-targetB (.randomBytes crypto 20)
                    txn-idB (.randomBytes crypto 4)]
                #_(println :sampling-a-node)
@@ -149,7 +141,7 @@
                    #_(when nodes
                        (put! nodes-to-sample| nodes))))))
 
-           (recur n (mod (inc i) n) (js/Date.now) (+ time-total (- ts (js/Date.now)))))
+           (recur n (mod (inc i) n) (now) (+ time-total (- ts (now)))))
 
           stop|
           (do :stop)))
