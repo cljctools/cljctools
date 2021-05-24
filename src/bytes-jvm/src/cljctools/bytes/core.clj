@@ -154,8 +154,8 @@
    (PushbackInputStream.)
    (TPushbackInputStream.)))
 
-(deftype TOutputStream [^ByteArrayOutputStream out]
-  bytes.protocols/IOutputStream
+(deftype TByteArrayOutputStream [^ByteArrayOutputStream out]
+  bytes.protocols/IByteArrayOutputStream
   (write*
     [_ int8]
     (.write out ^Integer int8))
@@ -172,11 +172,11 @@
   java.io.Closeable
   (close [_] #_(do nil)))
 
-(defn output-stream
+(defn byte-array-output-stream
   []
   (->
    (ByteArrayOutputStream.)
-   (TOutputStream.)))
+   (TByteArrayOutputStream.)))
 
 
 

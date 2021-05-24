@@ -144,8 +144,8 @@
   [buffer]
   (TPushbackInputStream. buffer 0))
 
-(deftype TOutputStream [arr]
-  bytes.protocols/IOutputStream
+(deftype TByteArrayOutputStream [arr]
+  bytes.protocols/IByteArrayOutputStream
   (write*
     [_ int8]
     (.push arr (doto (Buffer.allocUnsafe 1) (.writeInt8 int8))))
@@ -162,9 +162,9 @@
   bytes.protocols/Closable
   (close [_] #_(do nil)))
 
-(defn output-stream
+(defn byte-array-output-stream
   []
-  (TOutputStream. #js []))
+  (TByteArrayOutputStream. #js []))
 
 (deftype TBitSet [bitfield]
   bytes.protocols/IBitSet

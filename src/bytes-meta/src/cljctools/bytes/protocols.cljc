@@ -7,7 +7,7 @@
 (defprotocol IToByteArray
   (to-byte-array* [_]))
 
-(defprotocol IOutputStream
+(defprotocol IByteArrayOutputStream
   (write* [_ char-int])
   (write-byte-array* [_ byte-arr])
   (reset* [_])
