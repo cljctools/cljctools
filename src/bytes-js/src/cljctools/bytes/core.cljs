@@ -40,9 +40,9 @@
 (defmethod to-byte-array ::bytes.spec/byte-buffer
   [buffer]
   buffer
-  #_(if (zero? (.-byteOffset buffer))
-      buffer
-      (.. js/Uint8Array -prototype -slice (call buffer))))
+  (if (== (.. buffer -buffer -byteLength) (.-length buffer))
+    buffer
+    (.. js/Uint8Array -prototype -slice (call buffer))))
 
 (defn alength
   [buffer]
@@ -61,7 +61,7 @@
 (defn byte-array
   [size-or-seq]
   (if (number? size-or-seq)
-    (Buffer.allocUnsafe size-or-seq)
+    (Buffer.alloc size-or-seq)
     (Buffer.from (clj->js size-or-seq))))
 
 (defmulti concat
@@ -77,7 +77,7 @@
 
 (defn byte-buffer
   [size]
-  (Buffer.allocUnsafe size))
+  (Buffer.alloc size))
 
 (defn buffer-wrap
   ([buffer]

@@ -38,10 +38,10 @@
 
 (defmethod to-byte-array ::bytes.spec/byte-buffer ^bytes
   [^ByteBuffer buffer]
-  (if (zero? (.position buffer))
+  (if (== (.remaining buffer) (.capacity buffer))
     (.array buffer)
-    (let [^int position (.position buffer)
-          ^bytes byte-arr (byte-array (.remaining buffer))]
+    (let [position (.position buffer)
+          ^bytes byte-arr (clojure.core/byte-array (.remaining buffer))]
       (.get buffer byte-arr)
       (.position buffer position)
       byte-arr)))
