@@ -16,20 +16,20 @@
    [cljctools.bittorrent.dht-crawl.socket-spec :as dht-crawl.socket-spec]
    [cljctools.bittorrent.dht-crawl.socket :as dht-crawl.socket]
 
-   [cljctools.bittorrent.dht-crawl.lib :refer [hash-key-distance-comparator-fn
-                                               send-krpc-request-fn
-                                               send-krpc
-                                               encode-nodes
-                                               decode-nodes
-                                               sorted-map-buffer
-                                               save-state-file
-                                               load-state-file]]
+   [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
+                                                send-krpc-request-fn
+                                                send-krpc
+                                                encode-nodes
+                                                decode-nodes
+                                                sorted-map-buffer
+                                                save-state-file
+                                                load-state-file]]
 
    [cljctools.bittorrent.dht-crawl.dht]
    [cljctools.bittorrent.dht-crawl.find-nodes]
    [cljctools.bittorrent.dht-crawl.sybil]
-   [cljctools.bittorrent.dht-crawl.metadata]
    [cljctools.bittorrent.dht-crawl.sample-infohashes]))
+
 
 (defn start
   [{:as opts
