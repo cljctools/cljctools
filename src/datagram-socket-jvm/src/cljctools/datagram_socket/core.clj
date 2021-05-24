@@ -57,7 +57,7 @@
                    (d/chain
                     (fn [msg]
                       (when-not (identical? msg ::none)
-                        (put! msg| {:msgB (:message msg)
+                        (put! msg| {:msgBA (:message msg)
                                     :host (:host msg)
                                     :port (:port msg)})
                         (d/recur))))

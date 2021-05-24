@@ -42,7 +42,7 @@
                  (.on "listening" (fn []
                                     (put! evt| {:op :listening})))
                  (.on "message" (fn [buffer rinfo]
-                                  (put! msg| {:msgB buffer
+                                  (put! msg| {:msgBA buffer
                                               :host (.-address rinfo)
                                               :port (.-port rinfo)})))
                  (.on "error" (fn [error]
