@@ -10,6 +10,8 @@
 
 (set! *warn-on-reflection* true)
 
+(def ^:const ByteArray (Class/forName "[B")) #_(class (clojure.core/byte-array 0))
+
 (defonce types
   (-> (make-hierarchy)
       (derive java.lang.Number ::number)
@@ -17,7 +19,7 @@
       (derive clojure.lang.Keyword ::keyword)
       (derive clojure.lang.IPersistentMap ::map)
       (derive clojure.lang.Sequential ::sequential)
-      (derive (Class/forName "[B") ::bytes.spec/byte-array)
+      (derive ByteArray ::bytes.spec/byte-array)
       (derive java.nio.ByteBuffer ::bytes.spec/byte-buffer)))
 
 (defn random-bytes ^bytes
