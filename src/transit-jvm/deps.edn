@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {com.cognitect/transit-clj {:mvn/version "1.0.324"}}}

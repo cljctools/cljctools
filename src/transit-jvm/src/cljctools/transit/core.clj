@@ -4,68 +4,34 @@
    [clojure.string]
    [cognitect.transit :as transit]
    [cljctools.bytes.core :as bytes.core])
-  #?(:clj
-     (:import (java.io ByteArrayOutputStream ByteArrayInputStream))))
+  (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
-#?(:clj
-   (do
-     (set! *warn-on-reflection* true)
+(set! *warn-on-reflection* true)
 
-     (defn write-to-byte-array ^bytes
-       [data type-kw opts]
-       (with-open [out (ByteArrayOutputStream.)]
-         (let [writer (transit/writer out type-kw opts)]
-           (transit/write writer data)
-           (.toByteArray out))))
+(defn write-to-byte-array ^bytes
+  [data type-kw opts]
+  (with-open [out (ByteArrayOutputStream.)]
+    (let [writer (transit/writer out type-kw opts)]
+      (transit/write writer data)
+      (.toByteArray out))))
 
-     (defn write-to-string ^String
-       [data type-kw opts]
-       (->
-        (write-to-byte-array data type-kw opts)
-        (bytes.core/to-string)))
+(defn write-to-string ^String
+  [data type-kw opts]
+  (->
+   (write-to-byte-array data type-kw opts)
+   (bytes.core/to-string)))
 
-     (defn read-byte-array
-       [^bytes byte-arr type-kw opts]
-       (with-open [in (ByteArrayInputStream. byte-arr)]
-         (let [reader (transit/reader in type-kw opts)]
-           (transit/read reader))))
+(defn read-byte-array
+  [^bytes byte-arr type-kw opts]
+  (with-open [in (ByteArrayInputStream. byte-arr)]
+    (let [reader (transit/reader in type-kw opts)]
+      (transit/read reader))))
 
-     (defn read-string
-       [^String string type-kw opts]
-       (->
-        (bytes.core/to-byte-array)
-        (read-byte-array)))
-
-     ;
-     ))
-
-#?(:cljs
-   (do
-
-     (defn write-to-string
-       [data type-kw opts]
-       (let [writer (transit/writer type-kw opts)]
-         (transit/write writer data)))
-
-     (defn write-to-byte-array
-       [data type-kw opts]
-       (->
-        (write-to-string data type-kw opts)
-        (bytes.core/to-byte-array)))
-
-     (defn read-string
-       [string type-kw opts]
-       (let [reader (transit/reader type-kw opts)]
-         (transit/read reader string)))
-
-     (defn read-byte-array
-       [buffer type-kw opts]
-       (->
-        (bytes.core/to-string buffer)
-        (read-string type-kw opts)))
-     ;
-     ))
-
+(defn read-string
+  [^String string type-kw opts]
+  (->
+   (bytes.core/to-byte-array)
+   (read-byte-array)))
 
 (comment
   
@@ -73,14 +39,14 @@
    clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                        org.clojure/core.async {:mvn/version "1.3.618"}
                        github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
-                       github.cljctools/transit {:local/root "./cljctools/src/transit"}
+                       github.cljctools/transit-jvm {:local/root "./cljctools/src/transit-jvm"}
                        com.cognitect/transit-clj {:mvn/version "1.0.324"}}}'
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
                       github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
-                      github.cljctools/transit {:local/root "./cljctools/src/transit"}
+                      github.cljctools/transit-js {:local/root "./cljctools/src/transit-js"}
                       com.cognitect/transit-cljs {:mvn/version "0.8.269"}}}' \
    -M -m cljs.main --repl-env node --compile cljctools.transit.core --repl
   
