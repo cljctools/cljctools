@@ -83,9 +83,9 @@
 
 (defmethod buffer-wrap ::bytes.spec/byte-buffer
   ([buffer]
-   (Buffer.from (-buffer buffer) (.-byteOffset buffer) (.-length buffer)))
+   (Buffer.from (.-buffer buffer) (.-byteOffset buffer) (.-length buffer)))
   ([buffer offset length]
-   (Buffer.from (-buffer buffer) (+ (.-byteOffset buffer) offset) length)))
+   (Buffer.from (.-buffer buffer) (+ (.-byteOffset buffer) offset) length)))
 
 (defn get-byte
   [buffer index]
