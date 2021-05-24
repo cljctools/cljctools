@@ -88,7 +88,15 @@
   [size]
   (ByteBuffer/allocate ^int size))
 
-(defn buffer-wrap ^ByteBuffer
+(defmulti buffer-wrap (fn [x & args] (type x)) :hierarchy #'types)
+
+(defmethod buffer-wrap ::bytes.spec/byte-buffer ^ByteBuffer
+  ([^ByteBuffer buffer]
+   (ByteBuffer/wrap (.array buffer) ^int (.position buffer) ^int (.remaining buffer)))
+  ([^ByteBuffer buffer offset length]
+   (ByteBuffer/wrap (.array buffer) ^int (+ (.position buffer) offset) ^int length)))
+
+(defmethod buffer-wrap ::bytes.spec/byte-array ^ByteBuffer
   ([^bytes byte-arr]
    (ByteBuffer/wrap byte-arr))
   ([^bytes byte-arr offset length]

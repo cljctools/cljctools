@@ -79,11 +79,13 @@
   [size]
   (Buffer.alloc size))
 
-(defn buffer-wrap
+(defmulti buffer-wrap (fn [x & args] (type x)) :hierarchy #'types)
+
+(defmethod buffer-wrap ::bytes.spec/byte-buffer
   ([buffer]
-   (Buffer.from buffer))
+   (Buffer.from (-buffer buffer) (.-byteOffset buffer) (.-length buffer)))
   ([buffer offset length]
-   (Buffer.subarray buffer offset (+ offset length))))
+   (Buffer.from (-buffer buffer) (+ (.-byteOffset buffer) offset) length)))
 
 (defn get-byte
   [buffer index]
