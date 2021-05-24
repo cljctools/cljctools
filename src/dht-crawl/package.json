@@ -1,8 +1,0 @@
-{
-	"dependencies": {
-		"bencode": "2.0.1",
-		"bittorrent-protocol": "3.3.1",
-		"fs-extra": "9.1.0",
-		"ut_metadata": "3.5.2"
-	}
-}

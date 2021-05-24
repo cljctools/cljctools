@@ -8,7 +8,7 @@
    [cljctools.transit :as transit.core]
    [cljctools.bytes.core :as bytes.core]
    [cljctools.codec.core :as codec.core]
-   #?(:clj [clojure.java.io :as io])))
+   [cljctools.fs.core :as fs.core]))
 
 (defn gen-neighbor-id
   [target-idBA node-idBA]
@@ -168,57 +168,23 @@
     (fn [data-string]
       (transit.core/read-string data-string :json {:handlers handlers}))))
 
-#?(:clj
-   (do
+(defn read-state-file
+  [filepath]
+  (go
+    (try
+      (when (fs.core/path-exists? filepath)
+        (let [data-string (bytes.core/to-string (fs.core/read-file filepath))]
+          (transit-read data-string)))
+      (catch (:clj Exception :cljs :default) ex (println ::read-state-file ex)))))
 
-     (defn read-state-file
-       [filepath]
-       (go
-         (try
-           (let [file (io/file filepath)]
-             (when (.exists file)
-               (let [data-string (slurp file)]
-                 (transit-read data-string))))
-           (catch js/Error error (println ::read-state-file error)))))
-
-     (defn write-state-file
-       [filepath data]
-       (go
-         (try
-           (let [data-string (transit-write data)]
-             (io/make-parents filepath)
-             (spit filepath data-string))
-           (catch js/Error error (println ::write-state-file error)))))
-     ;
-     )
-
-   :cljs
-   (do
-
-     (defonce fs (js/require "fs-extra"))
-     (defonce path (js/require "path"))
-
-     (defn read-state-file
-       [filepath]
-       (go
-         (try
-           (when (.pathExistsSync fs filepath)
-             (let [data-string (-> (.readFileSync fs filepath)
-                                   (.toString "utf8"))]
-               (transit-read data-string)))
-           (catch js/Error error (println ::read-state-file error)))))
-
-     (defn write-state-file
-       [filepath data]
-       (go
-         (try
-           (let [data-string (transit-write data)]
-             (.ensureFileSync fs filepath)
-             (.writeFileSync fs filepath data-string))
-           (catch js/Error error (println ::write-state-file error)))))
-
-     ; 
-     ))
+(defn write-state-file
+  [filepath data]
+  (go
+    (try
+      (let [data-string (transit-write data)]
+        (fs.core/make-parents filepath)
+        (fs.core/write-file filepath data-string))
+      (catch (:clj Exception :cljs :default) ex (println ::write-state-file ex)))))
 
 #_(defn send-krpc
   [socket msg rinfo]
