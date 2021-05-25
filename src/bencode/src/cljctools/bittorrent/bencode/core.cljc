@@ -4,11 +4,11 @@
    [cljctools.bytes.core :as bytes.core]
    [cljctools.core :as cljctools.core]))
 
-(def ^:const colon-int8 58 #_(cljctools.core/char-code \:))
-(def ^:const i-int8 105 #_(cljctools.core/char-code \i))
-(def ^:const e-int8 101 #_(cljctools.core/char-code \e))
-(def ^:const l-int8 108 #_(cljctools.core/char-code \l))
-(def ^:const d-int8 100 #_(cljctools.core/char-code \d))
+(def ^:const colon-byte 58 #_(cljctools.core/char-code \:))
+(def ^:const i-byte 105 #_(cljctools.core/char-code \i))
+(def ^:const e-byte 101 #_(cljctools.core/char-code \e))
+(def ^:const l-byte 108 #_(cljctools.core/char-code \l))
+(def ^:const d-byte 100 #_(cljctools.core/char-code \d))
 
 (defmulti encode*
   (fn
@@ -25,9 +25,9 @@
 
 (defmethod encode* ::number
   [number out]
-  (bytes.protocols/write* out i-int8)
+  (bytes.protocols/write* out i-byte)
   (bytes.protocols/write-byte-array* out (bytes.core/to-byte-array (str number)))
-  (bytes.protocols/write* out e-int8))
+  (bytes.protocols/write* out e-byte))
 
 (defmethod encode* ::string
   [string out]
@@ -39,23 +39,23 @@
 
 (defmethod encode* ::sequential
   [coll out]
-  (bytes.protocols/write* out l-int8)
+  (bytes.protocols/write* out l-byte)
   (doseq [item coll]
     (encode* item out))
-  (bytes.protocols/write* out e-int8))
+  (bytes.protocols/write* out e-byte))
 
 (defmethod encode* ::map
   [mp out]
-  (bytes.protocols/write* out d-int8)
+  (bytes.protocols/write* out d-byte)
   (doseq [[k v] (into (sorted-map) mp)]
     (encode* k out)
     (encode* v out))
-  (bytes.protocols/write* out e-int8))
+  (bytes.protocols/write* out e-byte))
 
 (defmethod encode* ::byte-array
   [byte-arr out]
   (bytes.protocols/write-byte-array* out (-> byte-arr (bytes.core/alength) (str) (bytes.core/to-byte-array)))
-  (bytes.protocols/write* out colon-int8)
+  (bytes.protocols/write* out colon-byte)
   (bytes.protocols/write-byte-array* out byte-arr))
 
 (defn encode
@@ -67,19 +67,19 @@
 
 (defn peek-next
   [in]
-  (let [int8 (bytes.protocols/read* in)]
-    (when (= -1 int8)
+  (let [byte (bytes.protocols/read* in)]
+    (when (== -1 byte)
       (throw (ex-info (str ::decode* " unexpected end of InputStream") {})))
-    (bytes.protocols/unread* in int8)
-    int8))
+    (bytes.protocols/unread* in byte)
+    byte))
 
 (defmulti decode*
   (fn
     ([in out]
      (condp = (peek-next in)
-       i-int8 ::integer
-       l-int8 ::list
-       d-int8 ::dictionary
+       i-byte ::integer
+       l-byte ::list
+       d-byte ::dictionary
        :else ::byte-array))
     ([in out dispatch-val]
      dispatch-val)))
@@ -90,25 +90,26 @@
    & args]
   (bytes.protocols/read* in) ; skip d char
   (loop [result (transient [])]
-    (let [int8 (peek-next in)]
+    (let [byte (peek-next in)]
       (cond
 
-        (= int8 e-int8) ; return
+        (== byte e-byte) ; return
         (do
+          (bytes.protocols/read* in) ; skip e char
           (bytes.protocols/reset* out)
           (apply hash-map (persistent! result)))
 
-        (= int8 i-int8)
+        (== byte i-byte)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got integer") {})
           (recur (conj! result  (decode* in out ::integer))))
 
-        (= int8 d-int8)
+        (== byte d-byte)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got dictionary") {})
           (recur (conj! result  (decode* in out ::dictionary))))
 
-        (= int8 l-int8)
+        (== byte l-byte)
         (if (even? (count result))
           (ex-info (str ::decode*-dictionary " bencode keys must be strings, got list") {})
           (recur (conj! result  (decode* in out ::list))))
@@ -128,21 +129,22 @@
    & args]
   (bytes.protocols/read* in) ; skip l char
   (loop [result (transient [])]
-    (let [int8 (peek-next in)]
+    (let [byte (peek-next in)]
       (cond
 
-        (= int8 e-int8) ; return
+        (== byte e-byte) ; return
         (do
+          (bytes.protocols/read* in) ; skip e char
           (bytes.protocols/reset* out)
           (persistent! result))
 
-        (= int8 i-int8)
+        (== byte i-byte)
         (recur (conj! result (decode* in out ::integer)))
 
-        (= int8 d-int8)
+        (== byte d-byte)
         (recur (conj! result  (decode* in out ::dictionary)))
 
-        (= int8 l-int8)
+        (== byte l-byte)
         (recur (conj! result  (decode* in out ::list)))
 
         :else
@@ -154,10 +156,10 @@
    & args]
   (bytes.protocols/read* in) ; skip i char
   (loop []
-    (let [int8 (bytes.protocols/read* in)]
+    (let [byte (bytes.protocols/read* in)]
       (cond
 
-        (= int8 e-int8)
+        (== byte e-byte)
         (let [number-string (->
                              (bytes.protocols/to-byte-array* out)
                              (bytes.core/to-string))
@@ -174,7 +176,7 @@
           number)
 
         :else (do
-                (bytes.protocols/write* out int8)
+                (bytes.protocols/write* out byte)
                 (recur))))))
 
 (defmethod decode* ::byte-array
@@ -182,10 +184,10 @@
    out
    & args]
   (loop []
-    (let [int8 (bytes.protocols/read* in)]
+    (let [byte (bytes.protocols/read* in)]
       (cond
 
-        (= int8 colon-int8)
+        (== byte colon-byte)
         (let [length (-> (bytes.protocols/to-byte-array* out)
                          (bytes.core/to-string)
                          #?(:clj (Integer/parseInt)
@@ -195,7 +197,7 @@
           byte-arr)
 
         :else (do
-                (bytes.protocols/write* out int8)
+                (bytes.protocols/write* out byte)
                 (recur))))))
 
 (defn decode
@@ -226,19 +228,21 @@
     (require '[cljctools.bytes.core :as bytes.core] :reload)
     (require '[cljctools.codec.core :as codec.core] :reload))
   
-  (let [data
-        #_{:t "aabbccdd"
+  (do
+    (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
+    (let [data
+          {:t "aabbccdd"
            :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}}
-        {:t (codec.core/hex-decode "aabbccdd")
-         :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+          #_{:t (codec.core/hex-decode "aabbccdd")
+             :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
 
-    (->
-     (bencode.core/encode data)
-     #_(bytes.core/to-string)
-     #_(bytes.core/to-byte-array)
-     (bencode.core/decode)
-     (-> (get-in ["a" "id"]))
-     (codec.core/hex-encode-string)))
+      (->
+       (bencode.core/encode data)
+       #_(bytes.core/to-string)
+       #_(bytes.core/to-byte-array)
+       (bencode.core/decode)
+       #_(-> (get-in ["a" "id"]))
+       #_(codec.core/hex-encode-string))))
   
   (let [data
         {:msg_type 1
