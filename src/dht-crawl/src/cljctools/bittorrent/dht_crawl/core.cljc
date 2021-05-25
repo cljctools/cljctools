@@ -546,19 +546,11 @@
 
           (recur))))))
 
-(defn ^:export ^:repl main
+(defn main
   []
-  (println ::main)
-  #_(start
+  (start
    {:peer-index 1
     :data-dir (fs.core/path-join "./dht-crawl")}))
-
-(defn -main
-  []
-  (println ::main)
-  #_(start
-     {:peer-index 1
-      :data-dir (fs.core/path-join "./dht-crawl")}))
 
 (comment
 
@@ -575,8 +567,7 @@
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
                       github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}' \
-  -M -m cljctools.bittorrent.dht-crawl.core
+                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}'
 
   (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload-all)
 
@@ -601,14 +592,13 @@
                    "bitfield" "4.0.0"
                    "fs-extra" "9.1.0"}
         :install-deps true
+        :analyze-path "./bittorrent/src/dht-crawl"
         :repl-requires [[cljs.repl :refer-macros [source doc find-doc apropos dir pst]]
                         [cljs.pprint :refer [pprint] :refer-macros [pp]]]}' \
   -ro '{:host "0.0.0.0"
         :port 8899}' \
-  --repl-env node --compile cljctools.bittorrent.dht-crawl.core \
-  --repl
-  
-  node -e 'require("./.cljs_node_repl/main.js"); cljctools.bittorrent.dht_crawl.core.main()'
+  --repl-env node --compile cljctools.bittorrent.dht-crawl.core --repl
+
 
   (do
     (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
