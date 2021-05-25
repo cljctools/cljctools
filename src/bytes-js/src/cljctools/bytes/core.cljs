@@ -58,6 +58,8 @@
   [buffer]
   (.toString buffer "utf8"))
 
+(prefer-method to-string ::bytes.spec/byte-array ::bytes.spec/byte-buffer)
+
 (defmethod to-string ::string
   [string]
   string)
@@ -78,6 +80,8 @@
 (defmethod concat ::bytes.spec/byte-buffer
   [buffers]
   (Buffer.concat buffers))
+
+(prefer-method concat ::bytes.spec/byte-array ::bytes.spec/byte-buffer)
 
 (defn byte-buffer
   [size]
