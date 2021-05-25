@@ -30,8 +30,8 @@
 (defn read-string
   [^String string type-kw opts]
   (->
-   (bytes.core/to-byte-array)
-   (read-byte-array)))
+   (bytes.core/to-byte-array string)
+   (read-byte-array type-kw opts)))
 
 (comment
   
