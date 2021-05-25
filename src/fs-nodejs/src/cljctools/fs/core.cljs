@@ -8,7 +8,9 @@
 
 (defn path-join
   [& args]
-  (apply (.-join path) args))
+  (->>
+   (apply (.-join path) args)
+   (.resolve path)))
 
 (defn path-exists?
   [filepath]
