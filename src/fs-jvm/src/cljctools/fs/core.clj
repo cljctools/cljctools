@@ -1,5 +1,9 @@
 (ns cljctools.fs.core
-  (:require [clojure.java.io :as io]))
+  (:refer-clojure :exclude [remove])
+  (:require
+   [clojure.java.io :as io]
+   [cljctools.fs.protocols :as fs.protocols])
+  (:import (java.io Writer)))
 
 (defn path-join
   [& args]
@@ -22,3 +26,24 @@
 (defn make-parents
   [filepath]
   (io/make-parents filepath))
+
+(deftype TWriter [^Writer io-writer]
+  fs.protocols/PWriter
+  (write*
+    [_ string]
+    (.write io-writer ^String string))
+  (close*
+    [_]
+    (.close io-writer)))
+
+(defn writer
+  [x & opts]
+  (let [io-writer (apply io/writer x opts)]
+    (TWriter.
+     io-writer)))
+
+(defn remove
+  ([filepath]
+   (remove filepath true))
+  ([filepath silently?]
+   (apply io/delete-file filepath silently?)))
