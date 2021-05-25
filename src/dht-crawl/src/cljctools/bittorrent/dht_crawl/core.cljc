@@ -546,11 +546,6 @@
 
           (recur))))))
 
-(defn main
-  []
-  (start
-   {:peer-index 1
-    :data-dir (fs.core/path-join "./dht-crawl")}))
 
 (comment
 
@@ -610,7 +605,9 @@
     (require '[cljctools.bytes.core :as bytes.core] :reload)
     (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload)
     
-    (dht-crawl.core/main)
+    (dht-crawl.core/start
+     {:peer-index 1
+      :data-dir (fs.core/path-join "./dht-crawl")})
     
     ;
     )
