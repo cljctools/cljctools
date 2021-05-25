@@ -26,17 +26,15 @@
                             ::socket.spec/evt|
                             ::socket.spec/msg|
                             ::socket.spec/ex|]
-                      :opt [::socket.spec/time-out]))
+                      :opt []))
 
 (defn create
   [{:as opts
     :keys [::socket.spec/port
            ::socket.spec/host
-           ::socket.spec/time-out
            ::socket.spec/evt|
            ::socket.spec/msg|
-           ::socket.spec/ex|]
-    :or {time-out 0}}]
+           ::socket.spec/ex|]}]
   {:pre [(s/assert ::opts opts)]
    :post [(s/assert ::socket.spec/socket %)]}
   (let [streamV (volatile! nil)
@@ -69,7 +67,8 @@
             (sm/put! @streamV byte-arr))
           (close*
             [_]
-            (sm/close! @streamV))
+            (when-let [stream @streamV]
+              (sm/close! stream)))
           clojure.lang.IDeref
           (deref [_] @streamV))]
 

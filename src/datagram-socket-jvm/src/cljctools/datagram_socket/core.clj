@@ -71,8 +71,9 @@
                                :port port
                                :message byte-arr}))
           (close*
-            [_]
-            (sm/close! @streamV))
+           [_]
+           (when-let [stream @streamV]
+             (sm/close! stream)))
           clojure.lang.IDeref
           (deref [_] @streamV))]
 
