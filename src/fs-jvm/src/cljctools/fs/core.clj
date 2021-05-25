@@ -46,4 +46,4 @@
   ([filepath]
    (remove filepath true))
   ([filepath silently?]
-   (apply io/delete-file filepath silently?)))
+   (io/delete-file filepath silently?)))
