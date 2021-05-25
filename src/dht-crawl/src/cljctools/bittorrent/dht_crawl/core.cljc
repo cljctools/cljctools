@@ -34,13 +34,14 @@
    [cljctools.bittorrent.dht-crawl.dht]
    [cljctools.bittorrent.dht-crawl.find-nodes]
    [cljctools.bittorrent.dht-crawl.metadata]
-   #_[cljctools.bittorrent.dht-crawl.sybil]
+   [cljctools.bittorrent.dht-crawl.sybil]
    [cljctools.bittorrent.dht-crawl.sample-infohashes]))
 
-(declare process-socket
-         process-print-info
-         process-count
-         process-messages)
+(declare
+ process-socket
+ process-print-info
+ process-count
+ process-messages)
 
 (defn start
   [{:as opts
@@ -138,17 +139,17 @@
 
           procsA (atom [])
           release (fn []
-                 (doseq [stop| @procsA]
-                   (close! stop|))
-                 (close! msg|)
-                 (close! torrent|)
-                 (close! infohashes-from-sampling|)
-                 (close! infohashes-from-listening|)
-                 (close! infohashes-from-sybil|)
-                 (close! nodes-to-sample|)
-                 (close! nodes-from-sampling|)
-                 (close! nodesBA|)
-                 (a/merge @procsA))
+                    (doseq [stop| @procsA]
+                      (close! stop|))
+                    (close! msg|)
+                    (close! torrent|)
+                    (close! infohashes-from-sampling|)
+                    (close! infohashes-from-listening|)
+                    (close! infohashes-from-sybil|)
+                    (close! nodes-to-sample|)
+                    (close! nodes-from-sampling|)
+                    (close! nodesBA|)
+                    (a/merge @procsA))
 
           ctx {:stateA stateA
                :host host
@@ -292,12 +293,12 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      (cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
-       ctx)
+      #_(cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
+         ctx)
 
       ; discovery
-      (cljctools.bittorrent.dht-crawl.metadata/start-discovery
-       ctx)
+      #_(cljctools.bittorrent.dht-crawl.metadata/start-discovery
+         ctx)
 
       ; process messages
       (process-messages
@@ -545,6 +546,11 @@
 
           (recur))))))
 
+(defn main
+  []
+  (start
+   {:peer-index 1
+    :data-dir (fs.core/path-join "./dht-crawl")}))
 
 (comment
 
@@ -580,11 +586,17 @@
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
                       github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}} '\
-  -M -m cljs.main -co '{:npm-deps {"randombytes" "2.1.0"
-                                   "bitfield" "4.0.0"
-                                   "fs-extra" "9.1.0"}
-                        :install-deps true} '\
+                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}' \
+  -M -m cljs.main \
+  -co '{:npm-deps {"randombytes" "2.1.0"
+                   "bitfield" "4.0.0"
+                   "fs-extra" "9.1.0"}
+        :install-deps true
+        :analyze-path "./bittorrent/src/dht-crawl"
+        :repl-requires [[cljs.repl :refer-macros [source doc find-doc apropos dir pst]]
+                        [cljs.pprint :refer [pprint] :refer-macros [pp]]]}' \
+  -ro '{:host "0.0.0.0"
+        :port 8899}' \
   --repl-env node --compile cljctools.bittorrent.dht-crawl.core --repl
 
 
@@ -594,7 +606,18 @@
                                                 timeout to-chan  sliding-buffer dropping-buffer
                                                 pipeline pipeline-async]])
 
-    (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload))
+    (require '[cljctools.fs.core :as fs.core] :reload)
+    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload)
+    
+    (dht-crawl.core/main)
+    
+    ;
+    )
+                                                                                                         
+    
+                                                                                                         
+                                                                                                         
   ;
   )
 
