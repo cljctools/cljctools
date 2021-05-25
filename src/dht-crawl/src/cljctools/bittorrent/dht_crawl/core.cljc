@@ -45,8 +45,7 @@
 
 (defn start
   [{:as opts
-    :keys [peer-index
-           data-dir]}]
+    :keys [data-dir]}]
   (go
     (let [state-filepath (fs.core/path-join data-dir "cljctools.bittorrent.dht-crawl.core.json")
           stateA (atom
@@ -604,11 +603,10 @@
     (require '[cljctools.fs.core :as fs.core] :reload)
     (require '[cljctools.bytes.core :as bytes.core] :reload)
     (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload)
-    
+
     (dht-crawl.core/start
-     {:peer-index 1
-      :data-dir (fs.core/path-join "./dht-crawl")})
-    
+     {:data-dir (fs.core/path-join "./dht-crawl")})
+
     ;
     )
                                                                                                          
