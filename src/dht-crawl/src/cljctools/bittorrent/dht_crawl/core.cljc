@@ -16,6 +16,7 @@
    [cljctools.bytes.core :as bytes.core]
    [cljctools.codec.core :as codec.core]
    [cljctools.fs.core :as fs.core]
+   [cljctools.fs.protocols :as fs.protocols]
    [cljctools.datagram-socket.core :as datagram-socket.core]
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
@@ -243,12 +244,12 @@
 
       ; print info
       (let [stop| (chan 1)
-            filepath (.join path data-dir "state/" "cljctools.bittorrent.crawl-log.edn")
-            _ (.removeSync fs filepath)
-            _ (.ensureFileSync fs filepath)
-            write-stream (.createWriteStream fs filepath #js {:flags "a"})
+            filepath (fs.core/path-join data-dir "cljctools.bittorrent.crawl-log.edn")
+            _ (fs.core/remove filepath)
+            _ (fs.core/make-parents filepath)
+            writer (fs.core/writer filepath :append true)
             release (fn []
-                      (.end write-stream))]
+                      (fs.protocols/close* writer))]
         (swap! procsA conj stop|)
         (go
           (loop []
@@ -274,8 +275,8 @@
                            [:sybils| (str (- (.. sybils| -buf -n) (count (.-buf sybils|))) "/" (.. sybils| -buf -n))]
                            [:time (str (int (/ (- (now) started-at) 1000 60)) "min")]]]
                  (pprint info)
-                 (.write write-stream (with-out-str (pprint info)))
-                 (.write write-stream "\n"))
+                 (fs.protocols/write* writer (with-out-str (pprint info)))
+                 (fs.protocols/write* writer "\n"))
                (recur))
 
               stop|
@@ -509,11 +510,14 @@
                       github.cljctools/datagram-socket-jvm {:local/root "./cljctools/src/datagram-socket-jvm"}
                       github.cljctools/socket-jvm {:local/root "./cljctools/src/socket-jvm"}
                       github.cljctools/fs-jvm {:local/root "./cljctools/src/fs-jvm"}
+                      github.cljctools/fs-meta {:local/root "./cljctools/src/fs-meta"}
                       github.cljctools/transit-jvm {:local/root "./cljctools/src/transit-jvm"}
                       github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
                       github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
                       github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/src/wire-protocol"}
                       github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}'
+  
+  (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload-all)
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
@@ -523,6 +527,7 @@
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}
                       github.cljctools/datagram-socket-nodejs {:local/root "./cljctools/src/datagram-socket-nodejs"}
                       github.cljctools/fs-nodejs {:local/root "./cljctools/src/fs-nodejs"}
+                      github.cljctools/fs-meta {:local/root "./cljctools/src/fs-meta"}
                       github.cljctools/socket-nodejs {:local/root "./cljctools/src/socket-nodejs"}
                       github.cljctools/transit-js {:local/root "./cljctools/src/transit-js"}
 
@@ -536,9 +541,6 @@
                         :install-deps true} '\
   --repl-env node --compile cljctools.bittorrent.dht-crawl.core --repl
    
-  
-                                                                                                        
-  (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload-all)
                                                                                                         
   (do
     (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
