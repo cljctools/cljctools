@@ -34,9 +34,11 @@
                  (clojure.string/split (:host node) #"\.")
                  (map #?(:clj #(Integer/parseInt %) :cljs js/Number.parseInt))
                  (bytes.core/byte-array))
-                (doto (bytes.core/byte-buffer 2)
-                  (bytes.core/put-short 0 (:port node))
-                  (bytes.core/to-byte-array))]
+                (->
+                 (doto
+                  (bytes.core/byte-buffer 2)
+                   (bytes.core/put-short 0 (:port node)))
+                 (bytes.core/to-byte-array))]
                (bytes.core/concat))))
        (bytes.core/concat)))
 
@@ -65,13 +67,12 @@
      (filter (fn [x] (bytes.core/byte-array? x)))
      (map
       (fn [peer-infoBA]
-        {:host (str (aget peer-infoBA 0) "."
-                       (aget peer-infoBA 1) "."
-                       (aget peer-infoBA 2) "."
-                       (aget peer-infoBA 3))
-         :port (->
-                (bytes.core/buffer-wrap  peer-infoBA)
-                (bytes.core/get-short 4))}))))))
+        (let [peer-infoBB (bytes.core/buffer-wrap  peer-infoBA)]
+          {:host (str (bytes.core/get-byte peer-infoBB 0) "."
+                      (bytes.core/get-byte peer-infoBB 1) "."
+                      (bytes.core/get-byte peer-infoBB 2) "."
+                      (bytes.core/get-byte peer-infoBB 3))
+           :port (bytes.core/get-short peer-infoBB 4)})))))))
 
 (defn decode-samples
   [samplesBA]

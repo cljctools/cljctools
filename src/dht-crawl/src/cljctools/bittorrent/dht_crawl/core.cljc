@@ -300,12 +300,12 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      #_(cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
-         ctx)
+      (cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
+       ctx)
 
       ; discovery
-      #_(cljctools.bittorrent.dht-crawl.metadata/start-discovery
-         ctx)
+      (cljctools.bittorrent.dht-crawl.metadata/start-discovery
+       ctx)
 
       ; process messages
       (process-messages

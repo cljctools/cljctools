@@ -38,24 +38,44 @@
 
           send| (chan 100)
 
+          recv| (chan 100)
+
           socket (socket.core/create
                   {::socket.spec/port port
                    ::socket.spec/host host
-                   ::socket.spec/time-out 2000
                    ::socket.spec/evt| evt|
                    ::socket.spec/msg| msg|
                    ::socket.spec/ex| ex|})
 
           wire (wire-protocol.core/create
                 {::send| send|
-                 ::recv| msg|
+                 ::recv| recv|
                  ::metadata| result|
                  ::bittorrent.spec/infohashBA infohashBA
                  ::bittorrent.spec/peer-idBA idBA})
 
           release (fn []
                     (swap! count-socketsA dec)
-                    (socket.protocols/close* socket))]
+                    (socket.protocols/close* socket)
+                    (close! msg|)
+                    (close! send|)
+                    (close! recv|))]
+
+      (go
+        (loop []
+          (when-let [value (<! send|)]
+            (socket.protocols/send* socket value)
+            (recur))))
+
+      (go
+        (loop [ts (now)]
+          (when-let [value (<! msg|)]
+            (if (> (- (now) ts) 2000)
+              (>! ex| (ex-info "socket timeout: no messages" {} nil))
+              (do
+                (>! recv| value)
+                (recur (now)))))))
+
       (swap! count-socketsA inc)
       (socket.protocols/connect* socket)
 
@@ -68,7 +88,10 @@
 
         result|
         ([metadataBA]
-         (let [metadata-info (:info (bencode.core/decode metadataBA))
+         (let [metadata-info (->
+                              (bencode.core/decode metadataBA)
+                              (clojure.walk/keywordize-keys)
+                              :info)
                metadata (clojure.walk/postwalk
                          (fn [form]
                            (cond
@@ -76,7 +99,7 @@
                              (bytes.core/to-string form)
 
                              :else form))
-                         (select-keys metadata-info ["name" "files" "name.utf-8" "length"]))]
+                         (select-keys metadata-info [:name :files :name.utf-8 :length]))]
            (release)
            metadata))))))
 
@@ -264,7 +287,7 @@
                                    infohashes-from-sampling|
                                    infohashes-from-listening|]
                                   :priority true)]
-          (when-let [{:keys [infohash infohashBA rinfo]} value]
+          (when-let [{:keys [infohash infohashBA]} value]
             (when-not (or (get @in-processA infohash)
                           (get @already-searchedA infohash))
               (>! in-progress| infohashBA)

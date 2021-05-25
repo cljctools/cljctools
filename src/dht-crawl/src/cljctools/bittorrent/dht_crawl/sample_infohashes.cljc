@@ -18,7 +18,7 @@
            self-idBA
            nodes-to-sample|
            nodes-from-sampling|
-           infohash|
+           infohashes-from-sampling|
            send-krpc-request]}]
   (let [stop| (chan 1)
 
@@ -65,9 +65,7 @@
                              (when samples
                                (doseq [infohashBA (decode-samples samples)]
                                  #_(println :info_hash (.toString infohashB "hex"))
-                                 (put! infohash| {:infohashBA infohashBA
-                                                  :host host
-                                                  :port port})))
+                                 (put! infohashes-from-sampling| {:infohashBA infohashBA})))
                              (when interval
                                (swap! stateA update-in [:routing-table-sampled id] merge {:interval interval}))
                              (when nodes
