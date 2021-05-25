@@ -123,11 +123,11 @@
 
 (defn put-int
   [^ByteBuffer buffer index value]
-  (.putInt buffer ^int (+ (.position buffer) index) ^int value))
+  (.putInt buffer ^int (+ (.position buffer) index) ^int (unchecked-int value)))
 
 (defn put-short
   [^ByteBuffer buffer index value]
-  (.putShort buffer ^int (+ (.position buffer) index) ^short value))
+  (.putShort buffer ^int (+ (.position buffer) index) ^short (unchecked-short value)))
 
 (defn get-short
   [^ByteBuffer buffer index]
