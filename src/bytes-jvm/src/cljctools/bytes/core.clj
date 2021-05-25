@@ -110,11 +110,16 @@
 
 (defn get-byte
   [^ByteBuffer buffer index]
-  (.get buffer ^int (+ (.position buffer) index) ))
+  (->
+   (.get buffer ^int (+ (.position buffer) index))
+   (java.lang.Byte/toUnsignedInt)
+   #_(bit-and 0xFF)))
 
-(defn get-int 
+(defn get-int
   [^ByteBuffer buffer index]
-  (.getInt buffer ^int (+ (.position buffer) index)))
+  (->
+   (.getInt buffer ^int (+ (.position buffer) index))
+   (java.lang.Integer/toUnsignedLong)))
 
 (defn put-int
   [^ByteBuffer buffer index value]
@@ -126,7 +131,9 @@
 
 (defn get-short
   [^ByteBuffer buffer index]
-  (.getShort buffer ^int (+ (.position buffer) index)))
+  (->
+   (.getShort buffer ^int (+ (.position buffer) index))
+   (java.lang.Short/toUnsignedInt)))
 
 (defn size
   [^ByteBuffer buffer]
