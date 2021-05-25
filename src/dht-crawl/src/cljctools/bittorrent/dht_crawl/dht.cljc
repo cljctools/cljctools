@@ -22,13 +22,10 @@
   [{:as opts
     :keys [stateA
            self-idBA
-           nodes|
+           routing-table-nodes|
            send-krpc-request
            routing-table-max-size]}]
-  (let [_ (swap! stateA merge {:routing-table (sorted-map)})
-
-        routing-table-comparator (hash-key-distance-comparator-fn self-idBA)
-
+  (let [routing-table-comparator (hash-key-distance-comparator-fn self-idBA)
         stop| (chan 1)]
 
     (swap! stateA update :routing-table (partial into (sorted-map-by routing-table-comparator)))
@@ -39,7 +36,7 @@
              i 0
              ts (now)
              time-total 0]
-        (when-let [nodes (<! nodes|)]
+        (when-let [nodes (<! routing-table-nodes|)]
           (let [routing-table (:routing-table @stateA)]
             (->>
              nodes
@@ -121,7 +118,7 @@
   [{:as opts
     :keys [stateA
            self-idBA
-           nodes|
+           dht-keyspace-nodes|
            send-krpc-request
            routing-table-max-size]}]
   (let [routing-table-comparator (hash-key-distance-comparator-fn self-idBA)
@@ -147,7 +144,7 @@
              i 0
              ts (now)
              time-total 0]
-        (when-let [nodes (<! nodes|)]
+        (when-let [nodes (<! dht-keyspace-nodes|)]
           (let [dht-keyspace-keys (keys (:dht-keyspace @stateA))]
             (doseq [node nodes]
               (let [closest-key (->>

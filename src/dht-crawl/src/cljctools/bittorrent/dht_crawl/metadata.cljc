@@ -57,6 +57,7 @@
                     (swap! count-socketsA dec)
                     (socket.protocols/close* socket))]
       (swap! count-socketsA inc)
+      (socket.protocols/connect* socket)
 
       (alt!
 

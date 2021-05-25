@@ -31,7 +31,7 @@
               (->>
                [(:idBA node)
                 (->>
-                 (clojure.string/split (:host node) ".")
+                 (clojure.string/split (:host node) #"\.")
                  (map #?(:clj #(Integer/parseInt %) :cljs js/Number.parseInt))
                  (bytes.core/byte-array))
                 (doto (bytes.core/byte-buffer 2)
@@ -160,19 +160,23 @@
                             (fn [c|] "ManyToManyChannel")
                             (fn [c|] nil))})]
     (fn [data]
-      (transit.core/write-to-string data :json {:handlers handlers}))))
+      (transit.core/write-to-string data :json-verbose {:handlers handlers}))))
 
 (def transit-read
   (let [handlers #?(:clj {"::bytes.core/byte-array"
-                          (fn [string] (codec.core/hex-decode string))
+                          (transit/read-handler
+                           (fn [string] (codec.core/hex-decode string)))
                           "ManyToManyChannel"
-                          (fn [string] nil)}
+                          (transit/read-handler
+                           (fn [string] nil))}
                     :cljs {"::bytes.core/byte-array"
-                           (fn [string] (codec.core/hex-decode string))
+                           (transit/read-handler
+                            (fn [string] (codec.core/hex-decode string)))
                            "ManyToManyChannel"
-                           (fn [string] nil)})]
+                           (transit/read-handler
+                            (fn [string] nil))})]
     (fn [data-string]
-      (transit.core/read-string data-string :json {:handlers handlers}))))
+      (transit.core/read-string data-string :json-verbose {:handlers handlers}))))
 
 (defn read-state-file
   [filepath]
@@ -201,7 +205,7 @@
     (go
       (loop []
         (when-let [{:keys [msg] :as value} (<! msg|tap)]
-          (let [txn-id (codec.core/hex-encode-string (:t msg))]
+          (when-let [txn-id (some-> (:t msg) (codec.core/hex-encode-string))]
             (when-let [response| (get @requestsA txn-id)]
               (put! response| value)
               (close! response|)

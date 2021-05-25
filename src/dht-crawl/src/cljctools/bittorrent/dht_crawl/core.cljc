@@ -7,6 +7,7 @@
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.pprint :refer [pprint]]
    [clojure.string]
+   [clojure.walk]
    #?@(:cljs
        [[goog.string.format :as format]
         [goog.string :refer [format]]
@@ -65,10 +66,15 @@
           port 6881
           host "0.0.0.0"
 
+          count-messagesA (atom 0)
+          
           msg| (chan (sliding-buffer 100)
                      (keep (fn [{:keys [msgBA host port]}]
+                             (swap! count-messagesA inc)
                              (try
-                               {:msg (bencode.core/decode msgBA)
+                               {:msg  (->
+                                       (bencode.core/decode msgBA)
+                                       (clojure.walk/keywordize-keys))
                                 :host host
                                 :port port}
                                (catch #?(:clj Exception :cljs :default) ex nil)))))
@@ -164,6 +170,7 @@
                :nodes-bootstrap nodes-bootstrap
                :nodes-to-sample| nodes-to-sample|
                :nodes-from-sampling| nodes-from-sampling|
+               :routing-table-nodes| routing-table-nodes|
                :dht-keyspace-nodes| dht-keyspace-nodes|
                :nodesBA| nodesBA|
                :infohashes-from-sampling| infohashes-from-sampling|
@@ -180,7 +187,7 @@
                :count-infohashes-from-sybilA (atom 0)
                :count-discoveryA (atom 0)
                :count-discovery-activeA (atom 0)
-               :count-messagesA (atom 0)
+               :count-messagesA count-messagesA
                :count-messages-sybilA (atom 0)}]
 
       (println ::self-id self-id)
@@ -194,6 +201,7 @@
 
       (<! (onto-chan! nodes-to-sample|
                       (->> (:routing-table @stateA)
+                           (vec)
                            (shuffle)
                            (take 8)
                            (map second))
@@ -322,6 +330,7 @@
         release (fn []
                   (datagram-socket.protocols/close* socket))]
     (go
+      (datagram-socket.protocols/listen* socket)
       (loop []
         (alt!
           send|
