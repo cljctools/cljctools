@@ -126,7 +126,7 @@
                    (bencode.core/encode))
         msg-lengthBB (bytes.core/byte-buffer 4)
         msg-length (+ 2 (bytes.core/alength payloadBA))]
-    (bytes.core/put-int msg-lengthBB 0 msg-length)
+    (bytes.core/put-uint32 msg-lengthBB 0 msg-length)
     (->
      (bytes.core/concat
       [(bytes.core/to-byte-array msg-lengthBB)
@@ -216,7 +216,7 @@
             (condp = (:op stateT)
 
               :pstrlen
-              (let [pstrlen (bytes.core/get-byte msgBB 0)]
+              (let [pstrlen (bytes.core/get-uint8 msgBB 0)]
                 (recur (-> stateT
                            (assoc! :op :handshake)
                            (assoc! :pstrlen pstrlen)
@@ -236,11 +236,11 @@
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4)
                                (assoc! :peer-infohashBA (bytes.core/to-byte-array infohashBB))
-                               (assoc! :peer-extended? (boolean (bit-and (bytes.core/get-byte reservedBB 5) 2r00010000)))
-                               (assoc! :peer-dht? (boolean (bit-and (bytes.core/get-byte reservedBB 7) 2r00000001))))))))
+                               (assoc! :peer-extended? (boolean (bit-and (bytes.core/get-uint8 reservedBB 5) 2r00010000)))
+                               (assoc! :peer-dht? (boolean (bit-and (bytes.core/get-uint8 reservedBB 7) 2r00000001))))))))
 
               :msg-length
-              (let [msg-length (bytes.core/get-int msgBB 0)]
+              (let [msg-length (bytes.core/get-uint32 msgBB 0)]
                 (if (== 0 msg-length) #_:keep-alive
                     (do
                       (recur stateT))
@@ -254,7 +254,7 @@
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4))
                     {:keys [msg-length]} stateT
-                    msg-id (bytes.core/get-byte msgBB 0)]
+                    msg-id (bytes.core/get-uint8 msgBB 0)]
 
                 (cond
 
@@ -280,7 +280,7 @@
 
                   #_:have
                   (and (== msg-id 4) (== msg-length 5))
-                  (let [piece-index (bytes.core/get-int msgBB 1)]
+                  (let [piece-index (bytes.core/get-uint32 msgBB 1)]
                     (recur stateT))
 
                   #_:bitfield
@@ -289,15 +289,15 @@
 
                   #_:request
                   (and (== msg-id 6) (== msg-length 13))
-                  (let [index (bytes.core/get-int msgBB 1)
-                        begin (bytes.core/get-int msgBB 5)
-                        length (bytes.core/get-int msgBB 9)]
+                  (let [index (bytes.core/get-uint32 msgBB 1)
+                        begin (bytes.core/get-uint32 msgBB 5)
+                        length (bytes.core/get-uint32 msgBB 9)]
                     (recur stateT))
 
                   #_:piece
                   (== msg-id 7)
-                  (let [index (bytes.core/get-int msgBB 1)
-                        begin (bytes.core/get-int msgBB 5)
+                  (let [index (bytes.core/get-uint32 msgBB 1)
+                        begin (bytes.core/get-uint32 msgBB 5)
                         blockBB (bytes.core/buffer-wrap msgBB 9 (- msg-length 9))]
                     (recur stateT))
 
@@ -311,7 +311,7 @@
 
                   #_:extended
                   (and (== msg-id 20))
-                  (let [ext-msg-id (bytes.core/get-byte msgBB 1)
+                  (let [ext-msg-id (bytes.core/get-uint8 msgBB 1)
                         payloadBB (bytes.core/buffer-wrap msgBB 2 (- msg-length 2))]
                     (cond
 
@@ -455,8 +455,8 @@
 (comment
 
 
-  (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
-  (bytes.core/get-int (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)
+  (bytes.core/get-uint32 (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
+  (bytes.core/get-uint32 (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)
 
 
   ; The bit selected for the extension protocol is bit 20 from the right (counting starts at 0) . 
@@ -475,7 +475,7 @@
     [(bytes.core/alength byte-arr)
      (-> byte-arr
          (bytes.core/buffer-wrap)
-         (bytes.core/get-int 0))])
+         (bytes.core/get-uint32 0))])
 
 
   ;

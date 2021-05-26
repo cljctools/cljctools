@@ -37,7 +37,7 @@
                 (->
                  (doto
                   (bytes.core/byte-buffer 2)
-                   (bytes.core/put-short 0 (:port node)))
+                   (bytes.core/put-uint16 0 (:port node)))
                  (bytes.core/to-byte-array))]
                (bytes.core/concat))))
        (bytes.core/concat)))
@@ -50,11 +50,11 @@
         (let [idBA (-> nodesBB (bytes.core/buffer-wrap i 20) (bytes.core/to-byte-array))]
           {:id (codec.core/hex-encode-string idBA)
            :idBA idBA
-           :host (str (bytes.core/get-byte nodesBB (+ i 20)) "."
-                      (bytes.core/get-byte nodesBB (+ i 21)) "."
-                      (bytes.core/get-byte nodesBB (+ i 22)) "."
-                      (bytes.core/get-byte nodesBB (+ i 23)))
-           :port (bytes.core/get-short nodesBB (+ i 24))})))
+           :host (str (bytes.core/get-uint8 nodesBB (+ i 20)) "."
+                      (bytes.core/get-uint8 nodesBB (+ i 21)) "."
+                      (bytes.core/get-uint8 nodesBB (+ i 22)) "."
+                      (bytes.core/get-uint8 nodesBB (+ i 23)))
+           :port (bytes.core/get-uint16 nodesBB (+ i 24))})))
     (catch #?(:clj Exception :cljs :default) ex nil)))
 
 
@@ -68,11 +68,11 @@
      (map
       (fn [peer-infoBA]
         (let [peer-infoBB (bytes.core/buffer-wrap  peer-infoBA)]
-          {:host (str (bytes.core/get-byte peer-infoBB 0) "."
-                      (bytes.core/get-byte peer-infoBB 1) "."
-                      (bytes.core/get-byte peer-infoBB 2) "."
-                      (bytes.core/get-byte peer-infoBB 3))
-           :port (bytes.core/get-short peer-infoBB 4)})))))))
+          {:host (str (bytes.core/get-uint8 peer-infoBB 0) "."
+                      (bytes.core/get-uint8 peer-infoBB 1) "."
+                      (bytes.core/get-uint8 peer-infoBB 2) "."
+                      (bytes.core/get-uint8 peer-infoBB 3))
+           :port (bytes.core/get-uint16 peer-infoBB 4)})))))))
 
 (defn decode-samples
   [samplesBA]
@@ -89,7 +89,7 @@
       (throw (ex-info "xor-distance: args should have same length" {})))
     (reduce
      (fn [resultBA i]
-       (bytes.core/aset-byte resultBA i (bit-xor (aget xBA i) (aget yBA i)))
+       (bytes.core/aset-uint8 resultBA i (bit-xor (aget xBA i) (aget yBA i)))
        resultBA)
      (bytes.core/byte-array xBA-length)
      (range 0 xBA-length))))
