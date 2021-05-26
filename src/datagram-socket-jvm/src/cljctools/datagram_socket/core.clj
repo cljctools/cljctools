@@ -14,7 +14,7 @@
    [manifold.stream :as sm]
    [aleph.udp])
   (:import
-   (java.net InetSocketAddress)
+   (java.net InetSocketAddress InetAddress)
    (io.netty.bootstrap Bootstrap)
    (io.netty.channel ChannelPipeline)))
 
@@ -57,9 +57,12 @@
                    (d/chain
                     (fn [msg]
                       (when-not (identical? msg ::none)
-                        (put! msg| {:msgBA (:message msg)
-                                    :host (:host msg)
-                                    :port (:port msg)})
+                        (let [^InetSocketAddress inet-socket-address (:sender msg)]
+                          #_[^InetAddress inet-address (.getAddress inet-socket-address)]
+                          #_(.getHostAddress inet-address)
+                          (put! msg| {:msgBA (:message msg)
+                                      :host (.getHostString inet-socket-address)
+                                      :port (.getPort inet-socket-address)}))
                         (d/recur))))
                    (d/catch Exception #(put! ex| %)))))
               (catch Exception ex
