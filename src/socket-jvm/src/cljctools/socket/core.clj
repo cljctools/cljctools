@@ -44,12 +44,16 @@
           socket.protocols/Socket
           (connect*
             [t]
-            (try
-              (let [stream @(aleph.tcp/client {:host host
-                                               :port port
-                                               :insecure? true})]
+            (->
+             (d/chain
+              (aleph.tcp/client {:host host
+                                 :port port
+                                 :insecure? true})
+              (fn [stream]
                 (vreset! streamV stream)
                 (put! evt| {:op :connected})
+                stream)
+              (fn [stream]
                 (d/loop []
                   (->
                    (sm/take! stream ::none)
@@ -58,10 +62,12 @@
                       (when-not (identical? byte-arr ::none)
                         (put! msg| byte-arr)
                         (d/recur))))
-                   (d/catch Exception #(put! ex| %)))))
-              (catch Exception ex
-                (put! ex| ex)
-                (socket.protocols/close* t))))
+                   (d/catch Exception (fn [ex]
+                                        (put! ex| ex)
+                                        (socket.protocols/close* t)))))))
+             (d/catch Exception (fn [ex]
+                                  (put! ex| ex)
+                                  (socket.protocols/close* t)))))
           (send*
             [_ byte-arr]
             (sm/put! @streamV byte-arr))

@@ -46,11 +46,15 @@
           datagram-socket.protocols/Socket
           (listen*
             [t]
-            (try
-              (let [stream @(aleph.udp/socket {:socket-address (InetSocketAddress. ^String host ^int port)
-                                               :insecure? true})]
+            (->
+             (d/chain
+              (aleph.udp/socket {:socket-address (InetSocketAddress. ^String host ^int port)
+                                 :insecure? true})
+              (fn [stream]
                 (vreset! streamV stream)
                 (put! evt| {:op :listening})
+                stream)
+              (fn [stream]
                 (d/loop []
                   (->
                    (sm/take! stream ::none)
@@ -64,19 +68,21 @@
                                       :host (.getHostString inet-socket-address)
                                       :port (.getPort inet-socket-address)}))
                         (d/recur))))
-                   (d/catch Exception #(put! ex| %)))))
-              (catch Exception ex
-                (put! ex| ex)
-                (datagram-socket.protocols/close* t))))
+                   (d/catch Exception (fn [ex]
+                                        (put! ex| ex)
+                                        (datagram-socket.protocols/close* t)))))))
+             (d/catch Exception (fn [ex]
+                                  (put! ex| ex)
+                                  (datagram-socket.protocols/close* t)))))
           (send*
             [_ byte-arr {:keys [host port]}]
             (sm/put! @streamV {:host host
                                :port port
                                :message byte-arr}))
           (close*
-           [_]
-           (when-let [stream @streamV]
-             (sm/close! stream)))
+            [_]
+            (when-let [stream @streamV]
+              (sm/close! stream)))
           clojure.lang.IDeref
           (deref [_] @streamV))]
 
