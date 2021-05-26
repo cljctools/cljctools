@@ -95,33 +95,86 @@
   ([buffer offset length]
    (Buffer.from (.-buffer buffer) (+ (.-byteOffset buffer) offset) length)))
 
+#_(defn unchecked-int
+    [x])
+
+#_(defn unchecked-short
+    [x]
+    (bit-or x 0xffff0000))
+
+#_(defn byte-to-unsigned-int
+    [x]
+    (bit-and x 0xff))
+
+#_(defn int-to-unsigned-long
+    [x]
+    (unsigned-bit-shift-right x 0))
+
+#_(defn short-to-unsigned-int
+    [x]
+    (bit-and x 0xffff))
+
 (defn get-byte
+  [buffer index]
+  (.readInt8 buffer index))
+
+(defn get-uint8
   [buffer index]
   (.readUInt8 buffer index))
 
 (defn get-int
   [buffer index]
+  (.readInt32BE buffer index))
+
+(defn get-uint32
+  [buffer index]
   (.readUInt32BE buffer index))
 
+(defn get-short
+  [buffer index]
+  (.readInt16BE buffer index))
+
+(defn get-uint16
+  [buffer index]
+  (.readUInt16BE buffer index))
+
+(defn put-byte
+  [buffer index value]
+  (.writeInt8 buffer value index))
+
+(defn put-uint8
+  [buffer index value]
+  (.writeUInt8 buffer value index))
+
 (defn put-int
+  [buffer index value]
+  (.writeInt32BE buffer value index)
+  buffer)
+
+(defn put-uint32
   [buffer index value]
   (.writeUInt32BE buffer value index)
   buffer)
 
 (defn put-short
   [buffer index value]
-  (.writeUInt16BE buffer value index)
+  (.writeInt16BE buffer value index)
   buffer)
 
-(defn get-short
-  [buffer index]
-  (.readUInt16BE buffer index))
+(defn put-uint16
+  [buffer index value]
+  (.writeUInt16BE buffer value index)
+  buffer)
 
 (defn size
   [buffer]
   (.-length buffer))
 
 (defn aset-byte
+  [byte-arr idx val]
+  (aset byte-arr idx val))
+
+(defn aset-uint8
   [byte-arr idx val]
   (aset byte-arr idx val))
 
@@ -156,7 +209,7 @@
   bytes.protocols/IByteArrayOutputStream
   (write*
     [_ int8]
-    (.push arr (doto (Buffer.allocUnsafe 1) (.writeInt8 int8))))
+    (.push arr (doto (Buffer.allocUnsafe 1) (.writeUInt8 int8))))
   (write-byte-array*
     [_ buffer]
     (.push arr buffer))

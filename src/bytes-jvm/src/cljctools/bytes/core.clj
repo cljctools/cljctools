@@ -108,32 +108,77 @@
   ([^bytes byte-arr offset length]
    (ByteBuffer/wrap byte-arr ^int offset ^int length)))
 
+#_(defn unchecked-int
+    [x]
+    (clojure.core/unchecked-int x))
+
+#_(defn unchecked-short
+    [x]
+    (clojure.core/unchecked-short x))
+
+#_(defn byte-to-unsigned-int
+    [^byte x]
+    (java.lang.Byte/toUnsignedInt  x)
+    #_(bit-and 0xFF))
+
+#_(defn int-to-unsigned-long
+    [^int x]
+    (java.lang.Integer/toUnsignedLong x)
+    #_(bit-and 0xffffffff))
+
+#_(defn short-to-unsigned-int
+    [^short x]
+    (java.lang.Short/toUnsignedInt x)
+    #_(bit-and 0xffff))
+
 (defn get-byte
   [^ByteBuffer buffer index]
-  (->
-   (.get buffer ^int (+ (.position buffer) index))
-   (java.lang.Byte/toUnsignedInt)
-   #_(bit-and 0xFF)))
+  (.get buffer ^int (+ (.position buffer) index)))
+
+(defn get-uint8
+  [^ByteBuffer buffer index]
+  (java.lang.Byte/toUnsignedInt ^byte (get-byte buffer index)))
 
 (defn get-int
   [^ByteBuffer buffer index]
-  (->
-   (.getInt buffer ^int (+ (.position buffer) index))
-   (java.lang.Integer/toUnsignedLong)))
+  (.getInt buffer ^int (+ (.position buffer) index)))
 
-(defn put-int
-  [^ByteBuffer buffer index value]
-  (.putInt buffer ^int (+ (.position buffer) index) ^int (unchecked-int value)))
-
-(defn put-short
-  [^ByteBuffer buffer index value]
-  (.putShort buffer ^int (+ (.position buffer) index) ^short (unchecked-short value)))
+(defn get-uint32
+  [^ByteBuffer buffer index]
+  (java.lang.Integer/toUnsignedLong ^int (get-int buffer index)))
 
 (defn get-short
   [^ByteBuffer buffer index]
-  (->
-   (.getShort buffer ^int (+ (.position buffer) index))
-   (java.lang.Short/toUnsignedInt)))
+  (.getShort buffer ^int (+ (.position buffer) index)))
+
+(defn get-uint16
+  [^ByteBuffer buffer index]
+  (java.lang.Short/toUnsignedInt ^short (get-short buffer index)))
+
+(defn put-byte
+  [^ByteBuffer buffer index value]
+  (.put buffer ^int (+ (.position buffer) index) ^byte value))
+
+(defn put-uint8
+  [^ByteBuffer buffer index value]
+  (put-byte buffer index (unchecked-byte value)))
+
+(defn put-int
+  [^ByteBuffer buffer index value]
+  (.putInt buffer ^int (+ (.position buffer) index) ^int value))
+
+(defn put-uint32
+  [^ByteBuffer buffer index value]
+  (put-int buffer index (unchecked-int value)))
+
+(defn put-short
+  [^ByteBuffer buffer index value]
+  (.putShort buffer ^int (+ (.position buffer) index) ^short value))
+
+(defn put-uint16
+  [^ByteBuffer buffer index value]
+  (put-short buffer index (unchecked-short value)))
+
 
 (defn size
   [^ByteBuffer buffer]
@@ -142,6 +187,10 @@
 (defn aset-byte
   [^bytes byte-arr idx val]
   (clojure.core/aset-byte byte-arr idx val))
+
+(defn aset-uint8
+  [^bytes byte-arr idx val]
+  (clojure.core/aset-byte byte-arr idx (unchecked-byte val)))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
