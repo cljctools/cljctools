@@ -33,7 +33,7 @@
              i n
              ts (now)
              time-total 0]
-        (let [timeout| (when (and (= i 0) (< time-total 1000))
+        (let [timeout| (when (and (== i 0) (< time-total 1000))
                          (timeout (+ time-total (- 1000 time-total))))
               [value port] (alts! (if timeout|
                                     [timeout|]

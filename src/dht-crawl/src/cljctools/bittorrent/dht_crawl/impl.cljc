@@ -201,7 +201,7 @@
   [{:as opts
     :keys [msg|mult
            send|]}]
-  (let [requestsA (atom {})
+  (let [requestsA (atom (transient {}))
         msg|tap (tap msg|mult (chan (sliding-buffer 512)))]
     (go
       (loop []
@@ -210,7 +210,7 @@
             (when-let [response| (get @requestsA txn-id)]
               (put! response| value)
               (close! response|)
-              (swap! requestsA dissoc txn-id)))
+              (swap! requestsA dissoc! txn-id)))
           (recur))))
     (fn send-krpc-request
       ([msg node]
@@ -221,11 +221,11 @@
          (put! send| {:msg msg
                       :host host
                       :port port})
-         (swap! requestsA assoc txn-id response|)
+         (swap! requestsA assoc! txn-id response|)
          (take! timeout| (fn [_]
                            (when-not (closed? response|)
                              (close! response|)
-                             (swap! requestsA dissoc txn-id))))
+                             (swap! requestsA dissoc! txn-id))))
          response|)))))
 
 

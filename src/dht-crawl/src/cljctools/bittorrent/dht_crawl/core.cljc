@@ -67,7 +67,7 @@
           host "0.0.0.0"
 
           count-messagesA (atom 0)
-          
+
           msg| (chan (sliding-buffer 100)
                      (keep (fn [{:keys [msgBA host port]}]
                              (swap! count-messagesA inc)
@@ -84,16 +84,16 @@
           torrent| (chan 5000)
           torrent|mult (mult torrent|)
 
-          send| (chan 100)
+          send| (chan 1000)
 
-          unique-infohashsesA (atom #{})
+          unique-infohashsesA (atom (transient #{}))
           xf-infohash (comp
                        (map (fn [{:keys [infohashBA] :as value}]
                               (assoc value :infohash (codec.core/hex-encode-string infohashBA))))
                        (filter (fn [{:keys [infohash]}]
                                  (not (get @unique-infohashsesA infohash))))
                        (map (fn [{:keys [infohash] :as value}]
-                              (swap! unique-infohashsesA conj infohash)
+                              (swap! unique-infohashsesA conj! infohash)
                               value)))
 
           infohashes-from-sampling| (chan (sliding-buffer 100000) xf-infohash)
@@ -110,10 +110,14 @@
                                                    :send| send|})
 
           valid-node? (fn [node]
-                        (and (not= (:host node) host)
-                             (not= (:id node) self-id)
-                             #_(not= 0 (js/Buffer.compare (:id node) self-id))
-                             (< 0 (:port node) 65536)))
+                        (and
+                         (:host node)
+                         (:port node)
+                         (:id node)
+                         (not= (:host node) host)
+                         (not= (:id node) self-id)
+                         #_(not= 0 (js/Buffer.compare (:id node) self-id))
+                         (< 0 (:port node) 65536)))
 
           routing-table-nodes| (chan (sliding-buffer 1024)
                                      (map (fn [nodes] (filter valid-node? nodes))))
@@ -142,19 +146,20 @@
 
           sybils| (chan 30000)
 
-          procsA (atom [])
+          procsA (atom (transient []))
           release (fn []
-                    (doseq [stop| @procsA]
-                      (close! stop|))
-                    (close! msg|)
-                    (close! torrent|)
-                    (close! infohashes-from-sampling|)
-                    (close! infohashes-from-listening|)
-                    (close! infohashes-from-sybil|)
-                    (close! nodes-to-sample|)
-                    (close! nodes-from-sampling|)
-                    (close! nodesBA|)
-                    (a/merge @procsA))
+                    (let [stop|s  (persistent! @procsA)]
+                      (doseq [stop| stop|s]
+                        (close! stop|))
+                      (close! msg|)
+                      (close! torrent|)
+                      (close! infohashes-from-sampling|)
+                      (close! infohashes-from-listening|)
+                      (close! infohashes-from-sybil|)
+                      (close! nodes-to-sample|)
+                      (close! nodes-from-sampling|)
+                      (close! nodesBA|)
+                      (a/merge stop|s)))
 
           ctx {:stateA stateA
                :host host
@@ -235,7 +240,7 @@
 
       ; print info
       (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
+        (swap! procsA conj! stop|)
         (process-print-info (merge ctx {:stop| stop|})))
 
       ; count
@@ -245,7 +250,7 @@
       ; after time passes, remove nodes from already-asked tables so they can be queried again
       ; this means we politely ask only nodes we haven't asked before
       (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
+        (swap! procsA conj! stop|)
         (go
           (loop [timeout| (timeout 0)]
             (alt!
@@ -267,19 +272,19 @@
 
       ; very rarely ask bootstrap servers for nodes
       (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
+        (swap! procsA conj! stop|)
         (cljctools.bittorrent.dht-crawl.find-nodes/start-bootstrap-query
          (merge ctx {:stop| stop|})))
 
       ; periodicaly ask nodes for new nodes
       (let [stop| (chan 1)]
-        (swap! procsA conj stop|)
+        (swap! procsA conj! stop|)
         (cljctools.bittorrent.dht-crawl.find-nodes/start-dht-query
          (merge ctx {:stop| stop|})))
 
       ; start sybil
       #_(let [stop| (chan 1)]
-          (swap! procsA conj stop|)
+          (swap! procsA conj! stop|)
           (cljctools.bittorrent.dht-crawl.sybil/start
            {:stateA stateA
             :nodes-bootstrap nodes-bootstrap
@@ -291,8 +296,8 @@
       ; add new nodes to routing table
       (go
         (loop []
-          (when-let [nodesB (<! nodesBA|)]
-            (let [nodes (decode-nodes nodesB)]
+          (when-let [nodesBA (<! nodesBA|)]
+            (let [nodes (decode-nodes nodesBA)]
               (>! routing-table-nodes| nodes)
               (>! dht-keyspace-nodes| nodes)
               (<! (onto-chan! nodes-to-sample| nodes false)))
@@ -300,12 +305,15 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      (cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
-       ctx)
+      #_(cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
+         ctx)
 
       ; discovery
-      (cljctools.bittorrent.dht-crawl.metadata/start-discovery
-       ctx)
+      #_(cljctools.bittorrent.dht-crawl.metadata/start-discovery
+         (merge ctx
+                {:infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
+                 :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
+                 :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))}))
 
       ; process messages
       (process-messages
@@ -380,6 +388,7 @@
         _ (fs.core/remove filepath)
         _ (fs.core/make-parents filepath)
         writer (fs.core/writer filepath :append true)
+        countA (atom 0)
         release (fn []
                   (fs.protocols/close* writer))]
     (go
@@ -388,8 +397,10 @@
 
           (timeout (* 5 1000))
           ([_]
+           (swap! countA inc)
            (let [state @stateA
-                 info [[:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA @count-infohashes-from-sybilA)
+                 info [[:count @countA]
+                       [:infohashes [:total (+ @count-infohashes-from-samplingA @count-infohashes-from-listeningA @count-infohashes-from-sybilA)
                                      :sampling @count-infohashes-from-samplingA
                                      :listening @count-infohashes-from-listeningA
                                      :sybil @count-infohashes-from-sybilA]]
