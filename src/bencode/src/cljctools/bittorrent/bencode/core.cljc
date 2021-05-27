@@ -256,3 +256,56 @@
 
   ;
   )
+
+
+(comment
+
+  (require
+   '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
+                                      pub sub unsub mult tap untap mix admix unmix pipe
+                                      timeout to-chan  sliding-buffer dropping-buffer
+                                      pipeline pipeline-async]]
+   '[clojure.core.async.impl.protocols :refer [closed?]])
+
+  (require
+   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.core :as cljctools.core]
+   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.codec.core :as codec.core]
+   :reload #_:reload-all)
+
+  (defn foo
+    [encode decode data]
+    (let [timeout| (timeout 20000)]
+      (go
+        (loop []
+          (when-not (closed? timeout|)
+            (<! (timeout 10))
+            (let [data data]
+              (dotimes [i 50]
+                (->
+                 (encode data)
+                 (decode)
+                 (encode)
+                 (decode))))
+            (recur)))
+        (println :done))))
+
+  (let [data {:t (codec.core/hex-decode "aabbccdd")
+              :a {"id" (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+    (foo bencode.core/encode bencode.core/decode data))
+
+  ; ~ 50% cpu node
+  ; ~ 22% cpu jvm
+
+  (def bencode (js/require "bencode"))
+  
+  (let [data {:t (js/Buffer.from "aabbccdd" "hex") 
+              :a {"id" (js/Buffer.from "197957dab1d2900c5f6d9178656d525e22e63300" "hex")}}]
+    (foo bencode.encode bencode.decode data))
+
+  ; ~50% cpu
+
+
+  ;
+  )
