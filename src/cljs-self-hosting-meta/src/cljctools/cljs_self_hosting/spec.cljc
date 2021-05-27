@@ -11,5 +11,5 @@
 (s/def ::compiler #(and
                     (satisfies? cljs-self-hosting.protocols/Compiler %)
                     (satisfies? cljs-self-hosting.protocols/Release %)
-                    #?(:clj (satisfies? clojure.lang.IDeref %))
+                    #?(:clj (instance? clojure.lang.IDeref %))
                     #?(:cljs (satisfies? cljs.core/IDeref %))))

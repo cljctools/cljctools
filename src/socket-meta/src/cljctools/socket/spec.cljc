@@ -17,5 +17,5 @@
 
 (s/def ::socket #(and
                   (satisfies? socket.protocols/Socket %)
-                  #?(:clj (satisfies? clojure.lang.IDeref %))
+                  #?(:clj (instance? clojure.lang.IDeref %))
                   #?(:cljs (satisfies? cljs.core/IDeref %))))
