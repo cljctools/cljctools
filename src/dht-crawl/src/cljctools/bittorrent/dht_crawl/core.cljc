@@ -615,21 +615,20 @@
   --repl-env node --compile cljctools.bittorrent.dht-crawl.core --repl
 
 
-  (do
-    (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
-                                                pub sub unsub mult tap untap mix admix unmix pipe
-                                                timeout to-chan  sliding-buffer dropping-buffer
-                                                pipeline pipeline-async]])
-
-    (require '[cljctools.fs.core :as fs.core] :reload)
-    (require '[cljctools.bytes.core :as bytes.core] :reload)
-    (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload)
-
+  (require
+   '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
+                                      pub sub unsub mult tap untap mix admix unmix pipe
+                                      timeout to-chan  sliding-buffer dropping-buffer
+                                      pipeline pipeline-async]]
+   '[cljctools.fs.core :as fs.core]
+   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.codec.core :as codec.core]
+   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core]
+   :reload #_:reload-all)
+                   
     (dht-crawl.core/start
      {:data-dir (fs.core/path-join "./dht-crawl")})
-
-    ;
-    )
                                                                                                          
     
                                                                                                          

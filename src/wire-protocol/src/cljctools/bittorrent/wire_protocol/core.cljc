@@ -451,15 +451,17 @@
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}}}' \
    -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire-protocol.core --repl
   
-  (do
-    (require '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
-                                                pub sub unsub mult tap untap mix admix unmix pipe
-                                                timeout to-chan  sliding-buffer dropping-buffer
-                                                pipeline pipeline-async]])
-    
-    (require '[cljctools.bytes.core :as bytes.core] :reload)
-    (require '[cljctools.bittorrent.bencode.core :as bencode.core] :reload)
-    (require '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core] :reload))
+  (require
+   '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
+                                      pub sub unsub mult tap untap mix admix unmix pipe
+                                      timeout to-chan  sliding-buffer dropping-buffer
+                                      pipeline pipeline-async]]
+   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core]
+   :reload #_:reload-all)
+  
+  
   ;
   )
 
