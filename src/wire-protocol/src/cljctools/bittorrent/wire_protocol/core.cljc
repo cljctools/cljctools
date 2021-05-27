@@ -18,7 +18,7 @@
 
 (s/def ::wire-protocol #(and
                          (satisfies? WireProtocol %)
-                         #?(:clj (satisfies? clojure.lang.IDeref %))
+                         #?(:clj (instance? clojure.lang.IDeref %))
                          #?(:cljs (satisfies? cljs.core/IDeref %))))
 
 (s/def ::channel #?(:clj #(instance? clojure.core.async.impl.channels.ManyToManyChannel %)
@@ -105,8 +105,8 @@
             (recur (conj! buffersT recvBB) (+ total-size (bytes.core/size recvBB)) expected-size)))))
     (close! to|)))
 
-(def pstrBA (bytes.core/byte-array [19]))
-(def protocolBA (bytes.core/to-byte-array "\u0013BitTorrent protocol"))
+(def pstrlenBA (bytes.core/byte-array [19]))
+(def pstrBA (bytes.core/to-byte-array "BitTorrent protocol" #_"\u0013BitTorrent protocol"))
 (def reservedBA (bytes.core/byte-array [0 0 0 0 0 2r00010000 0 2r00000001]))
 (def keep-aliveBA (bytes.core/byte-array [0 0 0 0]))
 (def chokeBA (bytes.core/byte-array [0 0 0 1 0]))
@@ -117,7 +117,7 @@
 (def portBA (bytes.core/byte-array [0 0 0 3 9 0 0]))
 
 (def ^:const ut-metadata-block-size 16384)
-(def ^:const ut-metadata-max-size 100000)
+(def ^:const ut-metadata-max-size 1000000)
 
 (defn extended-msg
   [ext-msg-id data]
@@ -131,16 +131,16 @@
      (bytes.core/concat
       [(bytes.core/to-byte-array msg-lengthBB)
        (bytes.core/byte-array [20 ext-msg-id])
-       payloadBA])
-     (bytes.core/buffer-wrap))))
+       payloadBA]))))
 
 (defn handshake-msg
   [infohashBA peer-idBA]
-  (bytes.core/concat [pstrBA protocolBA reservedBA infohashBA peer-idBA]))
+  (bytes.core/concat [pstrlenBA pstrBA reservedBA infohashBA peer-idBA]))
 
 (s/def ::create-wire-opts
   (s/keys :req [::send|
                 ::recv|
+                ::metadata|
                 ::bittorrent.spec/infohashBA
                 ::bittorrent.spec/peer-idBA]
           :opt [::ex|]))
@@ -158,7 +158,6 @@
                 {})
 
         ex| (chan 1)
-        op| (chan 100)
 
         expected-size| (chan 1)
         cut| (chan 1)
@@ -184,13 +183,15 @@
 
     (take! ex|
            (fn [ex]
+             #_(println ::ex (ex-message ex))
              (release)
-             (when-let [ex| (::ex| opts)]
-               (put! ex| ex))))
+             (when (::ex| opts)
+               (put! (::ex| opts) ex))
+             #_(when-let [ex| (::ex| opts)]
+                 (put! ex| ex))))
 
     (go
       (try
-
         (>! send| (handshake-msg infohashBA peer-idBA))
 
         (loop [stateT (transient
@@ -230,8 +231,9 @@
                   (let [reservedBB (bytes.core/buffer-wrap msgBB pstrlen 8)
                         infohashBB (bytes.core/buffer-wrap msgBB (+ pstrlen 8) 20)
                         peer-idBB (bytes.core/buffer-wrap msgBB (+ pstrlen 28) 20)]
+                    #_(println :received-handshake)
                     (>! send| (extended-msg 0 {:m (:extensions stateT)
-                                               #_:metadata_size #_0}))
+                                               #_:metadata_size #_1000}))
                     (recur (-> stateT
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4)
@@ -317,51 +319,58 @@
 
                       #_:handshake
                       (== ext-msg-id 0)
-                      (let [data (bencode.core/decode (bytes.core/to-byte-array payloadBB))]
-                        (let  [ut-metadata-id (get-in data ["m" "ut_metadata"])
-                               metadata_size (get data "metadata_size")]
+                      (let [data (-> (bytes.core/to-byte-array payloadBB) (bencode.core/decode) (keywordize-keys))]
+                        (let  [ut-metadata-id (get-in data [:m :ut_metadata])
+                               metadata_size (get data :metadata_size)]
+                          #_(println :received-extened-handshake (:m data) metadata_size)
                           (cond
 
                             (not ut-metadata-id)
-                            (throw (ex-info "extended handshake: no metadata_size" data nil))
+                            (throw (ex-info "extended handshake: no ut_metadata" data nil))
 
                             (not (number? metadata_size))
                             (throw (ex-info "extended handshake: metadata_size is not a number" data nil))
 
-                            (< 0 metadata_size ut-metadata-max-size)
+                            (not (< 0 metadata_size ut-metadata-max-size))
                             (throw (ex-info "extended handshake: metadata_size invalid size" data nil))
 
                             :else
-                            (>! send| (extended-msg ut-metadata-id {:msg_type 0
-                                                                    :piece 0}))))
+                            (do
+                              #_(println :sending-first-piece-request)
+                              (>! send| (extended-msg ut-metadata-id {:msg_type 0
+                                                                      :piece 0})))))
                         (recur (-> stateT
                                    (assoc! :peer-extended-data data)
                                    (assoc! :ut-metadata-max-rejects 2 #_(-> (/ metadata_size ut-metadata-block-size) (int) (+ 1))))))
 
-                      (= ext-msg-id 3 #_(get-in stateT [:extensions "ut-metadata"]) #_(get-in stateT [:peer-extended-data "m" "ut_metadata"]))
+                      (== ext-msg-id 3 #_(get-in stateT [:extensions "ut-metadata"]) #_(get-in stateT [:peer-extended-data "m" "ut_metadata"]))
                       (let [payload-str (bytes.core/to-string payloadBB)
                             block-index (-> (clojure.string/index-of payload-str "ee") (+ 2))
                             data-str (subs payload-str 0 block-index)
                             data  (-> data-str (bytes.core/to-byte-array) (bencode.core/decode) (keywordize-keys))]
+                        #_(println :ext-msg-id-3 data)
                         (condp == (:msg_type data)
 
                           #_:request
                           0
                           (let []
-                            (when-let [ut-metadata-id (get-in stateT [:peer-extended-data "m" "ut_metadata"])]
+                            #_(println ::request data)
+                            (when-let [ut-metadata-id (get-in stateT [:peer-extended-data :m :ut_metadata])]
                               (>! send| (extended-msg ut-metadata-id {:msg_type 2
-                                                                      :piece (get data "piece")})))
+                                                                      :piece (:piece data)})))
                             (recur stateT))
 
                           #_:data
                           1
-                          (let [block-str (subs payload-str block-index)
-                                blockBA (bytes.core/to-byte-array block-str)
-                                ut-metadata-size (get-in stateT [:peer-extended-data "metadata_size"])
+                          (let [blockBA (-> payloadBB
+                                            (bytes.core/buffer-wrap block-index (- (bytes.core/size payloadBB) block-index))
+                                            (bytes.core/to-byte-array))  #_(-> payload-str (subs block-index) (bytes.core/to-byte-array))
+                                ut-metadata-size (get-in stateT [:peer-extended-data :metadata_size])
                                 downloaded (+ (:ut-metadata-downloaded stateT) (bytes.core/alength blockBA))]
+                            #_(println ::got-piece data downloaded (bytes.core/alength blockBA))
                             (cond
                               (== downloaded ut-metadata-size)
-                              (let [metadataBA (bytes.core/concat (conj! (:ut-metadata-pieces stateT) blockBA))
+                              (let [metadataBA (bytes.core/concat (persistent! (conj! (:ut-metadata-pieces stateT) blockBA)))
                                     metadata-hash (-> (bytes.core/sha1 metadataBA) (codec.core/hex-encode-string))
                                     peer-infohash (-> (:peer-infohashBA stateT) (codec.core/hex-encode-string))]
                                 (if-not (= metadata-hash peer-infohash)
@@ -371,7 +380,7 @@
                                            (assoc! :ut-metadata-downloaded 0)
                                            (assoc! :ut-metadata-pieces (transient [])))))
 
-                              (>= downloaded ut-metadata-size)
+                              (> downloaded ut-metadata-size)
                               (let []
                                 (throw (ex-info "downloaded metadata size is larger than declared" {:downloaded downloaded
                                                                                                     :ut-metadata-size ut-metadata-size} nil))
@@ -380,9 +389,10 @@
                                            (assoc! :ut-metadata-pieces (transient [])))))
 
                               :else
-                              (let [ut-metadata-id (get-in stateT [:peer-extended-data "m" "ut_metadata"])
-                                    downloaded-pieces (/ downloaded ut-metadata-block-size)
-                                    next-piece (+ downloaded-pieces 1)]
+                              (let [ut-metadata-id (get-in stateT [:peer-extended-data :m :ut_metadata])
+                                    downloaded-pieces (int (/ downloaded ut-metadata-block-size))
+                                    next-piece downloaded-pieces]
+                                #_(println :sending-next-piece-request next-piece downloaded-pieces downloaded)
                                 (>! send| (extended-msg ut-metadata-id {:msg_type 0
                                                                         :piece next-piece}))
                                 (recur (-> stateT
@@ -391,7 +401,8 @@
 
                           #_:reject
                           2
-                          (let [ut-metadata-id (get-in stateT [:peer-extended-data "m" "ut_metadata"])]
+                          (let [ut-metadata-id (get-in stateT [:peer-extended-data :m :ut_metadata])]
+                            #_(println ::got-reject data)
                             (when (== 0 (:ut-metadata-max-rejects stateT))
                               (throw (ex-info "metadata request rejected" data nil)))
                             (>! send| (extended-msg ut-metadata-id {:msg_type 0
@@ -399,16 +410,16 @@
                             (recur (-> stateT
                                        (assoc! :ut-metadata-max-rejects (dec (:ut-metadata-max-rejects stateT))))))
 
-                          (println [::unsupported-ut-metadata-msg :ext-msg-id ext-msg-id])))
+                          #_(println [::unsupported-ut-metadata-msg :ext-msg-id ext-msg-id])))
 
                       :else
                       (let []
-                        (println [::unsupported-extension-msg :ext-msg-id ext-msg-id])
+                        #_(println [::unsupported-extension-msg :ext-msg-id ext-msg-id])
                         (recur stateT))))
 
                   :else
                   (let []
-                    (println [::unknown-message :msg-id msg-id :msg-length msg-length])
+                    #_(println [::unknown-message :msg-id msg-id :msg-length msg-length])
                     (recur stateT)))))))
 
         (catch #?(:clj Exception :cljs :default) ex (put! ex| ex)))

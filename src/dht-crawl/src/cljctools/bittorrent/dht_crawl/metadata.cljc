@@ -29,85 +29,112 @@
 (defn request-metadata
   [{:keys [host port]} idBA infohashBA cancel|]
   (go
-    (let [timeout| (timeout 4000)
-          ex| (chan 1)
+    (let [timeout| (timeout #_8000 4000)
           result| (chan 1)
 
           evt| (chan (sliding-buffer 10))
-          msg| (chan 100)
+          msg| (chan 100
+                     (map (fn [byte-arr]
+                            (bytes.core/buffer-wrap byte-arr))))
 
           send| (chan 100)
 
           recv| (chan 100)
+
+          ex| (chan 1)
+
+          socket-ex| (chan 1)
 
           socket (socket.core/create
                   {::socket.spec/port port
                    ::socket.spec/host host
                    ::socket.spec/evt| evt|
                    ::socket.spec/msg| msg|
-                   ::socket.spec/ex| ex|})
-
-          wire (wire-protocol.core/create
-                {::send| send|
-                 ::recv| recv|
-                 ::metadata| result|
-                 ::ex| ex|
-                 ::bittorrent.spec/infohashBA infohashBA
-                 ::bittorrent.spec/peer-idBA idBA})
+                   ::socket.spec/ex| socket-ex|})
 
           release (fn []
                     (swap! count-socketsA dec)
                     (socket.protocols/close* socket)
                     (close! msg|)
+                    (close! socket-ex|)
                     (close! send|)
+                    (close! evt|)
                     (close! recv|))]
 
+      (wire-protocol.core/create
+       {::wire-protocol.core/send| send|
+        ::wire-protocol.core/recv| recv|
+        ::wire-protocol.core/metadata| result|
+        ::wire-protocol.core/ex| ex|
+        ::bittorrent.spec/infohashBA infohashBA
+        ::bittorrent.spec/peer-idBA idBA})
+
       (go
-        (println ::socket (<! evt|))
+        (when-let [evt (<! evt|)]
+          #_(println ::socket evt))
         (loop []
-          (when-let [value (<! send|)]
-            (socket.protocols/send* socket value)
-            (recur))))
+          (alt!
+            socket-ex|
+            ([ex]
+             (when ex
+               (>! ex| ex)))
+
+            send|
+            ([value]
+             (when value
+               (socket.protocols/send* socket value)
+               (recur)))
+            :priority true)))
+      (swap! count-socketsA inc)
+      (socket.protocols/connect* socket)
 
       (go
         (loop []
           (alt!
-            (timeout 2000)
-            ([_]
-             (>! ex| (ex-info "socket timeout: no messages" {} nil)))
+            #_(timeout 2000)
+            #_([_]
+               (>! ex| (ex-info "socket timeout, no messages" {} nil)))
 
             msg|
             ([value]
+             #_(println :socket-message value)
              (when value
                (>! recv| value)
                (recur))))))
-
-      (swap! count-socketsA inc)
-      (socket.protocols/connect* socket)
 
       (alt!
 
         [timeout| cancel| ex|]
         ([value port]
-         (when value
-           (println (ex-message value)))
+         (condp = port
+
+           timeout|
+           (do
+             #_(println "request-metadata: timeout"))
+
+           cancel|
+           (do
+             #_(println "request-metadata: cancelled"))
+           
+           ex|
+           (do
+             #_(println (str "request-metadata: " (ex-message value)))))
          (release)
          nil)
 
         result|
         ([metadataBA]
-         (let [metadata-info (->
-                              (bencode.core/decode metadataBA)
-                              (clojure.walk/keywordize-keys)
-                              :info)
-               metadata (clojure.walk/postwalk
-                         (fn [form]
-                           (cond
-                             (bytes.core/byte-array? form)
-                             (bytes.core/to-string form)
+         (let [metadata (->
+                         (bencode.core/decode metadataBA)
+                         (clojure.walk/keywordize-keys)
+                         (select-keys [:name :files :name.utf-8 :length])
+                         (->> (clojure.walk/postwalk
+                               (fn [form]
+                                 (cond
+                                   (bytes.core/byte-array? form)
+                                   (bytes.core/to-string form)
 
-                             :else form))
-                         (select-keys metadata-info [:name :files :name.utf-8 :length]))]
+                                   :else form)))))]
            (release)
            metadata))))))
 
@@ -211,7 +238,6 @@
 
                 (= port seeders|)
                 (let [seeders value]
-                  #_(println :seeders| (count seeders))
                   (doseq [seeder seeders]
                     (swap! unique-seedersA conj! seeder)
                     (>! seeder| seeder))
@@ -235,7 +261,6 @@
                                               (filter valid-ip?)
                                               (filter unique-seeder?))))]
                                (swap! seeders-countA + (count seeders))
-                               #_(println :seeders-response (count seeders))
                                (put! seeders| seeders)
                                (onto-chan! nodes-seeders| seeders false))
 
@@ -258,7 +283,6 @@
 
             :else
             (when-let [seeder (<! seeder|)]
-              #_(println :seeder|)
               (recur n (mod (inc i) n) (conj! batch (request-metadata* seeder)))))))
 
       (alt!
@@ -288,7 +312,7 @@
 
   (let [in-processA (atom (transient {}))
         already-searchedA (atom (transient #{}))
-        in-progress| (chan 80)]
+        in-progress| (chan 1)]
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-sybil|
