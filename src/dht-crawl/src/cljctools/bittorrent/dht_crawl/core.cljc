@@ -86,14 +86,14 @@
 
           send| (chan 1000)
 
-          unique-infohashsesA (atom (transient #{}))
+          unique-infohashsesA (atom #{})
           xf-infohash (comp
                        (map (fn [{:keys [infohashBA] :as value}]
                               (assoc value :infohash (codec.core/hex-encode-string infohashBA))))
                        (filter (fn [{:keys [infohash]}]
                                  (not (get @unique-infohashsesA infohash))))
                        (map (fn [{:keys [infohash] :as value}]
-                              (swap! unique-infohashsesA conj! infohash)
+                              (swap! unique-infohashsesA conj infohash)
                               value)))
 
           infohashes-from-sampling| (chan (sliding-buffer 100000) xf-infohash)
@@ -146,9 +146,9 @@
 
           sybils| (chan 30000)
 
-          procsA (atom (transient []))
+          procsA (atom [])
           release (fn []
-                    (let [stop|s  (persistent! @procsA)]
+                    (let [stop|s @procsA]
                       (doseq [stop| stop|s]
                         (close! stop|))
                       (close! msg|)
@@ -240,7 +240,7 @@
 
       ; print info
       (let [stop| (chan 1)]
-        (swap! procsA conj! stop|)
+        (swap! procsA conj stop|)
         (process-print-info (merge ctx {:stop| stop|})))
 
       ; count
@@ -249,7 +249,7 @@
 
       ; after time passes, remove nodes from already-asked tables so they can be queried again
       (let [stop| (chan 1)]
-        (swap! procsA conj! stop|)
+        (swap! procsA conj stop|)
         (go
           (loop [timeout| (timeout 0)]
             (alt!
@@ -271,19 +271,19 @@
 
       ; very rarely ask bootstrap servers for nodes
       (let [stop| (chan 1)]
-        (swap! procsA conj! stop|)
+        (swap! procsA conj stop|)
         (cljctools.bittorrent.dht-crawl.find-nodes/start-bootstrap-query
          (merge ctx {:stop| stop|})))
 
       ; periodicaly ask nodes for new nodes
       (let [stop| (chan 1)]
-        (swap! procsA conj! stop|)
+        (swap! procsA conj stop|)
         (cljctools.bittorrent.dht-crawl.find-nodes/start-dht-query
          (merge ctx {:stop| stop|})))
 
       ; start sybil
       #_(let [stop| (chan 1)]
-          (swap! procsA conj! stop|)
+          (swap! procsA conj stop|)
           (cljctools.bittorrent.dht-crawl.sybil/start
            {:stateA stateA
             :nodes-bootstrap nodes-bootstrap

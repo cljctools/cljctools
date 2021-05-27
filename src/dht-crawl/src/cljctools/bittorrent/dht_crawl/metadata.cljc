@@ -143,7 +143,7 @@
   (go
     (let [seeders-countA (atom 0)
           result| (chan 1)
-          cancel-channelsA (atom (transient []))
+          cancel-channelsA (atom [])
 
           valid-ip? (fn [node]
                       (and
@@ -151,7 +151,7 @@
                        (not= (:host node) "0.0.0.0")
                        (< 0 (:port node) 65536)))
 
-          unique-seedersA (atom (transient #{}))
+          unique-seedersA (atom #{})
 
           unique-seeder? (fn [seeder]
                            (not (get @unique-seedersA seeder)))
@@ -197,7 +197,7 @@
                               (when-not (closed? seeders|)
                                 (let [cancel| (chan 1)
                                       out| (chan 1)]
-                                  (swap! cancel-channelsA conj! cancel|)
+                                  (swap! cancel-channelsA conj cancel|)
                                   (take! (request-metadata node self-idBA infohashBA cancel|)
                                          (fn [metadata]
                                            (when metadata
@@ -215,7 +215,7 @@
                     (close! seeders|)
                     (close! seeder|)
                     (close! nodes|)
-                    (doseq [cancel| (persistent! @cancel-channelsA)]
+                    (doseq [cancel| @cancel-channelsA]
                       (close! cancel|)))]
 
       (go
@@ -239,7 +239,7 @@
                 (= port seeders|)
                 (let [seeders value]
                   (doseq [seeder seeders]
-                    (swap! unique-seedersA conj! seeder)
+                    (swap! unique-seedersA conj seeder)
                     (>! seeder| seeder))
                   (recur n i ts time-total))
 
@@ -310,9 +310,9 @@
            count-discoveryA
            count-discovery-activeA]}]
 
-  (let [in-processA (atom (transient {}))
-        already-searchedA (atom (transient #{}))
-        in-progress| (chan 1)]
+  (let [in-processA (atom {})
+        already-searchedA (atom #{})
+        in-progress| (chan 5)]
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-sybil|
@@ -338,8 +338,8 @@
                                                    :self-id self-id
                                                    :infohashBA infohashBA
                                                    :cancel| (chan 1)})]
-                (swap! in-processA assoc! infohash find_metadata|)
-                (swap! already-searchedA conj! infohash)
+                (swap! in-processA assoc infohash find_metadata|)
+                (swap! already-searchedA conj infohash)
                 (swap! count-discoveryA inc)
                 (swap! count-discovery-activeA inc)
                 #_(let [metadata (<! find_metadata|)]
@@ -357,7 +357,7 @@
                          (take! in-progress| (constantly nil))
 
                          (swap! count-discovery-activeA dec)
-                         (swap! in-processA dissoc! infohash)))))
+                         (swap! in-processA dissoc infohash)))))
             (recur)))))))
 
 #_(defn request-metadata-multiple
