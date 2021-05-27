@@ -62,9 +62,8 @@
                     (close! send|)
                     (close! recv|))]
 
-      (take! evt| prn)
-
       (go
+        (println ::socket (<! evt|))
         (loop []
           (when-let [value (<! send|)]
             (socket.protocols/send* socket value)

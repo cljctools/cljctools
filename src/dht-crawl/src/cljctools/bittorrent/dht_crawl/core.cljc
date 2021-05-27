@@ -248,7 +248,6 @@
 
 
       ; after time passes, remove nodes from already-asked tables so they can be queried again
-      ; this means we politely ask only nodes we haven't asked before
       (let [stop| (chan 1)]
         (swap! procsA conj! stop|)
         (go
@@ -339,6 +338,8 @@
                   (datagram-socket.protocols/close* socket))]
     (go
       (datagram-socket.protocols/listen* socket)
+      (<! evt|)
+      (println (format "listening on %s:%s" host port))
       (loop []
         (alt!
           send|
@@ -351,13 +352,13 @@
                :port port})
              (recur)))
 
-          evt|
-          ([{:keys [op] :as value}]
-           (when value
-             (cond
-               (= op :listening)
-               (println (format "listening on %s:%s" host port)))
-             (recur)))
+          #_evt|
+          #_([{:keys [op] :as value}]
+             (when value
+               (cond
+                 (= op :listening)
+                 (println (format "listening on %s:%s" host port)))
+               (recur)))
 
           ex|
           ([ex]
