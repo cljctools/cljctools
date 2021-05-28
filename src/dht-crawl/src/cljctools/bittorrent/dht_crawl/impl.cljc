@@ -52,11 +52,11 @@
         (let [idBA (-> nodesBB (bytes.core/buffer-wrap i 20) (bytes.core/to-byte-array))]
           {:id (codec.core/hex-encode-string idBA)
            :idBA idBA
-           :host (str (bytes.core/get-uint8 nodesBB (+ i 20)) "."
-                      (bytes.core/get-uint8 nodesBB (+ i 21)) "."
-                      (bytes.core/get-uint8 nodesBB (+ i 22)) "."
-                      (bytes.core/get-uint8 nodesBB (+ i 23)))
-           :port (bytes.core/get-uint16 nodesBB (+ i 24))})))
+           :host (str (bytes.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 20)) "."
+                      (bytes.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 21)) "."
+                      (bytes.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 22)) "."
+                      (bytes.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 23)))
+           :port (bytes.core/get-uint16 nodesBB (#?(:clj unchecked-add :cljs +) i 24))})))
     (catch #?(:clj Exception :cljs :default) ex nil)))
 
 
@@ -89,12 +89,10 @@
   (let [xBA-length (bytes.core/alength xBA)]
     (when-not (== xBA-length (bytes.core/alength yBA))
       (throw (ex-info "xor-distance: args should have same length" {})))
-    (reduce
-     (fn [resultBA i]
-       (bytes.core/aset-uint8 resultBA i (bit-xor (bytes.core/aget-byte xBA i) (bytes.core/aget-byte yBA i)))
-       resultBA)
-     (bytes.core/byte-array xBA-length)
-     (range 0 xBA-length))))
+    (let [resultBB (bytes.core/byte-buffer xBA-length)]
+      (dotimes [i xBA-length]
+        (bytes.core/put-uint8 resultBB i (bit-xor (bytes.core/aget-byte xBA i) (bytes.core/aget-byte yBA i))))
+      (bytes.core/to-byte-array resultBB))))
 
 (defn distance-compare
   [distance1BA distance2BA]
@@ -335,14 +333,15 @@
 
   (time
    (let [buffer (bytes.core/byte-buffer 20)]
-     (dotimes [i 100000]
-       (let [x (mod i 20)]
+     (dotimes [i 10000000]
+       (let [x (mod i 20) #_(unchecked-remainder-int i 20)]
          (bytes.core/get-byte buffer x)
          (bytes.core/put-byte buffer x x)))
      (vec (bytes.core/to-byte-array buffer))))
 
-  ; jvm    "Elapsed time: 14.785804 msecs"
-  ; nodejs "Elapsed time: 10.233080 msecs"
+  ; jvm    "Elapsed time: 122.298044 msecs"
+  ; nodejs "Elapsed time: 82.160827 msecs"
+  ; jvm unchecked-remainder-int "Elapsed time: 73.329539 msecs"
 
   ; aget needs type hint ^bytes
   (time
@@ -365,6 +364,130 @@
   ; jvm    "Elapsed time: 704.516302 msecs"
   ; nodejs "Elapsed time: 49.059405 msecs"
 
+
+  (time
+   (let [^bytes byte-arr (bytes.core/byte-array 20)]
+     (dotimes [i 10000000]
+       (let [x (unchecked-remainder-int i 20)]
+         (aget byte-arr x)
+         (aset-byte byte-arr x (unchecked-byte x))))
+     (vec byte-arr)))
+
+  ; "Elapsed time: 655.999327 msecs"
+
+  (time
+   (let [byte-arr (bytes.core/byte-array 20)]
+     (dotimes [i 100000000]
+       (bytes.core/alength byte-arr))))
+
+  ; jvm "Elapsed time: 51.61525 msecs"
+  ; nodejs "Elapsed time: 139.426112 msecs"
+
+  (time
+   (let [ba (bytes.core/byte-array 20)
+         foo (fn []
+               (bytes.core/alength ba))]
+     (dotimes [i 10000000]
+       (unchecked-add i (foo))
+       #_(+ i (foo)))))
+
+  ; +             "Elapsed time: 58.809468 msecs"
+  ; unchecked-add "Elapsed time: 15.03717 msecs"
+
+  (time
+   (let [node {:host "11.11.11.11"}]
+     (dotimes [i 1000000]
+       (clojure.string/split (:host node) #"\."))))
+
+  ; jvm    "Elapsed time: 478.691944 msecs"
+  ; nodejs "Elapsed time: 1762.992872 msecs"
+
+
+  (time
+   (dotimes [i 1000000]
+     (str 1 "."
+          2 "."
+          3 "."
+          4 ".")))
+
+  ; jvm    "Elapsed time: 663.926413 msecs"
+  ; nodejs "Elapsed time: 654.183687 msecs"
+
+
+  (time
+   (dotimes [i 1000000]
+     (clojure.string/join "." [1 2 3 4])))
+
+  ; jvm "Elapsed time: 461.957236 msecs"
+  ; nodejs "Elapsed time: 1087.789923 msecs"
+
+  (time
+   (let [foo (fn [] 1)]
+     (dotimes [i 1000000]
+       (str (foo) "."
+            (foo) "."
+            (foo) "."
+            (foo) "."))))
+  ; jvm "Elapsed time: 672.591089 msecs"
+  ; nodejs "Elapsed time: 711.664806 msecs"
+
+
+
+  (time
+   (dotimes [i 1000000]
+     (let [bb (bytes.core/byte-buffer 20)]
+       (dotimes [i 20]
+         (bytes.core/put-uint8 bb i 8))
+       (bytes.core/to-byte-array bb))))
+
+  ; "Elapsed time: 250.540999 msecs"
+
+  (time
+   (dotimes [i 1000000]
+     (let [ba (bytes.core/byte-array 20)]
+       (dotimes [i 20]
+         (bytes.core/aset-uint8 ba i 8))
+       ba)))
+
+  ; "Elapsed time: 1281.031404 msecs"
+  ; 
+
+
+  (time
+   (let [bb (bytes.core/byte-buffer 20)]
+     (dotimes [i 100000000]
+       (bytes.core/put-uint8 bb 8 8)
+       (bytes.core/get-uint8 bb 8))))
+  (time
+   (let [^bytes ba (bytes.core/byte-array 20)]
+     (dotimes [i 100000000]
+       (bytes.core/aset-uint8 ba 8 8)
+       (bytes.core/aget-byte ba 8))))
+
+  ; bb no put "Elapsed time: 56.157778 msecs"
+  ; bb with put "Elapsed time: 59.037743 msecs"
+  ; ba no set "Elapsed time: 54.943259 msecs"
+  ; ba with set "Elapsed time: 6334.917527 msecs"
+
+  (time (dotimes [i 10000]
+          (let [x {}]
+            (dotimes [i 10000]
+              (identity x)))))
+  ; "Elapsed time: 51.508801 msecs"
+
+  (time (dotimes [i 10000]
+          (let [x {}]
+            (doseq [i (range 0 10000)]
+              (identity x)))))
+  ; "Elapsed time: 354.270582 msecs"
+
+  (time (dotimes [i 10000]
+          (reduce
+           (fn [r x]
+             (identity r))
+           {}
+           (range 0 10000))))
+  ; "Elapsed time: 898.962197 msecs"
 
   ;
   )
