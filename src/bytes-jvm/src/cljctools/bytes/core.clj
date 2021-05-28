@@ -192,7 +192,7 @@
   [^bytes byte-arr idx val]
   (clojure.core/aset-byte byte-arr ^int idx (unchecked-byte ^int val)))
 
-(defn aget-byte
+(defn aget-byte ^java.lang.Byte
   [^bytes byte-arr idx]
   (clojure.core/aget byte-arr ^int idx))
 
@@ -514,8 +514,22 @@
     ;
     )
 
+  ;
+  )
 
 
+(comment
+
+  (time
+   (dotimes [i 100000000]
+     (mod i 20)))
+  ; "Elapsed time: 3290.230083 msecs"
+
+
+  (time
+   (dotimes [i 100000000]
+     (unchecked-remainder-int i 20)))
+  ; "Elapsed time: 162.802177 msecs"
 
 
   ;
