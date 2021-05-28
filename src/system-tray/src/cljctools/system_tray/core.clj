@@ -40,7 +40,7 @@
           _ (when (nil? system-tray)
               (throw (RuntimeException. "Unable to load SystemTray!")))
           _ (.setTooltip system-tray "Mail Checker")
-          _ (.setImage system-tray image)
+          _ (.setImage system-tray ^java.net.URL image)
           _ (.setStatus system-tray "no mail")
           menu (.getMenu system-tray)
           foo-entry (MenuItem. "foo" (reify ActionListener
@@ -67,5 +67,5 @@
   (go
     (let [system-tray (get @registry-ref id)]
       (when system-tray
-        (.shutdown system-tray) ;; does not work, needs look-into
+        (.shutdown ^SystemTray system-tray) ;; does not work, needs look-into
         (swap! registry-ref dissoc id)))))
