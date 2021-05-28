@@ -186,11 +186,15 @@
 
 (defn aset-byte
   [^bytes byte-arr idx val]
-  (clojure.core/aset-byte byte-arr idx val))
+  (clojure.core/aset-byte byte-arr ^int idx ^int val))
 
 (defn aset-uint8
   [^bytes byte-arr idx val]
-  (clojure.core/aset-byte byte-arr idx (unchecked-byte val)))
+  (clojure.core/aset-byte byte-arr ^int idx (unchecked-byte ^int val)))
+
+(defn aget-byte
+  [^bytes byte-arr idx]
+  (clojure.core/aget byte-arr ^int idx))
 
 (deftype TPushbackInputStream [^PushbackInputStream in]
   bytes.protocols/IPushbackInputStream
@@ -477,5 +481,42 @@
     (require '[byte-streams :as bs] :reload))
   
   
+  ;
+  )
+
+
+(comment
+
+  (do
+    (set! *warn-on-reflection* true)
+    (defn aset-byte1
+      [^bytes byte-arr idx val]
+      (clojure.core/aset-byte byte-arr ^int idx ^int val))
+
+    (defn aset-byte2
+      [^bytes byte-arr idx val]
+      (clojure.core/aset-byte byte-arr ^int idx ^byte val))
+
+    (defn aset-byte3
+      [^bytes byte-arr idx val]
+      (clojure.core/aset-byte byte-arr  (int idx) (byte val)))
+
+    (defn foo
+      [aset-byte]
+      (let [byte-arr (bytes.core/byte-array 20)]
+        (dotimes [i 10000000]
+          (aset-byte byte-arr 5 5))))
+
+    (time (foo aset-byte1))
+    (time (foo aset-byte2))
+    (time (foo aset-byte3))
+
+    ;
+    )
+
+
+
+
+
   ;
   )

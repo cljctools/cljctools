@@ -171,12 +171,16 @@
   (.-length buffer))
 
 (defn aset-byte
-  [byte-arr idx val]
-  (aset byte-arr idx val))
+  [buffer idx val]
+  (aset buffer idx val))
 
 (defn aset-uint8
-  [byte-arr idx val]
-  (aset byte-arr idx val))
+  [buffer idx val]
+  (aset buffer idx val))
+
+(defn aget-byte
+  [buffer idx]
+  (clojure.core/aget buffer idx))
 
 (deftype TPushbackInputStream [buffer ^:mutable offset]
   bytes.protocols/IPushbackInputStream
