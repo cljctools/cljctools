@@ -308,15 +308,15 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      #_(cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
-         ctx)
+      (cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
+       ctx)
 
       ; discovery
-      #_(cljctools.bittorrent.dht-crawl.metadata/start-discovery
-         (merge ctx
-                {:infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
-                 :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
-                 :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))}))
+      (cljctools.bittorrent.dht-crawl.metadata/start-discovery
+       (merge ctx
+              {:infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
+               :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
+               :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))}))
 
       ; process messages
       (process-messages

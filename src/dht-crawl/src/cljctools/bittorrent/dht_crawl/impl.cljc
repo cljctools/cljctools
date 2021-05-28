@@ -489,5 +489,17 @@
            (range 0 10000))))
   ; "Elapsed time: 898.962197 msecs"
 
+
+  (time
+   (dotimes [i 1000000]
+     (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
+  ; "Elapsed time: 93.882265 msecs"
+
+  (time
+   (let [ba (codec.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")]
+     (dotimes [i 1000000]
+       (codec.core/hex-encode-string ba))))
+  ; "Elapsed time: 102.516529 msecs"
+
   ;
   )

@@ -314,7 +314,7 @@
 
   (let [in-processA (atom {})
         already-searchedA (atom #{})
-        in-progress| (chan 5)]
+        in-progress| (chan 80)]
     (go
       (loop []
         (let [[value port] (alts! [infohashes-from-sybil|
