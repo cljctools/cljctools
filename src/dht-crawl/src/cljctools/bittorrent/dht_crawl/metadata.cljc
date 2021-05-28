@@ -24,6 +24,8 @@
                                                 sorted-map-buffer
                                                 now]]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
+
 (def count-socketsA (atom 0))
 
 (defn request-metadata

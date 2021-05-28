@@ -11,6 +11,7 @@
                                                 decode-nodes
                                                 now]]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defn start-sampling
   [{:as opts

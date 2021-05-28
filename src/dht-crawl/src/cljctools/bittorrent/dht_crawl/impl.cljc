@@ -11,6 +11,8 @@
    [cljctools.codec.core :as codec.core]
    [cljctools.fs.core :as fs.core]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
+
 (defn now
   []
   #?(:clj (System/currentTimeMillis))
@@ -89,7 +91,7 @@
       (throw (ex-info "xor-distance: args should have same length" {})))
     (reduce
      (fn [resultBA i]
-       (bytes.core/aset-uint8 resultBA i (bit-xor (aget xBA i) (aget yBA i)))
+       (bytes.core/aset-uint8 resultBA i (bit-xor (bytes.core/aget-byte xBA i) (bytes.core/aget-byte yBA i)))
        resultBA)
      (bytes.core/byte-array xBA-length)
      (range 0 xBA-length))))
@@ -101,8 +103,8 @@
       (throw (ex-info "distance-compare: buffers should have same length" {})))
     (reduce
      (fn [result i]
-       (let [a (aget distance1BA i)
-             b (aget distance2BA i)]
+       (let [a (bytes.core/aget-byte distance1BA i)
+             b (bytes.core/aget-byte distance2BA i)]
          (cond
            (== a b) 0
            (< a b) (reduced -1)
@@ -229,6 +231,24 @@
          response|)))))
 
 
+#?(:clj (do
+          (defn chan-buf
+            [^clojure.core.async.impl.channels.ManyToManyChannel c|]
+            (.-buf c|))
+
+          (defn fixed-buf-size
+            [^clojure.core.async.impl.channels.ManyToManyChannel c|]
+            (.-n ^clojure.core.async.impl.buffers.FixedBuffer (.-buf c|))))
+   :cljs (do
+           (defn chan-buf
+             [c|]
+             (.-buf c|))
+
+           (defn fixed-buf-size
+             [c|]
+             (.-n (.-buf c|)))))
+
+
 (comment
 
   (do
@@ -297,3 +317,54 @@
   )
 
 
+
+(comment
+
+  (time
+   (let [byte-arr (bytes.core/byte-array 20)]
+     (dotimes [i 100000]
+       (let [x (mod i 20)]
+         (aget byte-arr x)
+         (bytes.core/aset-uint8 byte-arr x x)))
+     (vec byte-arr)))
+
+  ; jvm    "Elapsed time: 1124.560132 msecs"
+  ; nodejs "Elapsed time: 8.175314 msecs"
+  ; aget is the reason - without it it's 14.898965 msecs on jvm and 3.294965 msecs on nodejs
+
+
+  (time
+   (let [buffer (bytes.core/byte-buffer 20)]
+     (dotimes [i 100000]
+       (let [x (mod i 20)]
+         (bytes.core/get-byte buffer x)
+         (bytes.core/put-byte buffer x x)))
+     (vec (bytes.core/to-byte-array buffer))))
+
+  ; jvm    "Elapsed time: 14.785804 msecs"
+  ; nodejs "Elapsed time: 10.233080 msecs"
+
+  ; aget needs type hint ^bytes
+  (time
+   (let [^bytes byte-arr (bytes.core/byte-array 20)]
+     (dotimes [i 100000]
+       (let [^int x (mod i 20)]
+         (aget byte-arr x)
+         (bytes.core/aset-uint8 byte-arr x x)))
+     (vec byte-arr)))
+
+
+  (time
+   (let [byte-arr (bytes.core/byte-array 20)]
+     (dotimes [i 10000000]
+       (let [x (mod i 20)]
+         (bytes.core/aget-byte byte-arr x)
+         (bytes.core/aset-uint8 byte-arr x x)))
+     (vec byte-arr)))
+
+  ; jvm    "Elapsed time: 704.516302 msecs"
+  ; nodejs "Elapsed time: 49.059405 msecs"
+
+
+  ;
+  )

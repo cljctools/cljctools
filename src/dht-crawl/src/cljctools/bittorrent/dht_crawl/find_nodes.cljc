@@ -10,6 +10,7 @@
    [cljctools.bittorrent.dht-crawl.impl :refer [decode-nodes
                                                 now]]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defn start-bootstrap-query
   [{:as opts

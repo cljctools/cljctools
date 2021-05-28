@@ -30,13 +30,17 @@
                                                 sorted-map-buffer
                                                 read-state-file
                                                 write-state-file
-                                                now]]
+                                                now
+                                                fixed-buf-size
+                                                chan-buf]]
 
    [cljctools.bittorrent.dht-crawl.dht]
    [cljctools.bittorrent.dht-crawl.find-nodes]
    [cljctools.bittorrent.dht-crawl.metadata]
    [cljctools.bittorrent.dht-crawl.sybil]
    [cljctools.bittorrent.dht-crawl.sample-infohashes]))
+
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (declare
  process-socket
@@ -304,15 +308,15 @@
             (recur))))
 
       ; ask peers directly, politely for infohashes
-      (cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
-       ctx)
+      #_(cljctools.bittorrent.dht-crawl.sample-infohashes/start-sampling
+         ctx)
 
       ; discovery
-      (cljctools.bittorrent.dht-crawl.metadata/start-discovery
-       (merge ctx
-              {:infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
-               :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
-               :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))}))
+      #_(cljctools.bittorrent.dht-crawl.metadata/start-discovery
+         (merge ctx
+                {:infohashes-from-sampling| (tap infohashes-from-sampling|mult (chan (sliding-buffer 100000)))
+                 :infohashes-from-listening| (tap infohashes-from-listening|mult (chan (sliding-buffer 100000)))
+                 :infohashes-from-sybil| (tap infohashes-from-sybil|mult (chan (sliding-buffer 100000)))}))
 
       ; process messages
       (process-messages
@@ -395,7 +399,6 @@
     (go
       (loop []
         (alt!
-
           (timeout (* 5 1000))
           ([_]
            (swap! countA inc)
@@ -408,14 +411,15 @@
                        [:discovery [:total @count-discoveryA
                                     :active @count-discovery-activeA]]
                        [:torrents @count-torrentsA]
-                       [:nodes-to-sample| (count (.-buf nodes-to-sample|)) :nodes-from-sampling| (count (.-buf nodes-from-sampling|))]
+                       [:nodes-to-sample| (count (chan-buf nodes-to-sample|) )
+                        :nodes-from-sampling| (count (chan-buf nodes-from-sampling|))]
                        [:messages [:dht @count-messagesA :sybil @count-messages-sybilA]]
                        [:sockets @cljctools.bittorrent.dht-crawl.metadata/count-socketsA]
                        [:routing-table (count (:routing-table state))]
                        [:dht-keyspace (map (fn [[id routing-table]] (count routing-table)) (:dht-keyspace state))]
                        [:routing-table-find-noded  (count (:routing-table-find-noded state))]
                        [:routing-table-sampled (count (:routing-table-sampled state))]
-                       [:sybils| (str (- (.. sybils| -buf -n) (count (.-buf sybils|))) "/" (.. sybils| -buf -n))]
+                       [:sybils| (str (- (fixed-buf-size sybils|) (count (chan-buf sybils|))) "/" (fixed-buf-size sybils|))]
                        [:time (str (int (/ (- (now) started-at) 1000 60)) "min")]]]
              (pprint info)
              (fs.protocols/write* writer (with-out-str (pprint info)))
@@ -614,12 +618,14 @@
         :port 8899}' \
   --repl-env node --compile cljctools.bittorrent.dht-crawl.core --repl
 
-
   (require
    '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                       pub sub unsub mult tap untap mix admix unmix pipe
                                       timeout to-chan  sliding-buffer dropping-buffer
                                       pipeline pipeline-async]]
+   '[clojure.core.async.impl.protocols :refer [closed?]])
+
+  (require
    '[cljctools.fs.core :as fs.core]
    '[cljctools.bytes.core :as bytes.core]
    '[cljctools.codec.core :as codec.core]
@@ -680,6 +686,71 @@
           (println [:took value (.. (Thread/currentThread) (getName))])
           (recur)))
       (println [:exit 4])))
+
+  ;
+  )
+
+
+
+(comment
+
+  (let [stateA (atom (transient {}))]
+    (dotimes [n 8]
+      (go
+        (loop [i 100]
+          (when (> i 0)
+            (get @stateA :n)
+            (swap! stateA dissoc! :n)
+            (swap! stateA assoc! :n i)
+
+
+            (recur (dec i))))
+        (println :done n))))
+
+  ; java.lang.ArrayIndexOutOfBoundsException: Index -2 out of bounds for length 16
+  ; at clojure.lang.PersistentArrayMap$TransientArrayMap.doWithout (PersistentArrayMap.java:432)
+  ; at clojure.lang.ATransientMap.without (ATransientMap.java:69)
+  ; at clojure.core$dissoc_BANG_.invokeStatic (core.clj:3373)
+
+
+  (time
+   (loop [i 10000000
+          m (transient {})]
+     (if (> i 0)
+
+       (recur (dec i) (-> m
+                          (assoc! :a 1)
+                          (dissoc! :a)
+                          (assoc! :a 2)))
+       (persistent! m))))
+
+  ; "Elapsed time: 799.025172 msecs"
+
+  (time
+   (loop [i 10000000
+          m {}]
+     (if (> i 0)
+
+       (recur (dec i) (-> m
+                          (assoc :a 1)
+                          (dissoc :a)
+                          (assoc :a 2)))
+       m)))
+
+  ; "Elapsed time: 1361.090409 msecs"
+
+  (time
+   (loop [i 10000000
+          m (sorted-map)]
+     (if (> i 0)
+
+       (recur (dec i) (-> m
+                          (assoc :a 1)
+                          (dissoc :a)
+                          (assoc :a 2)))
+       m)))
+
+  ; "Elapsed time: 1847.529152 msecs"
 
   ;
   )

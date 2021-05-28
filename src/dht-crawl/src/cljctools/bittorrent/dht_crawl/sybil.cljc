@@ -22,7 +22,10 @@
    [cljctools.bittorrent.dht-crawl.impl :refer [decode-nodes
                                                 gen-neighbor-id
                                                 encode-nodes
-                                                send-krpc-request-fn]]))
+                                                send-krpc-request-fn
+                                                fixed-buf-size]]))
+
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (declare process-socket)
 
@@ -75,7 +78,7 @@
     (go
       (<! (onto-chan! sybils| (map (fn [i]
                                      (bytes.core/random-bytes 20))
-                                   (range 0 (.. sybils| -buf -n))) true))
+                                   (range 0 (fixed-buf-size sybils|))) true))
       (doseq [node nodes-bootstrap]
         (take!
          (send-krpc-request

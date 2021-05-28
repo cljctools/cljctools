@@ -11,6 +11,7 @@
    [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
                                                 now]]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defn valid-for-ping?
   [[id node]]
