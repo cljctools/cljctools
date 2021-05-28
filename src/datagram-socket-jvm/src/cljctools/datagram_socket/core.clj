@@ -18,7 +18,7 @@
    (io.netty.bootstrap Bootstrap)
    (io.netty.channel ChannelPipeline)))
 
-(set! *warn-on-reflection* true)
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (s/def ::opts (s/keys :req [::datagram-socket.spec/host
                             ::datagram-socket.spec/port

@@ -23,6 +23,8 @@
    dorkbox.util.CacheUtil
    dorkbox.util.Desktop))
 
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+
 (defonce ^:private registry-ref (atom {}))
 
 (defn create

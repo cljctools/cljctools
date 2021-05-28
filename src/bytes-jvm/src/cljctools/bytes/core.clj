@@ -8,7 +8,7 @@
    (java.nio ByteBuffer)
    (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closeable)))
 
-(set! *warn-on-reflection* true)
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (def ^:const ByteArray (Class/forName "[B")) #_(class (clojure.core/byte-array 0))
 

@@ -3,13 +3,14 @@
   (:require
    [clojure.java.io :as io]
    [cljctools.fs.protocols :as fs.protocols])
-  (:import (java.io Writer)))
+  (:import (java.io Writer File)))
+
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (defn path-join
   [& args]
   (->
-   (apply io/file args)
-   (.getCanonicalPath)))
+   (.getCanonicalPath ^File (apply io/file args))))
 
 (defn path-exists?
   [filepath]

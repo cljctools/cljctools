@@ -6,7 +6,7 @@
    [cljctools.bytes.core :as bytes.core])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
-(set! *warn-on-reflection* true)
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (defn write-to-byte-array ^bytes
   [data type-kw opts]

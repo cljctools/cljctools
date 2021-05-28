@@ -3,7 +3,7 @@
    (io.netty.buffer ByteBufUtil)
    #_(org.apache.commons.codec.binary Hex)))
 
-(set! *warn-on-reflection* true)
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (defn hex-decode ^bytes
   [^String string]
