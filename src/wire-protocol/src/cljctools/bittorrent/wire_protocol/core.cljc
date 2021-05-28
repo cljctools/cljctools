@@ -13,6 +13,7 @@
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [clojure.walk :refer [keywordize-keys]]))
 
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defprotocol WireProtocol)
 
@@ -238,8 +239,8 @@
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4)
                                (assoc! :peer-infohashBA (bytes.core/to-byte-array infohashBB))
-                               (assoc! :peer-extended? (boolean (bit-and (bytes.core/get-uint8 reservedBB 5) 2r00010000)))
-                               (assoc! :peer-dht? (boolean (bit-and (bytes.core/get-uint8 reservedBB 7) 2r00000001))))))))
+                               (assoc! :peer-extended? (not (== 0 (bit-and (bytes.core/get-uint8 reservedBB 5) 2r00010000))) )
+                               (assoc! :peer-dht? (not (== 0 (bit-and (bytes.core/get-uint8 reservedBB 7) 2r00000001)))))))))
 
               :msg-length
               (let [msg-length (bytes.core/get-uint32 msgBB 0)]
@@ -450,6 +451,10 @@
                       github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
                       github.cljctools/core-js {:local/root "./cljctools/src/core-js"}}}' \
    -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire-protocol.core --repl
+  
+   (do
+     (set! *warn-on-reflection* true)
+     (set! *unchecked-math* true))
   
   (require
    '[clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
