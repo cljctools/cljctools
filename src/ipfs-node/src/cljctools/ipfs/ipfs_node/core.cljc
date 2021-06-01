@@ -4,6 +4,7 @@
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
+   [clojure.spec.alpha :as s]
    [cljctools.socket.protocols :as socket.protocols]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.core :as socket.core]
@@ -12,7 +13,7 @@
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
    [cljctools.datagram-socket.core :as datagram-socket.core]
 
-   [cljctools.ipfs.dht.core :as dht.core]))
+   [cljctools.ipfs.ipfs-node.dht :as ipfs-node.dht]))
 
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
