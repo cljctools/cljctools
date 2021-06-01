@@ -1,6 +1,8 @@
 syntax = "proto3";
 package cljctools.ipfs.dht.proto;
 
+// SRC=ipfs/src/dht/src bash -c 'protoc --clojure_out=${SRC} ${SRC}/cljctools/ipfs/dht/proto.proto'
+
 message Record {
 	// The key that references this record
 	bytes key = 1;
