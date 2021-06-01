@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# protoc --clojure_out=../src proto/dht.proto
+
+"$@"

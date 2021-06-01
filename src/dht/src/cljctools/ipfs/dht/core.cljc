@@ -10,7 +10,9 @@
 
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
-   [cljctools.datagram-socket.core :as datagram-socket.core]))
+   [cljctools.datagram-socket.core :as datagram-socket.core]
+   [protojure.protobuf]
+   [cljctools.ipfs.dht.proto :as dht.proto]))
 
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
