@@ -9,48 +9,30 @@
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.core :as socket.core]
 
-   [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
-   [cljctools.datagram-socket.spec :as datagram-socket.spec]
-   [cljctools.datagram-socket.core :as datagram-socket.core]
-
-   [cljctools.ipfs.ipfs-node.dht :as ipfs-node.dht]))
-
+   [protojure.protobuf]
+   [cljctools.ipfs.ipfs-node.proto :as ipfs-node.proto]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
-(defprotocol IpfsNode)
 
-(s/def ::ipfs-node #(and
-                     (satisfies? IpfsNode %)
-                     #?(:clj (instance? clojure.lang.IDeref %))
-                     #?(:cljs (satisfies? cljs.core/IDeref %))))
-
-(s/def ::opts (s/keys :req []
-                      :opt []))
-
-(defn create
+(defn start
   [{:as opts
     :keys []}]
-  {:pre [(s/assert ::opts opts)]
-   :post [(s/assert ::ipfs-node %)]}
   (go
-    (let [stateV (volatile! {})
-
-          ipfs-node
-          ^{:type ::ipfs-node}
-          (reify
-            IpfsNode
-            #?@(:clj
-                [clojure.lang.IDeref
-                 (deref [_] @stateV)]
-                :cljs
-                [cljs.core/IDeref
-                 (-deref [_] @stateV)]))]
-
-      (go
-        (loop []))
+    (let [bootstrap-multiaddresses
+          ["/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
+           "/dnsaddr/bootstrap.libp2p.io/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
+           "/dnsaddr/bootstrap.libp2p.io/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb"
+           "/dnsaddr/bootstrap.libp2p.io/p2p/QmcZf59bWwK5XFi76CZX8cbJ4BhTzzA3gU1ZjYZcYW3dwt"
+           #_"/dns4/node0.preload.ipfs.io/tcp/443/wss/p2p/QmZMxNdpMkewiVZLMRxaNxUeZpDUb34pWjZ1kZvsd16Zic"
+           #_"/dns4/node1.preload.ipfs.io/tcp/443/wss/p2p/Qmbut9Ywz9YEDrz8ySBSgWyJk41Uvm2QJPhwDJzJyGFsD6"
+           #_"/dns4/node2.preload.ipfs.io/tcp/443/wss/p2p/QmV7gnbW5VTcJ3oyM2Xk1rdFBJ3kTkvxc87UFGsun29STS"
+           #_"/dns4/node3.preload.ipfs.io/tcp/443/wss/p2p/QmY7JB6MQXhxHvq7dBDh4HpbH29v4yE9JRadAVpndvzySN"
+           "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
+           "/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"]]
 
       (go
         (loop []))
 
-      ipfs-node)))
+      (go
+        (loop [])))))
