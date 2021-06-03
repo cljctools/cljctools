@@ -1,23 +1,28 @@
-(ns cljctools.ipfs.ipfs-node.core
+(ns cljctools.ipfs.dht.core
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
+
    [cljctools.socket.protocols :as socket.protocols]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.core :as socket.core]
 
-   [protojure.protobuf]
-   [cljctools.ipfs.ipfs-node.proto :as ipfs-node.proto]))
+   [cljctools.ipfs.spec :as ipfs.spec]
+   [cljctools.ipfs.dht.connection :as dht.connection]
+   [cljctools.ipfs.core :refer [multiaddress-to-data]]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
+(declare
+ connect)
 
-(defn start
+(defn create
   [{:as opts
     :keys []}]
+  
   (go
     (let [bootstrap-multiaddresses
           ["/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
@@ -36,3 +41,50 @@
 
       (go
         (loop [])))))
+
+
+(defn connect
+  [{:as opts
+    :keys [::ipfs.spec/multiaddress
+           ::send|
+           ::msg|
+           ::ex|]}]
+  (go
+    (let [socket-msg| (chan 100)
+          socket-evt| (chan (sliding-buffer 10))
+          socket-ex| (chan 1)
+
+          {:keys [::ipfs.spec/host
+                  ::ipfs.spec/port]} (multiaddress-to-data multiaddress)
+          socket (socket.core/create
+                  {::socket.spec/port port
+                   ::socket.spec/host host
+                   ::socket.spec/evt| socket-evt|
+                   ::socket.spec/msg| socket-msg|
+                   ::socket.spec/ex| socket-ex|})
+
+          release (fn []
+                    (socket.protocols/close* socket)
+                    (close! socket-msg|)
+                    (close! socket-evt|))]
+
+      (dht.connection/create {::recv| socket-msg|
+                              ::send| send|
+                              ::msg| msg|})
+
+      (go
+        (when-let [evt (<! socket-evt|)]
+          #_(println ::socket evt))
+        (loop []
+          (alt!
+            socket-ex|
+            ([ex]
+             (when ex
+               (>! ex| ex)))
+
+            send|
+            ([value]
+             (when value
+               (socket.protocols/send* socket value)
+               (recur)))
+            :priority true))))))
