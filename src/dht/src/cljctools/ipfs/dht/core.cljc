@@ -6,9 +6,9 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
 
-   [cljctools.socket.protocols :as socket.protocols]
-   [cljctools.socket.spec :as socket.spec]
-   [cljctools.socket.core :as socket.core]
+   [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
+   [cljctools.datagram-socket.spec :as datagram-socket.spec]
+   [cljctools.datagram-socket.core :as datagram-socket.core]
 
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.dht.connection :as dht.connection]
@@ -41,50 +41,3 @@
 
       (go
         (loop [])))))
-
-
-(defn connect
-  [{:as opts
-    :keys [::ipfs.spec/multiaddress
-           ::send|
-           ::msg|
-           ::ex|]}]
-  (go
-    (let [socket-msg| (chan 100)
-          socket-evt| (chan (sliding-buffer 10))
-          socket-ex| (chan 1)
-
-          {:keys [::ipfs.spec/host
-                  ::ipfs.spec/port]} (multiaddress-to-data multiaddress)
-          socket (socket.core/create
-                  {::socket.spec/port port
-                   ::socket.spec/host host
-                   ::socket.spec/evt| socket-evt|
-                   ::socket.spec/msg| socket-msg|
-                   ::socket.spec/ex| socket-ex|})
-
-          release (fn []
-                    (socket.protocols/close* socket)
-                    (close! socket-msg|)
-                    (close! socket-evt|))]
-
-      (dht.connection/create {::recv| socket-msg|
-                              ::send| send|
-                              ::msg| msg|})
-
-      (go
-        (when-let [evt (<! socket-evt|)]
-          #_(println ::socket evt))
-        (loop []
-          (alt!
-            socket-ex|
-            ([ex]
-             (when ex
-               (>! ex| ex)))
-
-            send|
-            ([value]
-             (when value
-               (socket.protocols/send* socket value)
-               (recur)))
-            :priority true))))))
