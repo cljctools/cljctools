@@ -287,3 +287,194 @@
   
   ;;
   )
+
+
+(comment
+
+  (def server
+    (-> (RSocketServer/create
+         (SocketAcceptor/forRequestResponse
+          (reify Function
+            (apply [_ payload]
+              (let [data (.getDataUtf8 payload)
+                    _ (println (format "received request data %s" data))
+                    response-payload (DefaultPayload/create (str "Echo: " data))]
+                (.release payload)
+                (Mono/just response-payload))))))
+        (.bind (TcpServerTransport/create "localhost" 7000))
+        (.delaySubscription (Duration/ofSeconds 5))
+        (.doOnNext (reify Consumer
+                     (accept [_ cc]
+                       (println (format "server started on address %s" (.address cc))))))
+        (.subscribe)))
+
+  (def source
+    (-> (RSocketConnector/create)
+        (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+        (.connect (TcpClientTransport/create "localhost" 7000))))
+
+  (def client
+    (-> (RSocketClient/from source)
+        (.requestResponse (Mono/just (DefaultPayload/create "test request")))
+        (.doOnSubscribe (reify Consumer
+                          (accept [_ s]
+                            (println "executing request"))))
+        (.doOnNext (reify Consumer
+                     (accept [_ payload]
+                       (println (format "received response data %s" (.getDataUtf8 payload)))
+                       (.release payload))))
+        (.repeat 10)
+        (.blockLast)))
+
+
+
+  ;;
+  )
+
+
+(comment
+
+  (defn make-rsocket-recv
+    [name]
+    (reify RSocket
+      (requestResponse [_ payload]
+        (println (format "requestResponse %s answers to: %s" name (.getDataUtf8 payload)))
+        (Mono/just (DefaultPayload/create (format "echo %s" (.getDataUtf8 payload)))))
+      (requestStream [_ payload]
+        (println (format "requestStream %s answers to: %s" name (.getDataUtf8 payload)))
+        (-> #_(Flux/interval (Duration/ofMillis 1))
+            (Flux/range 0 10)
+            (.map (reify Function
+                    (apply [_ a-long]
+                      (DefaultPayload/create (format "interval %s" a-long)))))))))
+
+  (defn request-response
+    [client name text]
+    (-> client
+        (.requestResponse (Mono/just (DefaultPayload/create (format "%s asks '%s'" name text))))
+        (.doOnSubscribe (reify Consumer
+                          (accept [_ s]
+                            (println (format "%s : executing request" name)))))
+        (.doOnNext (reify Consumer
+                     (accept [_ payload]
+                       (println (format "requestResponse %s receives: %s" name (.getDataUtf8 payload)))
+                       (.release payload))))
+        (.subscribe)
+        #_(.repeat 0)
+        #_(.blockLast)))
+
+  (defn request-stream
+    [client name text]
+    (-> client
+        (.requestStream (Mono/just (DefaultPayload/create (format "%s asks '%s'" name text))))
+        #_(.map (reify Function
+                  (apply [_ payload]
+                    (.getDataUtf8 payload))))
+        #_(.log)
+        (.doOnNext (reify Consumer
+                     (accept [_ payload]
+                       (println (format "request-stream %s receives: %s" name (.getDataUtf8 payload)))
+                       (.release payload))))
+        (.subscribe)))
+
+  ;; accepting side
+
+  (def accepting-client (atom nil))
+  (def accepting-server (->  #_(RSocketServer/create (SocketAcceptor/with rsocket))
+                             (RSocketServer/create
+                              (reify SocketAcceptor
+                                (accept [_ setup rsocket-send]
+                                  (reset! accepting-client (RSocketClient/from rsocket-send))
+                                  (Mono/just (make-rsocket-recv "accepting")))))
+                             (.bind (TcpServerTransport/create "localhost" 7000))
+                             (.doOnNext (reify Consumer
+                                          (accept [_ cc]
+                                            (println (format "server started on address %s" (.address cc))))))
+                             (.subscribe)))
+
+  ;; connecting side
+
+  (def connecting-source
+    (-> (RSocketConnector/create)
+        (.acceptor (SocketAcceptor/with (make-rsocket-recv "connecting")))
+        (.reconnect (Retry/backoff 50 (Duration/ofMillis 500)))
+        (.connect (TcpClientTransport/create "localhost" 7000))
+        (.block)))
+
+  (def connecting-client (RSocketClient/from connecting-source))
+
+  (request-response connecting-client "connecting" "ping")
+  (request-response @accepting-client "accepting" "ping")
+
+  (request-stream connecting-client "connecting" "stream?")
+  (request-stream @accepting-client "accepting" "stream?")
+
+
+  ;;
+  )
+
+
+(comment
+
+  (require '[cljctools.rsocket.spec :as rsocket.spec]
+           '[cljctools.rsocket.chan :as rsocket.chan]
+           '[cljctools.rsocket.impl :as rsocket.impl]
+           '[cljctools.rsocket.protocols :as rsocket.protocols])
+
+  (do
+
+    (def transport #_::rsocket.spec/tcp ::rsocket.spec/websocket)
+
+    (def accepting-channels (rsocket.chan/create-channels))
+    (def initiating-channels (rsocket.chan/create-channels))
+
+    (def accepting (rsocket.impl/create-proc-ops
+                    accepting-channels
+                    {::rsocket.spec/connection-side ::rsocket.spec/accepting
+                     ::rsocket.spec/host "localhost"
+                     ::rsocket.spec/port 7000
+                     ::rsocket.spec/transport transport}))
+
+    (def initiating (rsocket.impl/create-proc-ops
+                     initiating-channels
+                     {::rsocket.spec/connection-side ::rsocket.spec/initiating
+                      ::rsocket.spec/host "localhost"
+                      ::rsocket.spec/port 7000
+                      ::rsocket.spec/transport transport}))
+
+    (def accepting-ops| (chan 10))
+    (def initiating-ops| (chan 10))
+
+    (pipe (::rsocket.chan/requests| accepting-channels) accepting-ops|)
+    (pipe (::rsocket.chan/requests| initiating-channels) initiating-ops|)
+
+    (go (loop []
+          (when-let [value (<! accepting-ops|)]
+            (let [{:keys [::op.spec/out|]} value]
+              (println (format "accepting side receives request:"))
+              (println (dissoc value ::op.spec/out|))
+              (put! out| {::accepting-sends ::any-kind-of-map-value}))
+            (recur))))
+
+    (go (loop []
+          (when-let [value (<! initiating-ops|)]
+            (let [{:keys [::op.spec/out|]} value]
+              (println (format "initiating side receives request:"))
+              (println (dissoc value ::op.spec/out|))
+              (put! out| {::intiating-sends ::any-kind-of-map-value}))
+            (recur))))
+    ;
+    )
+
+  (go
+    (let [out| (chan 1)]
+      (put! (::rsocket.chan/ops| accepting-channels) {::op.spec/op-key ::hello-from-accepting
+                                                      ::op.spec/op-type ::op.spec/request-response
+                                                      ::op.spec/op-orient ::op.spec/request
+                                                      ::op.spec/out| out|})
+      (println (<! out|))
+      (println "request go-block exists")))
+
+
+  ;;
+  )
