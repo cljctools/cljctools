@@ -8,4 +8,4 @@ ipfs and libp2p libs
 
 ## goal
 
-- one protocol, one encryption,...  - pick one (like bittorrent) and focus on user programs, not swiss army knife bloated tooling  
+- one protocol, one encryption,...  - pick one (like bittorrent) and focus on user programs, not swiss army knife bloated tooling (MULTICS vs UNIX all over again..)
