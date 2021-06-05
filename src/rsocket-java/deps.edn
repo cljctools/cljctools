@@ -1,0 +1,8 @@
+{:paths ["src"]
+ :deps {io.rsocket/rsocket-core {:mvn/version "1.1.0"}
+        io.rsocket/rsocket-transport-netty {:mvn/version "1.1.0"}
+
+        github.cljctools/cljc {:local/root  "../cljc"}
+        github.cljctools/csp {:local/root  "../csp"}
+
+        github.cljctools/rsocket-meta {:local/root  "../rsocket-meta"}}}

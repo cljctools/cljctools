@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {github.cljctools/cljc {:local/root  "../cljc"}
+        github.cljctools/csp {:local/root  "../csp"}
+        github.cljctools/rsocket-meta {:local/root  "../rsocket-meta"}}}
