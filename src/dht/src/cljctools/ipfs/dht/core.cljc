@@ -12,7 +12,7 @@
 
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.dht.connection :as dht.connection]
-   [cljctools.ipfs.core :refer [multiaddress-to-data]]))
+   [cljctools.ipfs.dht.impl :refer [multiaddress-to-data]]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
