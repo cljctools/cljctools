@@ -7,7 +7,6 @@
    [clojure.spec.alpha :as s]
 
    [cljctools.bytes.core :as bytes.core]
-   [cljctools.ipfs.proto.core :as proto.core]
    [cljctools.ipfs.dht.impl :refer []]
    [cljctools.ipfs.spec :as ipfs.spec]))
 

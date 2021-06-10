@@ -1,6 +1,7 @@
 (ns cljctools.ipfs.dht.impl
   (:require
-   [cljctools.bytes.core :as bytes.core]))
+   [cljctools.bytes.core :as bytes.core]
+   [cljctools.protobuf.core :as protobuf.core]))
 
 (defn multiaddress-to-data
   [multiaddress]
