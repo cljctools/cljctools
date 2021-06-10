@@ -11,7 +11,7 @@
    [cljctools.socket.core :as socket.core]
 
    [cljctools.ipfs.spec :as ipfs.spec]
-   [cljctools.ipfs.dht.connection :as dht.connection]
+   [cljctools.ipfs.dht.wire :as dht.wire]
    [cljctools.ipfs.dht.impl :refer [multiaddress-to-data]]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
@@ -68,9 +68,9 @@
                     (close! socket-msg|)
                     (close! socket-evt|))]
 
-      (dht.connection/create {::recv| socket-msg|
-                              ::send| send|
-                              ::msg| msg|})
+      (dht.wire/create {::recv| socket-msg|
+                        ::send| send|
+                        ::msg| msg|})
 
       (go
         (when-let [evt (<! socket-evt|)]

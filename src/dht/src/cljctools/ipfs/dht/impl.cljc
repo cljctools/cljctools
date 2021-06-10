@@ -78,6 +78,7 @@
   (require
    '[cljctools.bytes.core :as bytes.core]
    '[cljctools.ipfs.dht.impl :as dht.impl]
+   '[cljctools.ipfs.dht.core :as dht.core]
    :reload)
   
   [(->
