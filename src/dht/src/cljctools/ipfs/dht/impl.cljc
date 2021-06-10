@@ -15,30 +15,33 @@
       (recur (inc i) (unsigned-bit-shift-right x 7)))))
 
 (defn encode-uvarint
-  [value]
-  (loop [buffer (bytes.core/byte-buffer (uvarint-size value))
-         offset (int 0)
-         x (long value)]
-    (if (>= x 0x80)
-      (do
-        (bytes.core/put-uint8 buffer offset (-> (bit-and x 0x7f) (bit-or 0x80)))
-        (recur buffer (inc offset) (unsigned-bit-shift-right x 7)))
-      (do
-        (bytes.core/put-uint8 buffer offset (bit-and x 0x7f))
-        buffer))))
+  ([value]
+   (encode-uvarint value (bytes.core/byte-buffer (uvarint-size value)) 0))
+  ([value buffer offset]
+   (loop [offset (int offset)
+          x (long value)]
+     (if (>= x 0x80)
+       (do
+         (bytes.core/put-uint8 buffer offset (-> (bit-and x 0x7f) (bit-or 0x80)))
+         (recur (inc offset) (unsigned-bit-shift-right x 7)))
+       (do
+         (bytes.core/put-uint8 buffer offset (bit-and x 0x7f))
+         buffer)))))
 
 (defn decode-uvarint
-  [buffer]
-  (loop [x (long 0)
-         offset (int 0)
-         byte (int (bytes.core/get-uint8 buffer offset))
-         shift (int 0)]
-    (if (< byte 0x80)
-      (bit-or x (bit-shift-left byte shift))
-      (recur (bit-or x (bit-shift-left (bit-and byte 0x7f) shift))
-             (inc offset)
-             (bytes.core/get-uint8 buffer (inc offset))
-             (+ shift 7)))))
+  ([buffer]
+   (decode-uvarint buffer 0))
+  ([buffer offset]
+   (loop [x (long 0)
+          offset (int offset)
+          byte (int (bytes.core/get-uint8 buffer offset))
+          shift (int 0)]
+     (if (< byte 0x80)
+       (bit-or x (bit-shift-left byte shift))
+       (recur (bit-or x (bit-shift-left (bit-and byte 0x7f) shift))
+              (inc offset)
+              (bytes.core/get-uint8 buffer (inc offset))
+              (+ shift 7))))))
 
 
 (comment
