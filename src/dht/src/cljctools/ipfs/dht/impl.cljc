@@ -65,6 +65,14 @@
       :msg-length msg-length
       :msgBB (bytes.core/buffer-wrap buffer (+ header-size msg-length-size) msg-length)})))
 
+(defn encode-mplex
+  [{:as data
+    :keys [flag stream-id msgBB]}]
+  (bytes.core/concat
+   [(encode-uvarint (bit-or (bit-shift-left stream-id 3) flag))
+    (encode-uvarint (bytes.core/size msgBB))
+    msgBB]))
+
 (comment
 
   (require
