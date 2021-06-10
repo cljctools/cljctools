@@ -43,6 +43,27 @@
               (bytes.core/get-uint8 buffer (inc offset))
               (+ shift 7))))))
 
+(defn decode-mplex
+  ([buffer]
+   (decode-mplex buffer 0))
+  ([buffer offset]
+   (let [header (decode-uvarint buffer 0)
+         flag (bit-and header 0x07)
+         stream-id (bit-shift-right header 3)
+         header-size (uvarint-size header)
+         msg-length (decode-uvarint buffer header-size)
+         msg-length-size (uvarint-size msg-length)]
+     {:flag (case flag
+              0 :new-stream
+              1 :message-receiver
+              2 :message-initiator
+              3 :close-receiver
+              4 :close-initiator
+              5 :reset-receiver
+              6 :reset-initiator)
+      :stream-id stream-id
+      :msg-length msg-length
+      :msgBB (bytes.core/buffer-wrap buffer (+ header-size msg-length-size) msg-length)})))
 
 (comment
 
