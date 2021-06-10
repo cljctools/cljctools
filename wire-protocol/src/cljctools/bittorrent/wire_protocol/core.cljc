@@ -434,22 +434,22 @@
 
   clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
-                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
-                      github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
-                      github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}
-                      github.cljctools/core-jvm {:local/root "./cljctools/src/core-jvm"}}}'
+                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
+                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/wire-protocol"}
+                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/spec"}
+                      github.cljctools/bytes-jvm {:local/root "./cljctools/bytes-jvm"}
+                      github.cljctools/codec-jvm {:local/root "./cljctools/codec-jvm"}
+                      github.cljctools/core-jvm {:local/root "./cljctools/core-jvm"}}}'
   
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
-                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
-                      github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
-                      github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}
-                      github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
-                      github.cljctools/core-js {:local/root "./cljctools/src/core-js"}}}' \
+                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
+                      github.cljctools.bittorrent/wire {:local/root "./bittorrent/wire-protocol"}
+                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/spec"}
+                      github.cljctools/bytes-js {:local/root "./cljctools/bytes-js"}
+                      github.cljctools/codec-js {:local/root "./cljctools/codec-js"}
+                      github.cljctools/bytes-meta {:local/root "./cljctools/bytes-meta"}
+                      github.cljctools/core-js {:local/root "./cljctools/core-js"}}}' \
    -M -m cljs.main --repl-env node --compile cljctools.bittorrent.wire-protocol.core --repl
   
    (do

@@ -575,43 +575,43 @@
 
   clj -Sdeps '{:deps {org.clojure/clojure {:mvn/version "1.10.3"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
-                      github.cljctools/bytes-jvm {:local/root "./cljctools/src/bytes-jvm"}
-                      github.cljctools/codec-jvm {:local/root "./cljctools/src/codec-jvm"}
-                      github.cljctools/core-jvm {:local/root "./cljctools/src/core-jvm"}
-                      github.cljctools/datagram-socket-jvm {:local/root "./cljctools/src/datagram-socket-jvm"}
-                      github.cljctools/socket-jvm {:local/root "./cljctools/src/socket-jvm"}
-                      github.cljctools/fs-jvm {:local/root "./cljctools/src/fs-jvm"}
-                      github.cljctools/fs-meta {:local/root "./cljctools/src/fs-meta"}
-                      github.cljctools/transit-jvm {:local/root "./cljctools/src/transit-jvm"}
-                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
-                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}'
+                      github.cljctools/bytes-jvm {:local/root "./cljctools/bytes-jvm"}
+                      github.cljctools/codec-jvm {:local/root "./cljctools/codec-jvm"}
+                      github.cljctools/core-jvm {:local/root "./cljctools/core-jvm"}
+                      github.cljctools/datagram-socket-jvm {:local/root "./cljctools/datagram-socket-jvm"}
+                      github.cljctools/socket-jvm {:local/root "./cljctools/socket-jvm"}
+                      github.cljctools/fs-jvm {:local/root "./cljctools/fs-jvm"}
+                      github.cljctools/fs-meta {:local/root "./cljctools/fs-meta"}
+                      github.cljctools/transit-jvm {:local/root "./cljctools/transit-jvm"}
+                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/spec"}
+                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
+                      github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/wire-protocol"}
+                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/dht-crawl"}}}'
 
   (require '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core] :reload-all)
 
   clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
                       org.clojure/core.async {:mvn/version "1.3.618"}
-                      github.cljctools/bytes-meta {:local/root "./cljctools/src/bytes-meta"}
-                      github.cljctools/bytes-js {:local/root "./cljctools/src/bytes-js"}
-                      github.cljctools/codec-js {:local/root "./cljctools/src/codec-js"}
-                      github.cljctools/core-js {:local/root "./cljctools/src/core-js"}
-                      github.cljctools/datagram-socket-nodejs {:local/root "./cljctools/src/datagram-socket-nodejs"}
-                      github.cljctools/fs-nodejs {:local/root "./cljctools/src/fs-nodejs"}
-                      github.cljctools/fs-meta {:local/root "./cljctools/src/fs-meta"}
-                      github.cljctools/socket-nodejs {:local/root "./cljctools/src/socket-nodejs"}
-                      github.cljctools/transit-js {:local/root "./cljctools/src/transit-js"}
+                      github.cljctools/bytes-meta {:local/root "./cljctools/bytes-meta"}
+                      github.cljctools/bytes-js {:local/root "./cljctools/bytes-js"}
+                      github.cljctools/codec-js {:local/root "./cljctools/codec-js"}
+                      github.cljctools/core-js {:local/root "./cljctools/core-js"}
+                      github.cljctools/datagram-socket-nodejs {:local/root "./cljctools/datagram-socket-nodejs"}
+                      github.cljctools/fs-nodejs {:local/root "./cljctools/fs-nodejs"}
+                      github.cljctools/fs-meta {:local/root "./cljctools/fs-meta"}
+                      github.cljctools/socket-nodejs {:local/root "./cljctools/socket-nodejs"}
+                      github.cljctools/transit-js {:local/root "./cljctools/transit-js"}
 
-                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/src/spec"}
-                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/src/bencode"}
-                      github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/src/wire-protocol"}
-                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/src/dht-crawl"}}}' \
+                      github.cljctools.bittorrent/spec {:local/root "./bittorrent/spec"}
+                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
+                      github.cljctools.bittorrent/wire-protocol {:local/root "./bittorrent/wire-protocol"}
+                      github.cljctools.bittorrent/dht-crawl {:local/root "./bittorrent/dht-crawl"}}}' \
   -M -m cljs.main \
   -co '{:npm-deps {"randombytes" "2.1.0"
                    "bitfield" "4.0.0"
                    "fs-extra" "9.1.0"}
         :install-deps true
-        :analyze-path "./bittorrent/src/dht-crawl"
+        :analyze-path "./bittorrent/dht-crawl"
         :repl-requires [[cljs.repl :refer-macros [source doc find-doc apropos dir pst]]
                         [cljs.pprint :refer [pprint] :refer-macros [pp]]]}' \
   -ro '{:host "0.0.0.0"
