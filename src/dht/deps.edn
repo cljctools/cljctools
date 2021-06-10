@@ -1,2 +1,4 @@
 {:paths ["src"]
- :deps {github.cljctools.ipfs/spec {:local/root "../spec"}}}
+ :deps {github.cljctools.ipfs/spec {:local/root "../spec"}
+        github.cljctools.ipfs/varint {:local/root "../varint"}
+        github.cljctools.ipfs/protobuf {:local/root "../protobuf"}}}
