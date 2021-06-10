@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {github.cljctools.ipfs/varint {:local/root "../varint"}}}
