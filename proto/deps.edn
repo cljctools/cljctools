@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {protojure/protojure {:mvn/version "1.6.0"}
+        com.google.protobuf/protobuf-java {:mvn/version "3.15.6"}
+        protojure/google.protobuf {:mvn/version "0.9.1"}}}
