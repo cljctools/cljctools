@@ -1,5 +1,5 @@
 (ns cljctools.bytes.core
-  (:refer-clojure :exclude [alength byte-array concat aset-byte])
+  (:refer-clojure :exclude [alength byte-array concat aset-byte unchecked-int unchecked-byte])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.spec :as bytes.spec])
@@ -122,9 +122,17 @@
     #_(bit-and 0xFF))
 
 #_(defn int-to-unsigned-long
-    [^int x]
-    (java.lang.Integer/toUnsignedLong x)
+    [x]
+    (java.lang.Integer/toUnsignedLong ^int x)
     #_(bit-and 0xffffffff))
+
+(defn unchecked-int
+  [x]
+  (clojure.core/unchecked-int x))
+
+(defn unchecked-byte
+  [x]
+  (clojure.core/unchecked-byte x))
 
 #_(defn short-to-unsigned-int
     [^short x]
@@ -161,7 +169,7 @@
 
 (defn put-uint8
   [^ByteBuffer buffer index value]
-  (put-byte buffer index (unchecked-byte value)))
+  (put-byte buffer index (clojure.core/unchecked-byte value)))
 
 (defn put-int
   [^ByteBuffer buffer index value]
@@ -169,7 +177,7 @@
 
 (defn put-uint32
   [^ByteBuffer buffer index value]
-  (put-int buffer index (unchecked-int value)))
+  (put-int buffer index (clojure.core/unchecked-int value)))
 
 (defn put-short
   [^ByteBuffer buffer index value]
@@ -190,7 +198,7 @@
 
 (defn aset-uint8
   [^bytes byte-arr idx val]
-  (clojure.core/aset-byte byte-arr ^int idx (unchecked-byte ^int val)))
+  (clojure.core/aset-byte byte-arr ^int idx (clojure.core/unchecked-byte ^int val)))
 
 (defn aget-byte ^java.lang.Byte
   [^bytes byte-arr idx]
