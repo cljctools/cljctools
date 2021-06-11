@@ -13,12 +13,12 @@
   ([buffer]
    (decode-mplex buffer 0))
   ([buffer offset]
-   (let [header (varint.core/decode-uvarint buffer 0)
+   (let [header (varint.core/decode-varint buffer 0)
          flag (bit-and header 0x07)
          stream-id (bit-shift-right header 3)
-         header-size (varint.core/uvarint-size header)
-         msg-length (varint.core/decode-uvarint buffer header-size)
-         msg-length-size (varint.core/uvarint-size msg-length)]
+         header-size (varint.core/varint-size header)
+         msg-length (varint.core/decode-varint buffer header-size)
+         msg-length-size (varint.core/varint-size msg-length)]
      {:flag (case flag
               0 :new-stream
               1 :message-receiver
@@ -35,8 +35,8 @@
   [{:as data
     :keys [flag stream-id msgBB]}]
   (bytes.core/concat
-   [(varint.core/encode-uvarint (bit-or (bit-shift-left stream-id 3) flag))
-    (varint.core/encode-uvarint (bytes.core/size msgBB))
+   [(varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag))
+    (varint.core/encode-varint (bytes.core/size msgBB))
     msgBB]))
 
 (comment
