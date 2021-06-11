@@ -2,7 +2,7 @@
   (:require
    [cljctools.bytes.core :as bytes.core]))
 
-(defn uvarint-size
+(defn varint-size
   [value]
   (loop [i (int 0)
          x (long value)]
@@ -10,33 +10,33 @@
       i
       (recur (inc i) (unsigned-bit-shift-right x 7)))))
 
-(defn encode-uvarint
+(defn encode-varint
   ([value]
-   (encode-uvarint value (bytes.core/byte-buffer (uvarint-size value)) 0))
+   (encode-varint value (bytes.core/byte-buffer (varint-size value)) 0))
   ([value buffer offset]
    (loop [offset (int offset)
           x (long value)]
-     (if (>= x 0x80)
+     (if (zero? (bit-and x (bit-not 0x7f)))
        (do
-         (bytes.core/put-uint8 buffer offset (-> (bit-and x 0x7f) (bit-or 0x80)))
-         (recur (inc offset) (unsigned-bit-shift-right x 7)))
+         (bytes.core/put-byte buffer offset (bytes.core/unchecked-byte x))
+         buffer)
        (do
-         (bytes.core/put-uint8 buffer offset (bit-and x 0x7f))
-         buffer)))))
+         (bytes.core/put-byte buffer offset (-> (bytes.core/unchecked-int x) (bit-and 0x7f) (bit-or 0x80) (bytes.core/unchecked-byte)))
+         (recur (inc offset) (unsigned-bit-shift-right x 7)))))))
 
-(defn decode-uvarint
+(defn decode-varint
   ([buffer]
-   (decode-uvarint buffer 0))
+   (decode-varint buffer 0))
   ([buffer offset]
    (loop [x (long 0)
           offset (int offset)
-          byte (int (bytes.core/get-uint8 buffer offset))
+          byte (int (bytes.core/get-byte buffer offset))
           shift (int 0)]
-     (if (< byte 0x80)
-       (bit-or x (bit-shift-left byte shift))
-       (recur (bit-or x (bit-shift-left (bit-and byte 0x7f) shift))
+     (if (zero? (bit-and byte 0x80))
+       (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
+       (recur (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
               (inc offset)
-              (bytes.core/get-uint8 buffer (inc offset))
+              (int (bytes.core/get-byte buffer (inc offset)))
               (+ shift 7))))))
 
 (comment
@@ -48,20 +48,20 @@
 
   [(->
     1000
-    (varint.core/encode-uvarint)
-    (varint.core/decode-uvarint))
+    (varint.core/encode-varint)
+    (varint.core/decode-varint))
    (->
     10000
-    (varint.core/encode-uvarint)
-    (varint.core/decode-uvarint))
+    (varint.core/encode-varint)
+    (varint.core/decode-varint))
    (->
     1000000
-    (varint.core/encode-uvarint)
-    (varint.core/decode-uvarint))
+    (varint.core/encode-varint)
+    (varint.core/decode-varint))
    (->
     100000000
-    (varint.core/encode-uvarint)
-    (varint.core/decode-uvarint))]
+    (varint.core/encode-varint)
+    (varint.core/decode-varint))]
 
 
   ;
