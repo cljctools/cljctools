@@ -7,6 +7,36 @@
    [cljctools.bytes.core :as bytes.core]
    [cljctools.varint.core :as varint.core]))
 
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+
+(defn write-fixed32
+  [x baos]
+  (doto baos
+    (bytes.protocols/write* (-> x (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 8) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 16) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 24) (bytes.core/unchecked-int) (bit-and 0xff)))))
+
+(defn write-fixed64
+  [x baos]
+  (doto baos
+    (bytes.protocols/write* (-> x (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 8) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 16) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 24) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 32) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 40) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 48) (bytes.core/unchecked-int) (bit-and 0xff)))
+    (bytes.protocols/write*  (-> (bit-shift-right x 56) (bytes.core/unchecked-int) (bit-and 0xff)))))
+
+(defn write-little-endian32
+  [x baos]
+  (write-fixed32 x baos))
+
+(defn write-little-endian64
+  [x baos]
+  (write-fixed64 x baos))
+
 (def default-registry
   {::varint number?
    ::string string?
@@ -20,13 +50,40 @@
 
 (defn encode
   [value registry]
-  (let [out (bytes.core/byte-array-output-stream)
-        value-type (type value)]
-    (loop []
-      (cond
+  (let [baos (bytes.core/byte-array-output-stream)
+        value-type (type value)
+        value-proto (get registry value-type)]
+    (loop [stateT (transient {:dispatch value-type
+                              :value value})]
 
-        (identical? value-type ::varint)
-        (bytes.protocols/write-byte-array* out (-> (varint.core/encode-varint value) (bytes.core/to-byte-array)))))))
+      (condp identical? (:dispatch stateT)
+        ::varint
+        (let []
+          (bytes.protocols/write-byte-array* baos (-> (varint.core/encode-varint (:value stateT)) (bytes.core/to-byte-array)))
+          (recur stateT))
+        
+        ::string
+        (let [byte-arr (bytes.core/to-byte-array (:value stateT))
+              byte-arr-length (bytes.core/alength byte-arr)]
+          (bytes.protocols/write-byte-array* baos (-> byte-arr-length (varint.core/encode-varint) (bytes.core/to-byte-array)))
+          (bytes.protocols/write-byte-array* baos byte-arr)
+          (recur stateT))
+        
+        ::key
+        (let [{:keys [field-number wire-type]} (:value stateT)
+              key-value (-> (bit-shift-left field-number 3) (bit-or  wire-type))]
+          (bytes.protocols/write-byte-array* baos (-> key-value (varint.core/encode-varint) (bytes.core/to-byte-array)))
+          (recur stateT))
+        
+        
+        
+        
+        
+        
+        ))
+    
+    
+    ))
 
 (defn decode
   [value])
@@ -71,10 +128,12 @@
                      :wire-type ::byte-array
                      :repeated? true}
              :connection {:field-number 3
-                          :wire-type ::ConnectionType}}
+                          :wire-type ::ConnectionType
+                          :enum? true}}
 
      ::Message {:type {:field-number 1
-                       :wire-type ::MessageType}
+                       :wire-type ::MessageType
+                       :enum? true}
                 :key {:field-number 2
                       :wire-type ::byte-array}
                 :record {:field-number 3
@@ -88,9 +147,11 @@
                 :clusterLevelRaw {:field-number 10
                                   :wire-type ::int32}}})
 
-  (let [msg
+  (let [registry (merge default-registry
+                        registry)
+        msg
         ^{:type ::Message}
-        {:type 0
+        {:type :PUT_VALUE
          :key (bytes.core/byte-array 5)
          :record {:key (bytes.core/byte-array 5)
                   :value (bytes.core/byte-array 5)
@@ -100,23 +161,22 @@
          :closerPeers [{:id (bytes.core/byte-array 5)
                         :addrs [(bytes.core/byte-array 5)
                                 (bytes.core/byte-array 5)]
-                        :connection 1}
+                        :connection :CONNECTED}
                        {:id (bytes.core/byte-array 5)
                         :addrs [(bytes.core/byte-array 5)
                                 (bytes.core/byte-array 5)]
-                        :connection 1}]
+                        :connection :CONNECTED}]
          :providerPeers [{:id (bytes.core/byte-array 5)
                           :addrs [(bytes.core/byte-array 5)
                                   (bytes.core/byte-array 5)]
-                          :connection 1}
+                          :connection :CONNECTED}
                          {:id (bytes.core/byte-array 5)
                           :addrs [(bytes.core/byte-array 5)
                                   (bytes.core/byte-array 5)]
-                          :connection 1}]
+                          :connection :CONNECTED}]
          :clusterLevelRaw 123}]
     (->
-     (encode msg (merge default-registry
-                        registry))))
+     (encode msg registry)))
 
 
 
