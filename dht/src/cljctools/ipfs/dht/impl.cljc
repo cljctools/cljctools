@@ -1,5 +1,6 @@
 (ns cljctools.ipfs.dht.impl
   (:require
+   [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.core :as bytes.core]
    [cljctools.varint.core :as varint.core]
    [cljctools.protobuf.core :as protobuf.core]))
@@ -7,7 +8,6 @@
 (defn multiaddress-to-data
   [multiaddress]
   {})
-
 
 (defn decode-mplex
   ([buffer]
@@ -35,8 +35,10 @@
   [{:as data
     :keys [flag stream-id msgBB]}]
   (bytes.core/concat
-   [(varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag))
-    (varint.core/encode-varint (bytes.core/size msgBB))
+   [(let [baos (bytes.core/byte-array-output-stream)]
+      (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
+      (varint.core/encode-varint (bytes.core/size msgBB) baos)
+      (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)))
     msgBB]))
 
 (comment
