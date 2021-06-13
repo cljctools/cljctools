@@ -4,7 +4,7 @@
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.spec :as bytes.spec])
   (:import
-   (java.util Random BitSet)
+   (java.util Random BitSet Arrays)
    (java.nio ByteBuffer)
    (java.io ByteArrayOutputStream ByteArrayInputStream PushbackInputStream Closeable)))
 
@@ -32,21 +32,26 @@
   [x]
   (clojure.core/bytes? x))
 
-(defmulti to-byte-array type :hierarchy #'types)
+(defn copy-byte-array
+  [byte-arr from to]
+  (Arrays/copyOfRange ^bytes byte-arr ^int from ^int to))
+
+(defmulti to-byte-array (fn [x & more] (type x)) :hierarchy #'types)
 
 (defmethod to-byte-array ::string ^bytes
   [^String string]
   (.getBytes string "UTF-8"))
 
 (defmethod to-byte-array ::bytes.spec/byte-buffer ^bytes
-  [^ByteBuffer buffer]
-  (if (== (.remaining buffer) (.capacity buffer))
-    (.array buffer)
-    (let [position (.position buffer)
-          ^bytes byte-arr (clojure.core/byte-array (.remaining buffer))]
-      (.get buffer byte-arr)
-      (.position buffer position)
-      byte-arr)))
+  ([^ByteBuffer buffer]
+   (if (and
+        (zero? (.position buffer))
+        (zero? (.arrayOffset buffer))
+        (== (.limit buffer) (.capacity buffer)))
+     (.array buffer)
+     (to-byte-array buffer (unchecked-add (.arrayOffset buffer) (.position buffer)) (unchecked-add (.arrayOffset buffer) (.limit buffer)) )))
+  ([^ByteBuffer buffer from to]
+   (copy-byte-array (.array buffer) from to)))
 
 (defn alength ^Integer
   [^bytes byte-arr]
@@ -90,23 +95,41 @@
   [xs]
   xs)
 
-(defn byte-buffer ^ByteBuffer
+(defn position
+  [^ByteBuffer buffer]
+  (.position buffer))
+
+(defn array-offset
+  [^ByteBuffer buffer]
+  (.arrayOffset buffer))
+
+(defn limit
+  [^ByteBuffer buffer]
+  (.limit buffer))
+
+(defn remaining
+  [^ByteBuffer buffer]
+  (.remaining buffer))
+
+(defn capacity
+  [^ByteBuffer buffer]
+  (.capacity buffer))
+
+(defn buffer-allocate ^ByteBuffer
   [size]
   (ByteBuffer/allocate ^int size))
 
-(defmulti buffer-wrap (fn [x & args] (type x)) :hierarchy #'types)
+(defn buffer-wrap
+  ([byte-arr]
+   (ByteBuffer/wrap ^bytes byte-arr))
+  ([byte-arr offset length]
+   (ByteBuffer/wrap ^bytes byte-arr ^int offset ^int length)))
 
-(defmethod buffer-wrap ::bytes.spec/byte-buffer ^ByteBuffer
+(defn buffer-slice
   ([^ByteBuffer buffer]
-   (ByteBuffer/wrap (.array buffer) ^int (.position buffer) ^int (.remaining buffer)))
-  ([^ByteBuffer buffer offset length]
-   (ByteBuffer/wrap (.array buffer) ^int (+ (.position buffer) offset) ^int length)))
-
-(defmethod buffer-wrap ::bytes.spec/byte-array ^ByteBuffer
-  ([^bytes byte-arr]
-   (ByteBuffer/wrap byte-arr))
-  ([^bytes byte-arr offset length]
-   (ByteBuffer/wrap byte-arr ^int offset ^int length)))
+   (.slice buffer))
+  ([^ByteBuffer buffer index length]
+   (.slice buffer ^int index ^int length)))
 
 #_(defn unchecked-int
     [x]
@@ -148,57 +171,94 @@
     #_(bit-and 0xffff))
 
 (defn get-byte
-  [^ByteBuffer buffer index]
-  (.get buffer ^int (+ (.position buffer) index)))
+  ([^ByteBuffer buffer]
+   (.get buffer))
+  ([^ByteBuffer buffer index]
+   (.get buffer ^int index)))
+
+(defn get-byte-array
+  ([^ByteBuffer buffer byte-arr]
+   (.get buffer ^bytes byte-arr))
+  ([^ByteBuffer buffer index byte-arr]
+   (.get buffer ^int index ^bytes byte-arr))
+  ([^ByteBuffer buffer byte-arr offset length]
+   (.get buffer ^bytes byte-arr ^int offset ^int length))
+  ([^ByteBuffer buffer index byte-arr offset length]
+   (.get buffer ^int index ^bytes byte-arr ^int offset ^int length)))
 
 (defn get-uint8
-  [^ByteBuffer buffer index]
-  (java.lang.Byte/toUnsignedInt ^byte (get-byte buffer index)))
+  ([^ByteBuffer buffer]
+   (java.lang.Byte/toUnsignedInt ^byte (get-byte buffer)))
+  ([^ByteBuffer buffer index]
+   (java.lang.Byte/toUnsignedInt ^byte (get-byte buffer index))))
 
 (defn get-int
-  [^ByteBuffer buffer index]
-  (.getInt buffer ^int (+ (.position buffer) index)))
+  ([^ByteBuffer buffer]
+   (.getInt buffer))
+  ([^ByteBuffer buffer index]
+   (.getInt buffer ^int index)))
 
 (defn get-uint32
-  [^ByteBuffer buffer index]
-  (java.lang.Integer/toUnsignedLong ^int (get-int buffer index)))
+  ([^ByteBuffer buffer]
+   (java.lang.Integer/toUnsignedLong ^int (get-int buffer)))
+  ([^ByteBuffer buffer index]
+   (java.lang.Integer/toUnsignedLong ^int (get-int buffer index))))
 
 (defn get-short
-  [^ByteBuffer buffer index]
-  (.getShort buffer ^int (+ (.position buffer) index)))
+  ([^ByteBuffer buffer]
+   (.getShort buffer))
+  ([^ByteBuffer buffer index]
+   (.getShort buffer ^int index)))
 
 (defn get-uint16
-  [^ByteBuffer buffer index]
-  (java.lang.Short/toUnsignedInt ^short (get-short buffer index)))
+  ([^ByteBuffer buffer]
+   (java.lang.Short/toUnsignedInt ^short (get-short buffer)))
+  ([^ByteBuffer buffer index]
+   (java.lang.Short/toUnsignedInt ^short (get-short buffer index))))
 
 (defn put-byte
-  [^ByteBuffer buffer index value]
-  (.put buffer ^int (+ (.position buffer) index) ^byte value))
+  ([^ByteBuffer buffer value]
+   (.put buffer ^byte value))
+  ([^ByteBuffer buffer index value]
+   (.put buffer ^int index ^byte value)))
+
+(defn put-byte-array
+  ([^ByteBuffer buffer byte-arr]
+   (.put buffer ^bytes byte-arr))
+  ([^ByteBuffer buffer index byte-arr]
+   (.put buffer ^int index ^bytes byte-arr))
+  ([^ByteBuffer buffer index byte-arr offset length]
+   (.put buffer ^int index ^bytes byte-arr ^int offset ^int length)))
 
 (defn put-uint8
-  [^ByteBuffer buffer index value]
-  (put-byte buffer index (clojure.core/unchecked-byte value)))
+  ([^ByteBuffer buffer value]
+   (put-byte buffer (clojure.core/unchecked-byte value)))
+  ([^ByteBuffer buffer index value]
+   (put-byte buffer index (clojure.core/unchecked-byte value))))
 
 (defn put-int
-  [^ByteBuffer buffer index value]
-  (.putInt buffer ^int (+ (.position buffer) index) ^int value))
+  ([^ByteBuffer buffer value]
+   (.putInt buffer ^int value))
+  ([^ByteBuffer buffer index value]
+   (.putInt buffer ^int index ^int value)))
 
 (defn put-uint32
-  [^ByteBuffer buffer index value]
-  (put-int buffer index (clojure.core/unchecked-int value)))
+  ([^ByteBuffer buffer value]
+   (put-int buffer (clojure.core/unchecked-int value)))
+  ([^ByteBuffer buffer index value]
+   (put-int buffer index (clojure.core/unchecked-int value))))
 
 (defn put-short
-  [^ByteBuffer buffer index value]
-  (.putShort buffer ^int (+ (.position buffer) index) ^short value))
+  ([^ByteBuffer buffer value]
+   (.putShort buffer ^short value))
+  ([^ByteBuffer buffer index value]
+   (.putShort buffer ^int index ^short value)))
 
 (defn put-uint16
-  [^ByteBuffer buffer index value]
-  (put-short buffer index (unchecked-short value)))
-
-
-(defn size
-  [^ByteBuffer buffer]
-  (.remaining buffer))
+  ([^ByteBuffer buffer value]
+   (put-short buffer (unchecked-short value)))
+  ([^ByteBuffer buffer index value]
+   (put-short buffer index (unchecked-short value))))
 
 (defn aset-byte
   [^bytes byte-arr idx val]
@@ -553,6 +613,29 @@
      (unchecked-remainder-int i 20)))
   ; "Elapsed time: 162.802177 msecs"
 
+
+  ;
+  )
+
+
+(comment
+
+  (time
+   (let [ba (bytes.core/byte-array (range 20))]
+     (dotimes [i 1000000]
+       (-> [(bytes.core/copy-byte-array ba 0 10)
+            (bytes.core/copy-byte-array ba 10 20)]
+           (bytes.core/concat)))))
+  ; "Elapsed time: 382.270465 msecs"
+
+  (time
+   (let [ba (bytes.core/byte-array (range 20))]
+     (dotimes [i 1000000]
+       (-> [(bytes.core/buffer-wrap ba 0 10)
+            (bytes.core/buffer-wrap ba 10 10)]
+           (bytes.core/concat)
+           (bytes.core/to-byte-array)))))
+  ; "Elapsed time: 1666.753437 msecs"
 
   ;
   )
