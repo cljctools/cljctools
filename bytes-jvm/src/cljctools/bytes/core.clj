@@ -219,12 +219,18 @@
     (.read in))
   (read*
     [_  offset length]
-    (let [^bytes byte-arr (clojure.core/byte-array ^Integer length)]
-      (.read in byte-arr ^Integer offset ^Integer length)
+    (let [^bytes byte-arr (clojure.core/byte-array ^int length)]
+      (.read in byte-arr ^int offset ^int length)
       byte-arr))
   (unread*
     [_  int8]
-    (.unread in ^Integer int8))
+    (.unread in ^int int8))
+  (unread-byte-array*
+    [_  byte-arr]
+    (.unread in ^bytes byte-arr))
+  (unread-byte-array*
+    [_  byte-arr offset length]
+    (.unread in ^bytes byte-arr ^int offset ^int length))
   java.io.Closeable
   (close [_] #_(do nil)))
 
@@ -240,7 +246,7 @@
   bytes.protocols/IByteArrayOutputStream
   (write*
     [_ int8]
-    (.write out ^Integer int8))
+    (.write out ^int int8))
   (write-byte-array*
     [_ byte-arr]
     (.writeBytes out ^bytes byte-arr))

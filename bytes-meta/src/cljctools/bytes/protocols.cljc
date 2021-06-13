@@ -2,7 +2,8 @@
 
 (defprotocol IPushbackInputStream
   (read* [_] [_ offset length])
-  (unread* [_ char-int]))
+  (unread* [_ char-int])
+  (unread-byte-array* [_ byte-arr] [_ byte-arr offset length]))
 
 (defprotocol IToByteArray
   (to-byte-array* [_]))
