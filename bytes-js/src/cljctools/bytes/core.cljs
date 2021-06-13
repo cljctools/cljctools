@@ -192,10 +192,10 @@
         (set! offset (inc offset))
         int8)))
   (read*
-    [_ off length]
+    [_ length]
     (if (>= offset (.-length buffer))
       -1
-      (let [start (+ offset off)
+      (let [start offset
             end (+ start length)
             buf (.subarray buffer start end)]
         (set! offset (+ offset length))

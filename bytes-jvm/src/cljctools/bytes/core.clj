@@ -218,9 +218,9 @@
     [_]
     (.read in))
   (read*
-    [_  offset length]
+    [_ length]
     (let [^bytes byte-arr (clojure.core/byte-array ^int length)]
-      (.read in byte-arr ^int offset ^int length)
+      (.read in byte-arr (int 0) ^int length)
       byte-arr))
   (unread*
     [_  int8]

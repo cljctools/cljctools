@@ -1,7 +1,7 @@
 (ns cljctools.bytes.protocols)
 
 (defprotocol IPushbackInputStream
-  (read* [_] [_ offset length])
+  (read* [_] [_ length])
   (unread* [_ char-int])
   (unread-byte-array* [_ byte-arr] [_ byte-arr offset length]))
 
