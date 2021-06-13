@@ -134,6 +134,14 @@
   [x]
   (clojure.core/unchecked-byte x))
 
+(defn double-to-raw-long-bits
+  [x]
+  (Double/doubleToRawLongBits ^double x))
+
+(defn float-to-raw-int-bits
+  [x]
+  (Float/floatToRawIntBits ^float x))
+
 #_(defn short-to-unsigned-int
     [^short x]
     (java.lang.Short/toUnsignedInt x)
