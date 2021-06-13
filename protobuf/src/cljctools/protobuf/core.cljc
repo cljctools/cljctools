@@ -9,67 +9,27 @@
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
-(defn write-fixed
+(defn encode-fixed
   [x baos n]
   (dotimes [i (int n)]
     (bytes.protocols/write* baos (-> (bit-shift-right x (* i 8)) (bytes.core/unchecked-int) (bit-and 0xff)))))
 
-(defn write-fixed32
+(defn encode-little-endian32
   [x baos]
-  (write-fixed x baos 4))
+  (encode-fixed x baos 4))
 
-(defn write-fixed64
+(defn encode-little-endian64
   [x baos]
-  (write-fixed x baos 8))
-
-(defn write-little-endian32
-  [x baos]
-  (write-fixed32 x baos))
-
-(defn write-little-endian64
-  [x baos]
-  (write-fixed64 x baos))
-
-(defn write-sfixed32
-  [x baos]
-  (write-fixed32 x baos))
-
-(defn write-sfixed64
-  [x baos]
-  (write-fixed64 x baos))
-
-(defn write-double
-  [x baos]
-  (write-fixed64 (bytes.core/double-to-raw-long-bits x) baos))
-
-(defn write-float
-  [x baos]
-  (write-fixed32 (bytes.core/float-to-raw-int-bits x) baos))
-
-(defn write-enum
-  [x baos]
-  (varint.core/encode-int32 x baos))
-
-(defn write-boolean
-  [value baos]
-  (bytes.protocols/write* baos (if value 1 0)))
+  (encode-fixed x baos 8))
 
 (def default-registry
-  {::varint number?
-   ::string string?
-   ::byte-array ::bytes.spec/byte-array
-   ::int32 int?
-   ::int64 int?
-   ::sint32 int?
-   ::sint64 int?
-   ::uint32 int?
-   ::uint64 number?})
+  {})
 
 (def wire-types
   (->>
    {0 #{::int32 ::int64 ::uint32 ::uint64 ::sint32 ::sint64 ::boolean ::enum}
     1 #{::fixed64 ::sfixed64 ::double}
-    2 #{::string ::bytes.spec/byte-array ::map ::sequential}
+    2 #{::string ::byte-array ::map ::sequential}
     3 #{:deprecated}
     4 #{:deprecated}
     5 #{::fixed32 ::sfixed32 ::float}}
@@ -80,49 +40,117 @@
 
 (defmulti encode*
   (fn
-    ([value-type value registry baos]
+    ([value value-type registry baos]
      (cond
-       (bytes.core/byte-array? value) ::bytes.spec/byte-array
-       (number? value) ::number
+       (bytes.core/byte-array? value) ::byte-array
        (string? value) ::string
-       (keyword? value) ::keyword
        (map? value) ::map
-       (sequential? value) ::sequential))
-    ([value-type value registry baos dispatch-val]
+       (keyword? value) ::enum
+       :else value-type))
+    ([value value-type registry baos dispatch-val]
      dispatch-val)))
 
-(defmethod encode* ::bytes.spec/byte-array
-  [value-type value registry baos & more]
-  (bytes.protocols/write-byte-array* baos (-> (varint.core/encode-varint value) (bytes.core/to-byte-array))))
+(defmethod encode* ::byte-array
+  [value value-type registry baos & more]
+  (let [byte-arr-length (bytes.core/alength value)]
+    (varint.core/encode-uint32 byte-arr-length baos)
+    (bytes.protocols/write-byte-array* baos value)))
 
 (defmethod encode* ::string
-  [value-type value registry baos & more]
-  (let [byte-arr (bytes.core/to-byte-array value)
-        byte-arr-length (bytes.core/alength byte-arr)]
-    (bytes.protocols/write-byte-array* baos (-> byte-arr-length (varint.core/encode-varint) (bytes.core/to-byte-array)))
-    (bytes.protocols/write-byte-array* baos byte-arr)))
+  [value value-type registry baos & more]
+  (encode* (bytes.core/to-byte-array value) value-type registry baos ::byte-array))
 
-(defn encode-key
+(defmethod encode* ::int32
+  [value value-type registry baos & more]
+  (varint.core/encode-int32 value baos))
+
+(defmethod encode* ::int64
+  [value value-type registry baos & more]
+  (varint.core/encode-int64 value baos))
+
+(defmethod encode* ::uint32
+  [value value-type registry baos & more]
+  (varint.core/encode-uint32 value baos))
+
+(defmethod encode* ::uint64
+  [value value-type registry baos & more]
+  (varint.core/encode-uint64 value baos))
+
+(defmethod encode* ::sint32
+  [value value-type registry baos & more]
+  (varint.core/encode-sint32 value baos))
+
+(defmethod encode* ::sint64
+  [value value-type registry baos & more]
+  (varint.core/encode-sint64 value baos))
+
+(defmethod encode* ::boolean
+  [value value-type registry baos & more]
+  (bytes.protocols/write* baos (if value 1 0)))
+
+(defmethod encode* ::fixed32
+  [value value-type registry baos & more]
+  (encode-fixed value baos 4))
+
+(defmethod encode* ::fixed64
+  [value value-type registry baos & more]
+  (encode-fixed value baos 8))
+
+(defmethod encode* ::sfixed32
+  [value value-type registry baos & more]
+  (encode-fixed value baos 4))
+
+(defmethod encode* ::sfixed64
+  [value value-type registry baos & more]
+  (encode-fixed value baos 8))
+
+(defmethod encode* ::float
+  [value value-type registry baos & more]
+  (encode-fixed (bytes.core/float-to-raw-int-bits value) baos 4))
+
+(defmethod encode* ::double
+  [value value-type registry baos & more]
+  (encode-fixed (bytes.core/double-to-raw-long-bits value) baos 8))
+
+(defn encode-tag
   [field-number wire-type baos]
-  (->>
+  (->
    (-> (bit-shift-left field-number 3) (bit-or wire-type))
-   (varint.core/encode-varint)
-   (bytes.core/to-byte-array)
-   (bytes.protocols/write-byte-array* baos)))
+   (varint.core/encode-uint32 baos)))
+
+(defmethod encode* ::enum
+  [value value-type registry baos & more]
+  (varint.core/encode-int32 (get-in registry [value-type value]) baos))
 
 (defmethod encode* ::map
-  [value-type value registry baos & more]
-  (let [value-proto (get registry value-type)
-        resultT (transient [])]
+  [value value-type registry baos & more]
+  (let [value-proto (get registry value-type)]
     (doseq [[k k-value] value
-            :let [{:keys [value-type field-number]} (get value-proto k)]]
-      (encode-key field-number (get wire-types value-type) baos)
-      (encode* value-type k-value registry baos))))
+            :let [{k-value-type :value-type
+                   k-field-number :field-number} (get value-proto k)
+                  k-wire-type (get wire-types k-value-type 2)]]
+      (cond
+        (sequential? k-value)
+        (doseq [seq-value k-value]
+          (encode-tag k-field-number k-wire-type baos)
+          (encode* seq-value k-value-type registry baos))
+
+        (map? k-value)
+        (do
+          (encode-tag k-field-number k-wire-type baos)
+          (let [baos-map (bytes.core/byte-array-output-stream)]
+            (encode* k-value k-value-type registry baos-map)
+            (encode* (bytes.protocols/to-byte-array* baos-map) ::byte-array registry baos ::byte-array)))
+
+        :else
+        (do
+          (encode-tag k-field-number k-wire-type baos-map)
+          (encode* k-value k-value-type registry baos-map))))))
 
 (defn encode
-  [value-type value registry]
+  [value value-type registry]
   (let [baos (bytes.core/byte-array-output-stream)]
-    (encode* value-type value registry baos)
+    (encode* value value-type registry baos)
     (bytes.protocols/to-byte-array* baos)))
 
 (defn decode
@@ -216,7 +244,7 @@
                           :connection :CONNECTED}]
          :clusterLevelRaw 123}]
     (->
-     (encode ::Message msg registry)))
+     (encode msg ::Message registry)))
 
 
 
