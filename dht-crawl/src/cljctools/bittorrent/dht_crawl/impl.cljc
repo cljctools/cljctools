@@ -21,10 +21,9 @@
 (defn gen-neighbor-id
   [target-idBA node-idBA]
   (->>
-   [(bytes.core/buffer-wrap target-idBA  0 10)
-    (bytes.core/buffer-wrap node-idBA  10 (- (bytes.core/alength node-idBA) 10))]
-   (bytes.core/concat)
-   (bytes.core/to-byte-array)))
+   [(bytes.core/copy-byte-array target-idBA 0 10)
+    (bytes.core/copy-byte-array node-idBA 10 (bytes.core/alength node-idBA))]
+   (bytes.core/concat)))
 
 (defn encode-nodes
   [nodes]
@@ -38,7 +37,7 @@
                  (bytes.core/byte-array))
                 (->
                  (doto
-                  (bytes.core/byte-buffer 2)
+                  (bytes.core/buffer-allocate 2)
                    (bytes.core/put-uint16 0 (:port node)))
                  (bytes.core/to-byte-array))]
                (bytes.core/concat))))
@@ -49,7 +48,7 @@
   (try
     (let [nodesBB (bytes.core/buffer-wrap nodesBA)]
       (for [i (range 0 (bytes.core/alength nodesBA) 26)]
-        (let [idBA (-> nodesBB (bytes.core/buffer-wrap i 20) (bytes.core/to-byte-array))]
+        (let [idBA (bytes.core/copy-byte-array nodesBA i (#?(:clj unchecked-add :cljs +) i 20))]
           {:id (codec.core/hex-encode-string idBA)
            :idBA idBA
            :host (str (bytes.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 20)) "."
@@ -78,18 +77,15 @@
 
 (defn decode-samples
   [samplesBA]
-  (let [samplesBB (bytes.core/buffer-wrap samplesBA)]
-    (for [i (range 0 (bytes.core/alength samplesBA) 20)]
-      (->
-       (bytes.core/buffer-wrap samplesBA i 20)
-       (bytes.core/to-byte-array)))))
+  (for [i (range 0 (bytes.core/alength samplesBA) 20)]
+    (bytes.core/copy-byte-array samplesBA i (#?(:clj unchecked-add :cljs +) i 20))))
 
 (defn xor-distance
   [xBA yBA]
   (let [xBA-length (bytes.core/alength xBA)]
     (when-not (== xBA-length (bytes.core/alength yBA))
       (throw (ex-info "xor-distance: args should have same length" {})))
-    (let [resultBB (bytes.core/byte-buffer xBA-length)]
+    (let [resultBB (bytes.core/buffer-allocate xBA-length)]
       (dotimes [i xBA-length]
         (bytes.core/put-uint8 resultBB i (bit-xor (bytes.core/aget-byte xBA i) (bytes.core/aget-byte yBA i))))
       (bytes.core/to-byte-array resultBB))))
@@ -332,7 +328,7 @@
 
 
   (time
-   (let [buffer (bytes.core/byte-buffer 20)]
+   (let [buffer (bytes.core/buffer-allocate 20)]
      (dotimes [i 10000000]
        (let [x (mod i 20) #_(unchecked-remainder-int i 20)]
          (bytes.core/get-byte buffer x)
@@ -435,7 +431,7 @@
 
   (time
    (dotimes [i 1000000]
-     (let [bb (bytes.core/byte-buffer 20)]
+     (let [bb (bytes.core/buffer-allocate 20)]
        (dotimes [i 20]
          (bytes.core/put-uint8 bb i 8))
        (bytes.core/to-byte-array bb))))
@@ -454,7 +450,7 @@
 
 
   (time
-   (let [bb (bytes.core/byte-buffer 20)]
+   (let [bb (bytes.core/buffer-allocate 20)]
      (dotimes [i 100000000]
        (bytes.core/put-uint8 bb 8 8)
        (bytes.core/get-uint8 bb 8))))

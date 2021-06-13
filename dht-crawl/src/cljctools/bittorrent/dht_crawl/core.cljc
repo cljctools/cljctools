@@ -526,7 +526,7 @@
               (let [infohashBA (get-in msg [:a :info_hash])
                     txn-idBA (:t msg)
                     node-idBA (get-in msg [:a :id])
-                    tokenBA (-> (bytes.core/buffer-wrap infohashBA 0 4) (bytes.core/to-byte-array))]
+                    tokenBA (bytes.core/copy-byte-array infohashBA 0 4)]
                 (if (or (not txn-idBA) (not= (bytes.core/alength node-idBA) 20) (not= (bytes.core/alength infohashBA) 20))
                   (println "invalid query args: get_peers")
                   (do
@@ -544,7 +544,7 @@
               (let [infohashBA  (get-in msg [:a :info_hash])
                     txn-idBA (:t msg)
                     node-idBA (get-in msg [:a :id])
-                    tokenBA (-> (bytes.core/buffer-wrap infohashBA 0 4) (bytes.core/to-byte-array))]
+                    tokenBA (bytes.core/copy-byte-array infohashBA 0 4)]
 
                 (cond
                   (not txn-idBA)
