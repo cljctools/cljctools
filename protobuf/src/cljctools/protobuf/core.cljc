@@ -9,31 +9,32 @@
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
+(defn write-fixed
+  [x baos n]
+  (dotimes [i (int n)]
+    (bytes.protocols/write* baos (-> (bit-shift-right x (* i 8)) (bytes.core/unchecked-int) (bit-and 0xff)))))
+
 (defn write-fixed32
   [x baos]
-  (doto baos
-    (bytes.protocols/write* (-> x (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 8) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 16) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 24) (bytes.core/unchecked-int) (bit-and 0xff)))))
+  (write-fixed x baos 4))
 
 (defn write-fixed64
   [x baos]
-  (doto baos
-    (bytes.protocols/write* (-> x (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 8) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 16) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 24) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 32) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 40) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 48) (bytes.core/unchecked-int) (bit-and 0xff)))
-    (bytes.protocols/write*  (-> (bit-shift-right x 56) (bytes.core/unchecked-int) (bit-and 0xff)))))
+  (write-fixed x baos 8))
 
 (defn write-little-endian32
   [x baos]
   (write-fixed32 x baos))
 
 (defn write-little-endian64
+  [x baos]
+  (write-fixed64 x baos))
+
+(defn write-sfixed32
+  [x baos]
+  (write-fixed32 x baos))
+
+(defn write-sfixed64
   [x baos]
   (write-fixed64 x baos))
 
