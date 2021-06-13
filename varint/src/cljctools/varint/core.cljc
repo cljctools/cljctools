@@ -24,16 +24,14 @@
         (recur (unsigned-bit-shift-right x 7))))))
 
 (defn decode-varint
-  [buffer offset]
+  [buffer]
   (loop [x (long 0)
-         offset (int offset)
-         byte (int (bytes.core/get-byte buffer offset))
+         byte (bytes.core/get-byte buffer)
          shift (int 0)]
     (if (zero? (bit-and byte 0x80))
       (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
       (recur (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
-             (inc offset)
-             (int (bytes.core/get-byte buffer (inc offset)))
+             (bytes.core/get-byte buffer)
              (+ shift 7)))))
 
 (defn encode-uint64
@@ -41,32 +39,32 @@
   (encode-varint x baos))
 
 (defn decode-uint64
-  [buffer offset]
-  (decode-varint buffer offset))
+  [buffer]
+  (decode-varint buffer))
 
 (defn encode-int64
   [x baos]
   (encode-varint x baos))
 
 (defn decode-int64
-  [buffer offset]
-  (decode-varint buffer offset))
+  [buffer]
+  (decode-varint buffer))
 
 (defn encode-uint32
   [x baos]
   (encode-varint (long x) baos))
 
 (defn decode-uint32
-  [buffer offset]
-  (decode-varint buffer offset))
+  [buffer]
+  (decode-varint buffer))
 
 (defn encode-int32
   [x baos]
   (encode-varint (long x) baos))
 
 (defn decode-int32
-  [buffer offset]
-  (decode-varint buffer offset))
+  [buffer]
+  (decode-varint buffer))
 
 (defn encode-zig-zag64
   [x]
@@ -89,16 +87,16 @@
   (encode-varint (encode-zig-zag64 x) baos))
 
 (defn decode-sint64
-  [buffer offset]
-  (decode-zig-zag64 (decode-varint buffer offset)))
+  [buffer]
+  (decode-zig-zag64 (decode-varint buffer)))
 
 (defn encode-sint32
   [x baos]
   (encode-varint (encode-zig-zag32 x) baos))
 
 (defn decode-sint32
-  [buffer offset]
-  (decode-zig-zag32 (decode-varint buffer offset)))
+  [buffer]
+  (decode-zig-zag32 (decode-varint buffer)))
 
 
 
