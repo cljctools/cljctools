@@ -38,6 +38,24 @@
   [x baos]
   (write-fixed64 x baos))
 
+(defn write-double
+  [x baos]
+  #?(:clj (write-fixed64 (Double/doubleToRawLongBits x) baos)
+     :cljs (throw (ex-info "not implemented" {}))))
+
+(defn write-float
+  [x baos]
+  #?(:clj (write-fixed32 (Float/floatToRawIntBits x) baos)
+     :cljs (throw (ex-info "not implemented" {}))))
+
+(defn write-enum
+  [x baos]
+  (varint.core/encode-int32 x baos))
+
+(defn write-boolean
+  [value baos]
+  (bytes.protocols/write* baos (if value 1 0)))
+
 (def default-registry
   {::varint number?
    ::string string?
