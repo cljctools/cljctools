@@ -40,13 +40,11 @@
 
 (defn write-double
   [x baos]
-  #?(:clj (write-fixed64 (Double/doubleToRawLongBits x) baos)
-     :cljs (throw (ex-info "not implemented" {}))))
+  (write-fixed64 (bytes.core/double-to-raw-long-bits x) baos))
 
 (defn write-float
   [x baos]
-  #?(:clj (write-fixed32 (Float/floatToRawIntBits x) baos)
-     :cljs (throw (ex-info "not implemented" {}))))
+  (write-fixed32 (bytes.core/float-to-raw-int-bits x) baos))
 
 (defn write-enum
   [x baos]
