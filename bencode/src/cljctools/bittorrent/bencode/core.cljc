@@ -192,7 +192,7 @@
                          (bytes.core/to-string)
                          #?(:clj (Integer/parseInt)
                             :cljs (js/Number.parseInt)))
-              byte-arr (bytes.protocols/read* in 0 length)]
+              byte-arr (bytes.protocols/read* in length)]
           (bytes.protocols/reset* out)
           byte-arr)
 
