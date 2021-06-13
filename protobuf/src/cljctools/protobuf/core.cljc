@@ -144,8 +144,8 @@
 
         :else
         (do
-          (encode-tag k-field-number k-wire-type baos-map)
-          (encode* k-value k-value-type registry baos-map))))))
+          (encode-tag k-field-number k-wire-type baos)
+          (encode* k-value k-value-type registry baos))))))
 
 (defn encode
   [value value-type registry]
@@ -153,8 +153,36 @@
     (encode* value value-type registry baos)
     (bytes.protocols/to-byte-array* baos)))
 
+(defmulti decode*
+  (fn
+    ([buffer value-type registry]
+     value-type)
+    ([buffer value-type registry dispatch-val]
+     dispatch-val)))
+
+(defmethod decode* ::byte-array
+  [buffer value-type registry & more]
+  (bytes.core/to-byte-array buffer))
+
+(defmethod decode* ::string
+  [buffer value-type registry & more]
+  (bytes.core/to-string buffer))
+
+(defmethod decode* ::int32
+  [buffer value-type registry & more]
+  (varint.core/decode-int32 buffer))
+
+(defmethod decode* ::int64
+  [buffer value-type registry & more]
+  (varint.core/decode-int64 buffer))
+
+(defmethod decode* :default
+  [buffer value-type registry & more]
+  (let [value-proto (get registry value-type)]))
+
 (defn decode
-  [value])
+  [buffer value-type registry]
+  (decode* buffer value-type registry))
 
 
 (comment
