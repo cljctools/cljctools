@@ -37,7 +37,7 @@
   (bytes.core/concat
    [(let [baos (bytes.core/byte-array-output-stream)]
       (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
-      (varint.core/encode-varint (bytes.core/size msgBB) baos)
+      (varint.core/encode-varint (bytes.core/capacity msgBB) baos)
       (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)))
     msgBB]))
 
