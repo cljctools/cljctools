@@ -65,42 +65,65 @@
    ::uint32 int?
    ::uint64 number?})
 
-(defn encode
-  [value registry]
-  (let [baos (bytes.core/byte-array-output-stream)
-        value-type (type value)
-        value-proto (get registry value-type)]
-    (loop [stateT (transient {:dispatch value-type
-                              :value value})]
+(def wire-types
+  (->>
+   {0 #{::int32 ::int64 ::uint32 ::uint64 ::sint32 ::sint64 ::boolean ::enum}
+    1 #{::fixed64 ::sfixed64 ::double}
+    2 #{::string ::bytes.spec/byte-array ::map ::sequential}
+    3 #{:deprecated}
+    4 #{:deprecated}
+    5 #{::fixed32 ::sfixed32 ::float}}
+   (map (fn [[wire-type wire-type-set]]
+          (map (fn [value-type] [value-type wire-type])  wire-type-set)))
+   (flatten)
+   (apply hash-map)))
 
-      (condp identical? (:dispatch stateT)
-        ::varint
-        (let []
-          (bytes.protocols/write-byte-array* baos (-> (varint.core/encode-varint (:value stateT)) (bytes.core/to-byte-array)))
-          (recur stateT))
-        
-        ::string
-        (let [byte-arr (bytes.core/to-byte-array (:value stateT))
-              byte-arr-length (bytes.core/alength byte-arr)]
-          (bytes.protocols/write-byte-array* baos (-> byte-arr-length (varint.core/encode-varint) (bytes.core/to-byte-array)))
-          (bytes.protocols/write-byte-array* baos byte-arr)
-          (recur stateT))
-        
-        ::key
-        (let [{:keys [field-number wire-type]} (:value stateT)
-              key-value (-> (bit-shift-left field-number 3) (bit-or  wire-type))]
-          (bytes.protocols/write-byte-array* baos (-> key-value (varint.core/encode-varint) (bytes.core/to-byte-array)))
-          (recur stateT))
-        
-        
-        
-        
-        
-        
-        ))
-    
-    
-    ))
+(defmulti encode*
+  (fn
+    ([value-type value registry baos]
+     (cond
+       (bytes.core/byte-array? value) ::bytes.spec/byte-array
+       (number? value) ::number
+       (string? value) ::string
+       (keyword? value) ::keyword
+       (map? value) ::map
+       (sequential? value) ::sequential))
+    ([value-type value registry baos dispatch-val]
+     dispatch-val)))
+
+(defmethod encode* ::bytes.spec/byte-array
+  [value-type value registry baos & more]
+  (bytes.protocols/write-byte-array* baos (-> (varint.core/encode-varint value) (bytes.core/to-byte-array))))
+
+(defmethod encode* ::string
+  [value-type value registry baos & more]
+  (let [byte-arr (bytes.core/to-byte-array value)
+        byte-arr-length (bytes.core/alength byte-arr)]
+    (bytes.protocols/write-byte-array* baos (-> byte-arr-length (varint.core/encode-varint) (bytes.core/to-byte-array)))
+    (bytes.protocols/write-byte-array* baos byte-arr)))
+
+(defn encode-key
+  [field-number wire-type baos]
+  (->>
+   (-> (bit-shift-left field-number 3) (bit-or wire-type))
+   (varint.core/encode-varint)
+   (bytes.core/to-byte-array)
+   (bytes.protocols/write-byte-array* baos)))
+
+(defmethod encode* ::map
+  [value-type value registry baos & more]
+  (let [value-proto (get registry value-type)
+        resultT (transient [])]
+    (doseq [[k k-value] value
+            :let [{:keys [value-type field-number]} (get value-proto k)]]
+      (encode-key field-number (get wire-types value-type) baos)
+      (encode* value-type k-value registry baos))))
+
+(defn encode
+  [value-type value registry]
+  (let [baos (bytes.core/byte-array-output-stream)]
+    (encode* value-type value registry baos)
+    (bytes.protocols/to-byte-array* baos)))
 
 (defn decode
   [value])
@@ -109,6 +132,7 @@
 (comment
 
   (require
+   '[cljctools.bytes.spec :as bytes.spec]
    '[cljctools.bytes.core :as bytes.core]
    '[cljctools.varint.core :as varint.core]
    '[cljctools.protobuf.core :as protobuf.core]
@@ -117,15 +141,15 @@
 
   (def registry
     {::Record {:key {:field-number 1
-                     :wire-type ::byte-array}
+                     :value-type ::byte-array}
                :value {:field-number 2
-                       :wire-type ::byte-array}
+                       :value-type ::byte-array}
                :author {:field-number 3
-                        :wire-type ::byte-array}
+                        :value-type ::byte-array}
                :signature {:field-number 4
-                           :wire-type ::byte-array}
+                           :value-type ::byte-array}
                :timeReceived {:field-number 5
-                              :wire-type ::string}}
+                              :value-type ::string}}
 
      ::MessageType {:PUT_VALUE 0
                     :GET_VALUE 1
@@ -140,34 +164,33 @@
                        :CANNOT_CONNECT 3}
 
      ::Peer {:id {:field-number 1
-                  :wire-type ::byte-array}
+                  :value-type ::byte-array}
              :addrs {:field-number 2
-                     :wire-type ::byte-array
+                     :value-type ::byte-array
                      :repeated? true}
              :connection {:field-number 3
-                          :wire-type ::ConnectionType
+                          :value-type ::ConnectionType
                           :enum? true}}
 
      ::Message {:type {:field-number 1
-                       :wire-type ::MessageType
+                       :value-type ::MessageType
                        :enum? true}
                 :key {:field-number 2
-                      :wire-type ::byte-array}
+                      :value-type ::byte-array}
                 :record {:field-number 3
-                         :wire-type ::Record}
+                         :value-type ::Record}
                 :closerPeers {:field-number 8
-                              :wire-type ::Peer
+                              :value-type ::Peer
                               :repeated? true}
                 :providerPeers {:field-number 8
-                                :wire-type ::Peer
+                                :value-type ::Peer
                                 :repeated? true}
                 :clusterLevelRaw {:field-number 10
-                                  :wire-type ::int32}}})
+                                  :value-type ::int32}}})
 
   (let [registry (merge default-registry
                         registry)
         msg
-        ^{:type ::Message}
         {:type :PUT_VALUE
          :key (bytes.core/byte-array 5)
          :record {:key (bytes.core/byte-array 5)
@@ -193,7 +216,7 @@
                           :connection :CONNECTED}]
          :clusterLevelRaw 123}]
     (->
-     (encode msg registry)))
+     (encode ::Message msg registry)))
 
 
 
