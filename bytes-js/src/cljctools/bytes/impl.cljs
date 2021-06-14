@@ -1,4 +1,4 @@
-(ns cljctools.bytes.core
+(ns cljctools.bytes.impl
   (:refer-clojure :exclude [alength concat])
   (:require
    ["randombytes" :as randomBytes]

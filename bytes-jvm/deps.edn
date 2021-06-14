@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {github.cljctools/bytes-meta {:local/root "../bytes-meta"}}}
+ :deps {github.cljctools/bytes {:local/root "../bytes"}}}

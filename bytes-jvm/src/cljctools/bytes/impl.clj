@@ -1,4 +1,4 @@
-(ns cljctools.bytes.core
+(ns cljctools.bytes.impl
   (:refer-clojure :exclude [alength byte-array concat aset-byte unchecked-int unchecked-byte])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
