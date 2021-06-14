@@ -1,10 +1,10 @@
 (ns cljctools.ipfs.dht.impl
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
-   [cljctools.bytes.core :as bytes.core]
+   [cljctools.bytes.impl :as bytes.impl]
    [cljctools.varint.core :as varint.core]
    [cljctools.protobuf.core :as protobuf.core]
-   [cljctools.crypto.core :as crypto.core]))
+   [cljctools.crypto.impl :as crypto.impl]))
 
 (defn multiaddress-to-data
   [multiaddress]
@@ -30,23 +30,23 @@
               6 :reset-initiator)
       :stream-id stream-id
       :msg-length msg-length
-      :msgBB (bytes.core/buffer-wrap buffer (+ header-size msg-length-size) msg-length)})))
+      :msgBB (bytes.impl/buffer-wrap buffer (+ header-size msg-length-size) msg-length)})))
 
 (defn encode-mplex
   [{:as data
     :keys [flag stream-id msgBB]}]
-  (bytes.core/concat
-   [(let [baos (bytes.core/byte-array-output-stream)]
+  (bytes.impl/concat
+   [(let [baos (bytes.impl/byte-array-output-stream)]
       (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
-      (varint.core/encode-varint (bytes.core/capacity msgBB) baos)
-      (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)))
+      (varint.core/encode-varint (bytes.impl/capacity msgBB) baos)
+      (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)))
     msgBB]))
 
 
 (comment
 
   (require
-   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.bytes.impl :as bytes.impl]
    '[cljctools.ipfs.varint.core :as varint.core]
    '[cljctools.ipfs.dht.impl :as dht.impl]
    :reload)

@@ -8,7 +8,7 @@
 
    [cljctools.socket.protocols :as socket.protocols]
    [cljctools.socket.spec :as socket.spec]
-   [cljctools.socket.core :as socket.core]
+   [cljctools.socket.impl :as socket.impl]
 
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.dht.wire :as dht.wire]
@@ -56,7 +56,7 @@
 
           {:keys [::ipfs.spec/host
                   ::ipfs.spec/port]} (multiaddress-to-data multiaddress)
-          socket (socket.core/create
+          socket (socket.impl/create
                   {::socket.spec/port port
                    ::socket.spec/host host
                    ::socket.spec/evt| socket-evt|
