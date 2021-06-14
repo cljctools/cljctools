@@ -118,6 +118,12 @@
    (-> (bit-shift-left field-number 3) (bit-or wire-type))
    (varint.core/encode-uint32 baos)))
 
+(defn decode-tag
+  [buffer]
+  (let [value (varint.core/decode-uint32 buffer)]
+    {:field-number (int (bit-shift-right value 3))
+     :wire-type  (int (bit-and value 0x07))}))
+
 (defmethod encode* ::enum
   [value value-type registry baos & more]
   (varint.core/encode-int32 (get-in registry [value-type value]) baos))
@@ -127,9 +133,20 @@
   (let [value-proto (get registry value-type)]
     (doseq [[k k-value] value
             :let [{k-value-type :value-type
-                   k-field-number :field-number} (get value-proto k)
-                  k-wire-type (get wire-types k-value-type 2)]]
+                   k-field-number :field-number
+                   packed? :packed?} (get value-proto k)
+                  k-wire-type (get wire-types k-value-type 2)
+                  packed? (or packed? (and (sequential? k-value) (#{0 1 5} k-wire-type)))]]
       (cond
+        packed?
+        (let [baos-packed (bytes.core/byte-array-output-stream)]
+          (encode-tag k-field-number k-wire-type baos)
+          (doseq [seq-value k-value]
+            (encode* seq-value k-value-type registry baos-packed))
+          (let [packed-byte-arr (bytes.protocols/to-byte-array* baos-packed)]
+            (varint.core/encode-uint32 (bytes.core/alength packed-byte-arr) baos)
+            (bytes.protocols/write-byte-array* baos packed-byte-arr)))
+
         (sequential? k-value)
         (doseq [seq-value k-value]
           (encode-tag k-field-number k-wire-type baos)
@@ -178,7 +195,35 @@
 
 (defmethod decode* :default
   [buffer value-type registry & more]
-  (let [value-proto (get registry value-type)]))
+  (let [value-proto (get registry value-type)]
+    (loop [result {}]
+      (if (== (bytes.core/position buffer) (dec (bytes.core/limit buffer)))
+        result
+        (let [{:keys [field-number wire-type]} (decode-tag buffer)
+              [k {:keys [value-type repeated?]}] (first (filter (fn [[k k-meta]] (== (:field-number k-meta) field-number))  value-proto))
+              k-buffer (cond
+                         (== wire-type 2)
+                         (let [length (varint.core/decode-uint32 buffer)
+                               k-buffer (bytes.core/buffer-slice buffer (+ (bytes.core/array-offset buffer) (bytes.core/position buffer)) length)]
+                           (bytes.core/position buffer (+ (bytes.core/position buffer) length))
+                           k-buffer)
+
+                         :else
+                         buffer)
+              packed? (and repeated? (== wire-type 2))]
+
+          (recur (cond
+                   packed?
+                   (loop [result result]
+                     (if (== (bytes.core/position buffer) (dec (bytes.core/limit buffer)))
+                       result
+                       (recur (update result k conj (decode* k-buffer value-type registry)))))
+
+                   repeated?
+                   (update result k conj (decode* k-buffer value-type registry))
+
+                   :else
+                   (assoc result k (decode* k-buffer value-type registry)))))))))
 
 (defn decode
   [buffer value-type registry]
