@@ -4,15 +4,15 @@
    [clojure.spec.alpha :as s]
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.spec :as bytes.spec]
-   [cljctools.bytes.core :as bytes.core]
+   [cljctools.bytes.impl :as bytes.impl]
    [cljctools.varint.core :as varint.core]))
 
-(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defn encode-fixed
   [x baos n]
   (dotimes [i (int n)]
-    (bytes.protocols/write* baos (-> (bit-shift-right x (* i 8)) (bytes.core/unchecked-int) (bit-and 0xff)))))
+    (bytes.protocols/write* baos (-> (bit-shift-right x (* i 8)) (bytes.impl/unchecked-int) (bit-and 0xff)))))
 
 (defn encode-little-endian32
   [x baos]
@@ -42,7 +42,7 @@
   (fn
     ([value value-type registry baos]
      (cond
-       (bytes.core/byte-array? value) ::byte-array
+       (bytes.impl/byte-array? value) ::byte-array
        (string? value) ::string
        (map? value) ::map
        (keyword? value) ::enum
@@ -52,13 +52,13 @@
 
 (defmethod encode* ::byte-array
   [value value-type registry baos & more]
-  (let [byte-arr-length (bytes.core/alength value)]
+  (let [byte-arr-length (bytes.impl/alength value)]
     (varint.core/encode-uint32 byte-arr-length baos)
     (bytes.protocols/write-byte-array* baos value)))
 
 (defmethod encode* ::string
   [value value-type registry baos & more]
-  (encode* (bytes.core/to-byte-array value) value-type registry baos ::byte-array))
+  (encode* (bytes.impl/to-byte-array value) value-type registry baos ::byte-array))
 
 (defmethod encode* ::int32
   [value value-type registry baos & more]
@@ -106,11 +106,11 @@
 
 (defmethod encode* ::float
   [value value-type registry baos & more]
-  (encode-fixed (bytes.core/float-to-raw-int-bits value) baos 4))
+  (encode-fixed (bytes.impl/float-to-raw-int-bits value) baos 4))
 
 (defmethod encode* ::double
   [value value-type registry baos & more]
-  (encode-fixed (bytes.core/double-to-raw-long-bits value) baos 8))
+  (encode-fixed (bytes.impl/double-to-raw-long-bits value) baos 8))
 
 (defn encode-tag
   [field-number wire-type baos]
@@ -139,12 +139,12 @@
                   packed? (or packed? (and (sequential? k-value) (#{0 1 5} k-wire-type)))]]
       (cond
         packed?
-        (let [baos-packed (bytes.core/byte-array-output-stream)]
+        (let [baos-packed (bytes.impl/byte-array-output-stream)]
           (encode-tag k-field-number k-wire-type baos)
           (doseq [seq-value k-value]
             (encode* seq-value k-value-type registry baos-packed))
           (let [packed-byte-arr (bytes.protocols/to-byte-array* baos-packed)]
-            (varint.core/encode-uint32 (bytes.core/alength packed-byte-arr) baos)
+            (varint.core/encode-uint32 (bytes.impl/alength packed-byte-arr) baos)
             (bytes.protocols/write-byte-array* baos packed-byte-arr)))
 
         (sequential? k-value)
@@ -155,7 +155,7 @@
         (map? k-value)
         (do
           (encode-tag k-field-number k-wire-type baos)
-          (let [baos-map (bytes.core/byte-array-output-stream)]
+          (let [baos-map (bytes.impl/byte-array-output-stream)]
             (encode* k-value k-value-type registry baos-map)
             (encode* (bytes.protocols/to-byte-array* baos-map) ::byte-array registry baos ::byte-array)))
 
@@ -166,7 +166,7 @@
 
 (defn encode
   [value value-type registry]
-  (let [baos (bytes.core/byte-array-output-stream)]
+  (let [baos (bytes.impl/byte-array-output-stream)]
     (encode* value value-type registry baos)
     (bytes.protocols/to-byte-array* baos)))
 
@@ -179,11 +179,11 @@
 
 (defmethod decode* ::byte-array
   [buffer value-type registry & more]
-  (bytes.core/to-byte-array buffer))
+  (bytes.impl/to-byte-array buffer))
 
 (defmethod decode* ::string
   [buffer value-type registry & more]
-  (bytes.core/to-string buffer))
+  (bytes.impl/to-string buffer))
 
 (defmethod decode* ::int32
   [buffer value-type registry & more]
@@ -197,15 +197,15 @@
   [buffer value-type registry & more]
   (let [value-proto (get registry value-type)]
     (loop [result {}]
-      (if (== (bytes.core/position buffer) (dec (bytes.core/limit buffer)))
+      (if (== (bytes.impl/position buffer) (dec (bytes.impl/limit buffer)))
         result
         (let [{:keys [field-number wire-type]} (decode-tag buffer)
               [k {:keys [value-type repeated?]}] (first (filter (fn [[k k-meta]] (== (:field-number k-meta) field-number))  value-proto))
               k-buffer (cond
                          (== wire-type 2)
                          (let [length (varint.core/decode-uint32 buffer)
-                               k-buffer (bytes.core/buffer-slice buffer (+ (bytes.core/array-offset buffer) (bytes.core/position buffer)) length)]
-                           (bytes.core/position buffer (+ (bytes.core/position buffer) length))
+                               k-buffer (bytes.impl/buffer-slice buffer (+ (bytes.impl/array-offset buffer) (bytes.impl/position buffer)) length)]
+                           (bytes.impl/position buffer (+ (bytes.impl/position buffer) length))
                            k-buffer)
 
                          :else
@@ -215,7 +215,7 @@
           (recur (cond
                    packed?
                    (loop [result result]
-                     (if (== (bytes.core/position buffer) (dec (bytes.core/limit buffer)))
+                     (if (== (bytes.impl/position buffer) (dec (bytes.impl/limit buffer)))
                        result
                        (recur (update result k conj (decode* k-buffer value-type registry)))))
 
@@ -234,7 +234,7 @@
 
   (require
    '[cljctools.bytes.spec :as bytes.spec]
-   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.bytes.impl :as bytes.impl]
    '[cljctools.varint.core :as varint.core]
    '[cljctools.protobuf.core :as protobuf.core]
    :reload)
@@ -293,27 +293,27 @@
                         registry)
         msg
         {:type :PUT_VALUE
-         :key (bytes.core/byte-array 5)
-         :record {:key (bytes.core/byte-array 5)
-                  :value (bytes.core/byte-array 5)
-                  :author (bytes.core/byte-array 5)
-                  :signature (bytes.core/byte-array 5)
+         :key (bytes.impl/byte-array 5)
+         :record {:key (bytes.impl/byte-array 5)
+                  :value (bytes.impl/byte-array 5)
+                  :author (bytes.impl/byte-array 5)
+                  :signature (bytes.impl/byte-array 5)
                   :timeReceived "1970-01-01"}
-         :closerPeers [{:id (bytes.core/byte-array 5)
-                        :addrs [(bytes.core/byte-array 5)
-                                (bytes.core/byte-array 5)]
+         :closerPeers [{:id (bytes.impl/byte-array 5)
+                        :addrs [(bytes.impl/byte-array 5)
+                                (bytes.impl/byte-array 5)]
                         :connection :CONNECTED}
-                       {:id (bytes.core/byte-array 5)
-                        :addrs [(bytes.core/byte-array 5)
-                                (bytes.core/byte-array 5)]
+                       {:id (bytes.impl/byte-array 5)
+                        :addrs [(bytes.impl/byte-array 5)
+                                (bytes.impl/byte-array 5)]
                         :connection :CONNECTED}]
-         :providerPeers [{:id (bytes.core/byte-array 5)
-                          :addrs [(bytes.core/byte-array 5)
-                                  (bytes.core/byte-array 5)]
+         :providerPeers [{:id (bytes.impl/byte-array 5)
+                          :addrs [(bytes.impl/byte-array 5)
+                                  (bytes.impl/byte-array 5)]
                           :connection :CONNECTED}
-                         {:id (bytes.core/byte-array 5)
-                          :addrs [(bytes.core/byte-array 5)
-                                  (bytes.core/byte-array 5)]
+                         {:id (bytes.impl/byte-array 5)
+                          :addrs [(bytes.impl/byte-array 5)
+                                  (bytes.impl/byte-array 5)]
                           :connection :CONNECTED}]
          :clusterLevelRaw 123}]
     (->

@@ -487,7 +487,7 @@
   
   (do
     (set! *warn-on-reflection* true)
-    (require '[cljctools.bytes.core :as bytes.core] :reload))
+    (require '[cljctools.bytes.impl :as bytes.impl] :reload))
 
   (in-ns 'cljctools.bytes.core)
   
@@ -553,12 +553,12 @@
   
   (do
     (set! *warn-on-reflection* true)
-    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.bytes.impl :as bytes.impl] :reload)
     (require '[cljctools.codec.core :as codec.core] :reload))
   
   (->
    (java.security.MessageDigest/getInstance "sha1")
-   (.digest (bytes.core/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
+   (.digest (bytes.impl/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
    (codec.core/hex-encode-string))
   ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
   
@@ -599,7 +599,7 @@
 
     (defn foo
       [aset-byte]
-      (let [byte-arr (bytes.core/byte-array 20)]
+      (let [byte-arr (bytes.impl/byte-array 20)]
         (dotimes [i 10000000]
           (aset-byte byte-arr 5 5))))
 
@@ -635,20 +635,20 @@
 (comment
 
   (time
-   (let [ba (bytes.core/byte-array (range 20))]
+   (let [ba (bytes.impl/byte-array (range 20))]
      (dotimes [i 1000000]
-       (-> [(bytes.core/copy-byte-array ba 0 10)
-            (bytes.core/copy-byte-array ba 10 20)]
-           (bytes.core/concat)))))
+       (-> [(bytes.impl/copy-byte-array ba 0 10)
+            (bytes.impl/copy-byte-array ba 10 20)]
+           (bytes.impl/concat)))))
   ; "Elapsed time: 382.270465 msecs"
 
   (time
-   (let [ba (bytes.core/byte-array (range 20))]
+   (let [ba (bytes.impl/byte-array (range 20))]
      (dotimes [i 1000000]
-       (-> [(bytes.core/buffer-wrap ba 0 10)
-            (bytes.core/buffer-wrap ba 10 10)]
-           (bytes.core/concat)
-           (bytes.core/to-byte-array)))))
+       (-> [(bytes.impl/buffer-wrap ba 0 10)
+            (bytes.impl/buffer-wrap ba 10 10)]
+           (bytes.impl/concat)
+           (bytes.impl/to-byte-array)))))
   ; "Elapsed time: 1666.753437 msecs"
 
   ;

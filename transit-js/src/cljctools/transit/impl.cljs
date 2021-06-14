@@ -1,8 +1,8 @@
-(ns cljctools.transit.core
+(ns cljctools.transit.impl
   (:require
    [clojure.string]
    [cognitect.transit :as transit]
-   [cljctools.bytes.core :as bytes.core]))
+   [cljctools.bytes.impl :as bytes.impl]))
  
  (defn write-to-string
    [data type-kw opts]
@@ -13,7 +13,7 @@
   [data type-kw opts]
   (->
    (write-to-string data type-kw opts)
-   (bytes.core/to-byte-array)))
+   (bytes.impl/to-byte-array)))
 
 (defn read-string
   [string type-kw opts]
@@ -23,5 +23,5 @@
 (defn read-byte-array
   [buffer type-kw opts]
   (->
-   (bytes.core/to-string buffer)
+   (bytes.impl/to-string buffer)
    (read-string type-kw opts)))

@@ -1,2 +1,2 @@
 {:paths ["src"]
- :deps {}}
+ :deps {github.cljctools.cljctools/codec {:local/root "../codec"}}}

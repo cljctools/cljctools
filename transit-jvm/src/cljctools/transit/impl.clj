@@ -1,9 +1,9 @@
-(ns cljctools.transit.core
+(ns cljctools.transit.impl
   (:refer-clojure :exclude [read-string])
   (:require
    [clojure.string]
    [cognitect.transit :as transit]
-   [cljctools.bytes.core :as bytes.core])
+   [cljctools.bytes.impl :as bytes.impl])
   (:import (java.io ByteArrayOutputStream ByteArrayInputStream)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
@@ -19,7 +19,7 @@
   [data type-kw opts]
   (->
    (write-to-byte-array data type-kw opts)
-   (bytes.core/to-string)))
+   (bytes.impl/to-string)))
 
 (defn read-byte-array
   [^bytes byte-arr type-kw opts]
@@ -30,7 +30,7 @@
 (defn read-string
   [^String string type-kw opts]
   (->
-   (bytes.core/to-byte-array string)
+   (bytes.impl/to-byte-array string)
    (read-byte-array type-kw opts)))
 
 (comment
@@ -56,7 +56,7 @@
                                                 timeout to-chan  sliding-buffer dropping-buffer
                                                 pipeline pipeline-async]])
     
-    (require '[cljctools.bytes.core :as bytes.core] :reload)
+    (require '[cljctools.bytes.impl :as bytes.impl] :reload)
     (require '[cljctools.transit.core :as transit.core] :reload))
   
   
@@ -91,7 +91,7 @@
          [t data]
          (->
           (write-byte-array* t data)
-          (bytes.core/to-string))))
+          (bytes.impl/to-string))))
 
      (defn writer
        ([type-kw]
@@ -118,7 +118,7 @@
          [t data]
          (->
           (write-string* t data)
-          (bytes.core/to-byte-array)))
+          (bytes.impl/to-byte-array)))
        (write-string*
          [_ data]
          (transit/write writer data)))

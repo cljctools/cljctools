@@ -1,3 +1,4 @@
 {:paths ["src"]
  :deps {#_commons-codec/commons-codec #_{:mvn/version "1.15"}
+        github.cljctools.cljctools/codec {:local/root "../codec"}
         io.netty/netty-buffer {:mvn/version "4.1.51.Final"}}}

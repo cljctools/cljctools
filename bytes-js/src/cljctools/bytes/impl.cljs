@@ -278,9 +278,9 @@
                         :install-deps true}' \
   --repl-env node --compile cljctools.bytes.core --repl
   
-  (require '[cljctools.bytes.core :as bytes.core] :reload)
+  (require '[cljctools.bytes.impl :as bytes.impl] :reload)
   
-  (bytes.core/random-bytes 20)
+  (bytes.impl/random-bytes 20)
   
   (in-ns 'cljctools.bytes.core)
 

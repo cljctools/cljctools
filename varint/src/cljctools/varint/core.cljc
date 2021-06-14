@@ -1,9 +1,9 @@
 (ns cljctools.varint.core
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
-   [cljctools.bytes.core :as bytes.core]))
+   [cljctools.bytes.impl :as bytes.impl]))
 
-(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
 (defn varint-size
   [x]
@@ -20,18 +20,18 @@
       (do
         (bytes.protocols/write* baos x))
       (do
-        (bytes.protocols/write* baos (-> (bytes.core/unchecked-int x) (bit-and 0x7f) (bit-or 0x80)))
+        (bytes.protocols/write* baos (-> (bytes.impl/unchecked-int x) (bit-and 0x7f) (bit-or 0x80)))
         (recur (unsigned-bit-shift-right x 7))))))
 
 (defn decode-varint
   [buffer]
   (loop [x (long 0)
-         byte (bytes.core/get-byte buffer)
+         byte (bytes.impl/get-byte buffer)
          shift (int 0)]
     (if (zero? (bit-and byte 0x80))
       (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
       (recur (bit-or x (long (bit-shift-left (bit-and byte 0x7f) shift)))
-             (bytes.core/get-byte buffer)
+             (bytes.impl/get-byte buffer)
              (+ shift 7)))))
 
 (defn encode-uint64
@@ -104,28 +104,28 @@
 
   (require
    '[cljctools.bytes.protocols :as bytes.protocols]
-   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.bytes.impl :as bytes.impl]
    '[cljctools.varint.core :as varint.core]
    :reload)
 
-  [(let [baos (bytes.core/byte-array-output-stream)]
+  [(let [baos (bytes.impl/byte-array-output-stream)]
      (varint.core/encode-varint 1000 baos)
-     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)) 0))
+     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)) 0))
 
-   (let [baos (bytes.core/byte-array-output-stream)]
+   (let [baos (bytes.impl/byte-array-output-stream)]
      (varint.core/encode-varint 10000 baos)
-     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)) 0))
-   (let [baos (bytes.core/byte-array-output-stream)]
+     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)) 0))
+   (let [baos (bytes.impl/byte-array-output-stream)]
      (varint.core/encode-varint -1000000 baos)
-     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)) 0))
-   (let [baos (bytes.core/byte-array-output-stream)]
+     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)) 0))
+   (let [baos (bytes.impl/byte-array-output-stream)]
      (varint.core/encode-varint 100000000 baos)
-     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)) 0))]
+     (varint.core/decode-varint (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)) 0))]
 
 
-  [(let [baos (bytes.core/byte-array-output-stream)]
+  [(let [baos (bytes.impl/byte-array-output-stream)]
      (varint.core/encode-sint64 -10000 baos)
-     (varint.core/decode-sint64 (-> baos (bytes.protocols/to-byte-array*) (bytes.core/buffer-wrap)) 0))]
+     (varint.core/decode-sint64 (-> baos (bytes.protocols/to-byte-array*) (bytes.impl/buffer-wrap)) 0))]
 
 
 
