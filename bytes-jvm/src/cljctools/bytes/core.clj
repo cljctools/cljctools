@@ -115,6 +115,18 @@
   [^ByteBuffer buffer]
   (.capacity buffer))
 
+(defn mark
+  [^ByteBuffer buffer]
+  (.mark buffer))
+
+(defn reset
+  [^ByteBuffer buffer]
+  (.reset buffer))
+
+(defn rewind
+  [^ByteBuffer buffer]
+  (.rewind buffer))
+
 (defn buffer-allocate ^ByteBuffer
   [size]
   (ByteBuffer/allocate ^int size))
