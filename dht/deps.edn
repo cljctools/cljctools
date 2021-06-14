@@ -1,2 +1,3 @@
 {:paths ["src"]
- :deps {github.cljctools.ipfs/spec {:local/root "../spec"}}}
+ :deps {github.cljctools.ipfs/spec {:local/root "../spec"}
+        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}}}
