@@ -6,8 +6,8 @@
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.string]
-   [cljctools.bytes.core :as bytes.core]
-   [cljctools.codec.core :as codec.core]
+   [cljctools.bytes.impl :as bytes.impl]
+   [cljctools.codec.impl :as codec.impl]
    [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
                                                 now]]))
 
@@ -81,7 +81,7 @@
                                   (filter valid-for-ping?)
                                   (take 8))))]
                (take! (send-krpc-request
-                       {:t (bytes.core/random-bytes 4)
+                       {:t (bytes.impl/random-bytes 4)
                         :y "q"
                         :q "ping"
                         :a {:id self-idBA}}
@@ -136,7 +136,7 @@
                                              ["0"  "2"  "4"  "6"  "8"  "a"  "c"  "e"]
                                              #_["0" "1" "2" "3" "4" "5" "6" "7" "8" "9" "a" "b" "c" "d" "e" "f"])})
     (doseq [[id routing-table] (:dht-keyspace @stateA)]
-      (swap! stateA update-in [:dht-keyspace id] (partial into (sorted-map-by (hash-key-distance-comparator-fn (codec.core/hex-decode id))))))
+      (swap! stateA update-in [:dht-keyspace id] (partial into (sorted-map-by (hash-key-distance-comparator-fn (codec.impl/hex-decode id))))))
     (swap! stateA update :dht-keyspace (partial into (sorted-map)))
 
     ; add nodes to routing table
@@ -164,7 +164,7 @@
                           (map (fn [[id routing-table]]
                                  [id (->> routing-table
                                           (take routing-table-max-size)
-                                          (into (sorted-map-by (hash-key-distance-comparator-fn (codec.core/hex-decode id)))))]))
+                                          (into (sorted-map-by (hash-key-distance-comparator-fn (codec.impl/hex-decode id)))))]))
                           (into (sorted-map)))))
                 (recur n 0 (now) 0))
               (recur n (inc i) (now) (+ time-total (- (now) ts)))))))
@@ -185,7 +185,7 @@
                                   (filter valid-for-ping?)
                                   (take 8))))]
                (take! (send-krpc-request
-                       {:t (bytes.core/random-bytes 4)
+                       {:t (bytes.impl/random-bytes 4)
                         :y "q"
                         :q "ping"
                         :a {:id self-idBA}}

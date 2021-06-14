@@ -14,11 +14,11 @@
         [goog.object]
         [cljs.reader :refer [read-string]]])
 
-   [cljctools.bytes.core :as bytes.core]
-   [cljctools.codec.core :as codec.core]
-   [cljctools.fs.core :as fs.core]
+   [cljctools.bytes.impl :as bytes.impl]
+   [cljctools.codec.impl :as codec.impl]
+   [cljctools.fs.impl :as fs.impl]
    [cljctools.fs.protocols :as fs.protocols]
-   [cljctools.datagram-socket.core :as datagram-socket.core]
+   [cljctools.datagram-socket.impl :as datagram-socket.impl]
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
 
@@ -52,11 +52,11 @@
   [{:as opts
     :keys [data-dir]}]
   (go
-    (let [state-filepath (fs.core/path-join data-dir "cljctools.bittorrent.dht-crawl.core.json")
+    (let [state-filepath (fs.impl/path-join data-dir "cljctools.bittorrent.dht-crawl.core.json")
           stateA (atom
                   (merge
-                   (let [self-idBA  (codec.core/hex-decode "a8fb5c14469fc7c46e91679c493160ed3d13be3d") #_(bytes.core/random-bytes 20)]
-                     {:self-id (codec.core/hex-encode-string self-idBA)
+                   (let [self-idBA  (codec.impl/hex-decode "a8fb5c14469fc7c46e91679c493160ed3d13be3d") #_(bytes.impl/random-bytes 20)]
+                     {:self-id (codec.impl/hex-encode-string self-idBA)
                       :self-idBA self-idBA
                       :routing-table (sorted-map)
                       :dht-keyspace {}
@@ -93,7 +93,7 @@
           unique-infohashsesA (atom #{})
           xf-infohash (comp
                        (map (fn [{:keys [infohashBA] :as value}]
-                              (assoc value :infohash (codec.core/hex-encode-string infohashBA))))
+                              (assoc value :infohash (codec.impl/hex-encode-string infohashBA))))
                        (filter (fn [{:keys [infohash]}]
                                  (not (get @unique-infohashsesA infohash))))
                        (map (fn [{:keys [infohash] :as value}]
@@ -234,7 +234,7 @@
 
       ; save state to file periodically
       (go
-        (when-not (fs.core/path-exists? state-filepath)
+        (when-not (fs.impl/path-exists? state-filepath)
           (<! (write-state-file state-filepath @stateA)))
         (loop []
           (<! (timeout (* 4.5 1000)))
@@ -332,7 +332,7 @@
            port]}]
   (let [ex| (chan 1)
         evt| (chan (sliding-buffer 10))
-        socket (datagram-socket.core/create
+        socket (datagram-socket.impl/create
                 {::datagram-socket.spec/host host
                  ::datagram-socket.spec/port port
                  ::datagram-socket.spec/evt| evt|
@@ -389,10 +389,10 @@
            count-torrentsA
            count-messages-sybilA]}]
   (let [started-at (now)
-        filepath (fs.core/path-join data-dir "cljctools.bittorrent.crawl-log.edn")
-        _ (fs.core/remove filepath)
-        _ (fs.core/make-parents filepath)
-        writer (fs.core/writer filepath :append true)
+        filepath (fs.impl/path-join data-dir "cljctools.bittorrent.crawl-log.edn")
+        _ (fs.impl/remove filepath)
+        _ (fs.impl/make-parents filepath)
+        writer (fs.impl/writer filepath :append true)
         countA (atom 0)
         release (fn []
                   (fs.protocols/close* writer))]
@@ -476,8 +476,8 @@
     (go
       (loop []
         (when-let [{:keys [msg host port] :as value} (<! msg|tap)]
-          (let [msg-y (some-> (:y msg) (bytes.core/to-string))
-                msg-q (some-> (:q msg) (bytes.core/to-string))]
+          (let [msg-y (some-> (:y msg) (bytes.impl/to-string))
+                msg-q (some-> (:q msg) (bytes.impl/to-string))]
             (cond
 
               #_(and (= msg-y "r") (goog.object/getValueByKeys msg "r" "samples"))
@@ -500,7 +500,7 @@
               (and (= msg-y "q")  (= msg-q "ping"))
               (let [txn-idBA  (:t msg)
                     node-idBA (get-in msg [:a :id])]
-                (if (or (not txn-idBA) (not= (bytes.core/alength node-idBA) 20))
+                (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20))
                   (do nil :invalid-data)
                   (put! send|
                         {:msg  {:t txn-idBA
@@ -512,7 +512,7 @@
               (and (= msg-y "q")  (= msg-q "find_node"))
               (let [txn-idBA  (:t msg)
                     node-idBA (get-in msg [:a :id])]
-                (if (or (not txn-idBA) (not= (bytes.core/alength node-idBA) 20))
+                (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20))
                   (println "invalid query args: find_node")
                   (put! send|
                         {:msg {:t txn-idBA
@@ -526,8 +526,8 @@
               (let [infohashBA (get-in msg [:a :info_hash])
                     txn-idBA (:t msg)
                     node-idBA (get-in msg [:a :id])
-                    tokenBA (bytes.core/copy-byte-array infohashBA 0 4)]
-                (if (or (not txn-idBA) (not= (bytes.core/alength node-idBA) 20) (not= (bytes.core/alength infohashBA) 20))
+                    tokenBA (bytes.impl/copy-byte-array infohashBA 0 4)]
+                (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20) (not= (bytes.impl/alength infohashBA) 20))
                   (println "invalid query args: get_peers")
                   (do
                     (put! infohashes-from-listening| {:infohashBA infohashBA})
@@ -544,7 +544,7 @@
               (let [infohashBA  (get-in msg [:a :info_hash])
                     txn-idBA (:t msg)
                     node-idBA (get-in msg [:a :id])
-                    tokenBA (bytes.core/copy-byte-array infohashBA 0 4)]
+                    tokenBA (bytes.impl/copy-byte-array infohashBA 0 4)]
 
                 (cond
                   (not txn-idBA)
@@ -626,15 +626,15 @@
    '[clojure.core.async.impl.protocols :refer [closed?]])
 
   (require
-   '[cljctools.fs.core :as fs.core]
-   '[cljctools.bytes.core :as bytes.core]
-   '[cljctools.codec.core :as codec.core]
+   '[cljctools.fs.impl :as fs.impl]
+   '[cljctools.bytes.impl :as bytes.impl]
+   '[cljctools.codec.impl :as codec.impl]
    '[cljctools.bittorrent.bencode.core :as bencode.core]
    '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core]
    :reload #_:reload-all)
                    
     (dht-crawl.core/start
-     {:data-dir (fs.core/path-join "./dht-crawl")})
+     {:data-dir (fs.impl/path-join "./dht-crawl")})
                                                                                                          
     
                                                                                                          

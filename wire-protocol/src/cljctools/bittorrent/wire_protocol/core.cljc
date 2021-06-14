@@ -7,8 +7,8 @@
    [clojure.string]
    [clojure.spec.alpha :as s]
    [cljctools.bytes.spec :as bytes.spec]
-   [cljctools.bytes.core :as bytes.core]
-   [cljctools.codec.core :as codec.core]
+   [cljctools.bytes.impl :as bytes.impl]
+   [cljctools.codec.impl :as codec.impl]
    [cljctools.bittorrent.bencode.core :as bencode.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [clojure.walk :refer [keywordize-keys]]))
@@ -52,23 +52,23 @@
                                   (->
                                    @buffersV
                                    (persistent!)
-                                   (bytes.core/concat)))]
+                                   (bytes.impl/concat)))]
                     (vreset! buffersV (transient []))
                     (vreset! total-sizeV 0)
                     resultB)
 
                   (> total-size expected-size)
-                  (let [overB (bytes.core/concat (persistent! @buffersV))
-                        resultB (bytes.core/buffer-wrap overB 0 expected-size)
-                        leftoverB (bytes.core/buffer-wrap overB expected-size (- total-size expected-size))]
+                  (let [overB (bytes.impl/concat (persistent! @buffersV))
+                        resultB (bytes.impl/buffer-wrap overB 0 expected-size)
+                        leftoverB (bytes.impl/buffer-wrap overB expected-size (- total-size expected-size))]
                     (vreset! buffersV (transient [leftoverB]))
-                    (vreset! total-sizeV (bytes.core/capacity leftoverB))
+                    (vreset! total-sizeV (bytes.impl/capacity leftoverB))
                     resultB)
 
                   :else
                   (when-let [recvB (<! recv|)]
                     (vswap! buffersV conj! recvB)
-                    (vreset! total-sizeV (+ total-size (bytes.core/capacity recvB)))
+                    (vreset! total-sizeV (+ total-size (bytes.impl/capacity recvB)))
                     (recur))))))))))
 
 (defn buffer-cut
@@ -90,32 +90,32 @@
                           (->
                            buffersT
                            (persistent!)
-                           (bytes.core/concat)))]
+                           (bytes.impl/concat)))]
             (>! to| resultBB)
             (recur (transient []) 0 (<! expected-size|)))
 
           (> total-size expected-size)
-          (let [overBB (bytes.core/concat (persistent! buffersT))
-                resultBB (bytes.core/buffer-slice overBB 0 expected-size)
-                leftoverBB (bytes.core/buffer-slice overBB expected-size (- total-size expected-size))]
+          (let [overBB (bytes.impl/concat (persistent! buffersT))
+                resultBB (bytes.impl/buffer-slice overBB 0 expected-size)
+                leftoverBB (bytes.impl/buffer-slice overBB expected-size (- total-size expected-size))]
             (>! to| resultBB)
-            (recur (transient [leftoverBB]) (bytes.core/capacity leftoverBB) (<! expected-size|)))
+            (recur (transient [leftoverBB]) (bytes.impl/capacity leftoverBB) (<! expected-size|)))
 
           :else
           (when-let [recvBB (<! from|)]
-            (recur (conj! buffersT recvBB) (+ total-size (bytes.core/capacity recvBB)) expected-size)))))
+            (recur (conj! buffersT recvBB) (+ total-size (bytes.impl/capacity recvBB)) expected-size)))))
     (close! to|)))
 
-(def pstrlenBA (bytes.core/byte-array [19]))
-(def pstrBA (bytes.core/to-byte-array "BitTorrent protocol" #_"\u0013BitTorrent protocol"))
-(def reservedBA (bytes.core/byte-array [0 0 0 0 0 2r00010000 0 2r00000001]))
-(def keep-aliveBA (bytes.core/byte-array [0 0 0 0]))
-(def chokeBA (bytes.core/byte-array [0 0 0 1 0]))
-(def unchokeBA (bytes.core/byte-array [0 0 0 1 1]))
-(def interestedBA (bytes.core/byte-array [0 0 0 1 2]))
-(def not-interestedBA (bytes.core/byte-array [0 0 0 1 3]))
-(def haveBA (bytes.core/byte-array [0 0 0 5 4]))
-(def portBA (bytes.core/byte-array [0 0 0 3 9 0 0]))
+(def pstrlenBA (bytes.impl/byte-array [19]))
+(def pstrBA (bytes.impl/to-byte-array "BitTorrent protocol" #_"\u0013BitTorrent protocol"))
+(def reservedBA (bytes.impl/byte-array [0 0 0 0 0 2r00010000 0 2r00000001]))
+(def keep-aliveBA (bytes.impl/byte-array [0 0 0 0]))
+(def chokeBA (bytes.impl/byte-array [0 0 0 1 0]))
+(def unchokeBA (bytes.impl/byte-array [0 0 0 1 1]))
+(def interestedBA (bytes.impl/byte-array [0 0 0 1 2]))
+(def not-interestedBA (bytes.impl/byte-array [0 0 0 1 3]))
+(def haveBA (bytes.impl/byte-array [0 0 0 5 4]))
+(def portBA (bytes.impl/byte-array [0 0 0 3 9 0 0]))
 
 (def ^:const ut-metadata-block-size 16384)
 (def ^:const ut-metadata-max-size 1000000)
@@ -125,18 +125,18 @@
   (let [payloadBA (->
                    data
                    (bencode.core/encode))
-        msg-lengthBB (bytes.core/buffer-allocate 4)
-        msg-length (+ 2 (bytes.core/alength payloadBA))]
-    (bytes.core/put-uint32 msg-lengthBB 0 msg-length)
+        msg-lengthBB (bytes.impl/buffer-allocate 4)
+        msg-length (+ 2 (bytes.impl/alength payloadBA))]
+    (bytes.impl/put-uint32 msg-lengthBB 0 msg-length)
     (->
-     (bytes.core/concat
-      [(bytes.core/to-byte-array msg-lengthBB)
-       (bytes.core/byte-array [20 ext-msg-id])
+     (bytes.impl/concat
+      [(bytes.impl/to-byte-array msg-lengthBB)
+       (bytes.impl/byte-array [20 ext-msg-id])
        payloadBA]))))
 
 (defn handshake-msg
   [infohashBA peer-idBA]
-  (bytes.core/concat [pstrlenBA pstrBA reservedBA infohashBA peer-idBA]))
+  (bytes.impl/concat [pstrlenBA pstrBA reservedBA infohashBA peer-idBA]))
 
 (s/def ::create-wire-opts
   (s/keys :req [::send|
@@ -218,7 +218,7 @@
             (condp = (:op stateT)
 
               :pstrlen
-              (let [pstrlen (bytes.core/get-uint8 msgBB 0)]
+              (let [pstrlen (bytes.impl/get-uint8 msgBB 0)]
                 (recur (-> stateT
                            (assoc! :op :handshake)
                            (assoc! :pstrlen pstrlen)
@@ -226,24 +226,24 @@
 
               :handshake
               (let [{:keys [pstrlen]} stateT
-                    pstr (-> (bytes.core/buffer-slice msgBB 0 pstrlen) (bytes.core/to-string))]
+                    pstr (-> (bytes.impl/buffer-slice msgBB 0 pstrlen) (bytes.impl/to-string))]
                 (if-not (= pstr "BitTorrent protocol")
                   (throw (ex-info "Peer's protocol is not 'BitTorrent protocol'"  {:pstr pstr} nil))
-                  (let [reservedBB (bytes.core/buffer-slice msgBB pstrlen 8)
-                        infohashBB (bytes.core/buffer-slice msgBB (+ pstrlen 8) 20)
-                        peer-idBB (bytes.core/buffer-slice msgBB (+ pstrlen 28) 20)]
+                  (let [reservedBB (bytes.impl/buffer-slice msgBB pstrlen 8)
+                        infohashBB (bytes.impl/buffer-slice msgBB (+ pstrlen 8) 20)
+                        peer-idBB (bytes.impl/buffer-slice msgBB (+ pstrlen 28) 20)]
                     #_(println :received-handshake)
                     (>! send| (extended-msg 0 {:m (:extensions stateT)
                                                #_:metadata_size #_1000}))
                     (recur (-> stateT
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4)
-                               (assoc! :peer-infohashBA (bytes.core/to-byte-array infohashBB))
-                               (assoc! :peer-extended? (not (== 0 (bit-and (bytes.core/get-uint8 reservedBB 5) 2r00010000))) )
-                               (assoc! :peer-dht? (not (== 0 (bit-and (bytes.core/get-uint8 reservedBB 7) 2r00000001)))))))))
+                               (assoc! :peer-infohashBA (bytes.impl/to-byte-array infohashBB))
+                               (assoc! :peer-extended? (not (== 0 (bit-and (bytes.impl/get-uint8 reservedBB 5) 2r00010000))) )
+                               (assoc! :peer-dht? (not (== 0 (bit-and (bytes.impl/get-uint8 reservedBB 7) 2r00000001)))))))))
 
               :msg-length
-              (let [msg-length (bytes.core/get-uint32 msgBB 0)]
+              (let [msg-length (bytes.impl/get-uint32 msgBB 0)]
                 (if (== 0 msg-length) #_:keep-alive
                     (do
                       (recur stateT))
@@ -257,7 +257,7 @@
                                (assoc! :op :msg-length)
                                (assoc! :expected-size 4))
                     {:keys [msg-length]} stateT
-                    msg-id (bytes.core/get-uint8 msgBB 0)]
+                    msg-id (bytes.impl/get-uint8 msgBB 0)]
 
                 (cond
 
@@ -283,7 +283,7 @@
 
                   #_:have
                   (and (== msg-id 4) (== msg-length 5))
-                  (let [piece-index (bytes.core/get-uint32 msgBB 1)]
+                  (let [piece-index (bytes.impl/get-uint32 msgBB 1)]
                     (recur stateT))
 
                   #_:bitfield
@@ -292,16 +292,16 @@
 
                   #_:request
                   (and (== msg-id 6) (== msg-length 13))
-                  (let [index (bytes.core/get-uint32 msgBB 1)
-                        begin (bytes.core/get-uint32 msgBB 5)
-                        length (bytes.core/get-uint32 msgBB 9)]
+                  (let [index (bytes.impl/get-uint32 msgBB 1)
+                        begin (bytes.impl/get-uint32 msgBB 5)
+                        length (bytes.impl/get-uint32 msgBB 9)]
                     (recur stateT))
 
                   #_:piece
                   (== msg-id 7)
-                  (let [index (bytes.core/get-uint32 msgBB 1)
-                        begin (bytes.core/get-uint32 msgBB 5)
-                        blockBB (bytes.core/buffer-slice msgBB 9 (- msg-length 9))]
+                  (let [index (bytes.impl/get-uint32 msgBB 1)
+                        begin (bytes.impl/get-uint32 msgBB 5)
+                        blockBB (bytes.impl/buffer-slice msgBB 9 (- msg-length 9))]
                     (recur stateT))
 
                   #_:cancel
@@ -314,13 +314,13 @@
 
                   #_:extended
                   (and (== msg-id 20))
-                  (let [ext-msg-id (bytes.core/get-uint8 msgBB 1)
-                        payloadBB (bytes.core/buffer-slice msgBB 2 (- msg-length 2))]
+                  (let [ext-msg-id (bytes.impl/get-uint8 msgBB 1)
+                        payloadBB (bytes.impl/buffer-slice msgBB 2 (- msg-length 2))]
                     (cond
 
                       #_:handshake
                       (== ext-msg-id 0)
-                      (let [data (-> (bytes.core/to-byte-array payloadBB) (bencode.core/decode) (keywordize-keys))]
+                      (let [data (-> (bytes.impl/to-byte-array payloadBB) (bencode.core/decode) (keywordize-keys))]
                         (let  [ut-metadata-id (get-in data [:m :ut_metadata])
                                metadata_size (get data :metadata_size)]
                           #_(println :received-extened-handshake (:m data) metadata_size)
@@ -345,10 +345,10 @@
                                    (assoc! :ut-metadata-max-rejects 2 #_(-> (/ metadata_size ut-metadata-block-size) (int) (+ 1))))))
 
                       (== ext-msg-id 3 #_(get-in stateT [:extensions "ut-metadata"]) #_(get-in stateT [:peer-extended-data "m" "ut_metadata"]))
-                      (let [payload-str (bytes.core/to-string payloadBB)
+                      (let [payload-str (bytes.impl/to-string payloadBB)
                             block-index (-> (clojure.string/index-of payload-str "ee") (+ 2))
                             data-str (subs payload-str 0 block-index)
-                            data  (-> data-str (bytes.core/to-byte-array) (bencode.core/decode) (keywordize-keys))]
+                            data  (-> data-str (bytes.impl/to-byte-array) (bencode.core/decode) (keywordize-keys))]
                         #_(println :ext-msg-id-3 data)
                         (condp == (:msg_type data)
 
@@ -364,16 +364,16 @@
                           #_:data
                           1
                           (let [blockBA (-> payloadBB
-                                            (bytes.core/buffer-slice block-index (- (bytes.core/capacity payloadBB) block-index))
-                                            (bytes.core/to-byte-array))  #_(-> payload-str (subs block-index) (bytes.core/to-byte-array))
+                                            (bytes.impl/buffer-slice block-index (- (bytes.impl/capacity payloadBB) block-index))
+                                            (bytes.impl/to-byte-array))  #_(-> payload-str (subs block-index) (bytes.impl/to-byte-array))
                                 ut-metadata-size (get-in stateT [:peer-extended-data :metadata_size])
-                                downloaded (+ (:ut-metadata-downloaded stateT) (bytes.core/alength blockBA))]
-                            #_(println ::got-piece data downloaded (bytes.core/alength blockBA))
+                                downloaded (+ (:ut-metadata-downloaded stateT) (bytes.impl/alength blockBA))]
+                            #_(println ::got-piece data downloaded (bytes.impl/alength blockBA))
                             (cond
                               (== downloaded ut-metadata-size)
-                              (let [metadataBA (bytes.core/concat (persistent! (conj! (:ut-metadata-pieces stateT) blockBA)))
-                                    metadata-hash (-> (bytes.core/sha1 metadataBA) (codec.core/hex-encode-string))
-                                    peer-infohash (-> (:peer-infohashBA stateT) (codec.core/hex-encode-string))]
+                              (let [metadataBA (bytes.impl/concat (persistent! (conj! (:ut-metadata-pieces stateT) blockBA)))
+                                    metadata-hash (-> (bytes.impl/sha1 metadataBA) (codec.impl/hex-encode-string))
+                                    peer-infohash (-> (:peer-infohashBA stateT) (codec.impl/hex-encode-string))]
                                 (if-not (= metadata-hash peer-infohash)
                                   (throw (ex-info "metadata hash differs from peer's infohash" {} nil))
                                   (>! metadata| metadataBA))
@@ -461,7 +461,7 @@
                                       pub sub unsub mult tap untap mix admix unmix pipe
                                       timeout to-chan  sliding-buffer dropping-buffer
                                       pipeline pipeline-async]]
-   '[cljctools.bytes.core :as bytes.core]
+   '[cljctools.bytes.impl :as bytes.impl]
    '[cljctools.bittorrent.bencode.core :as bencode.core]
    '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core]
    :reload #_:reload-all)
@@ -473,8 +473,8 @@
 (comment
 
 
-  (bytes.core/get-uint32 (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 0 5])) 0)
-  (bytes.core/get-uint32 (bytes.core/buffer-wrap (bytes.core/byte-array [0 0 1 3])) 0)
+  (bytes.impl/get-uint32 (bytes.impl/buffer-wrap (bytes.impl/byte-array [0 0 0 5])) 0)
+  (bytes.impl/get-uint32 (bytes.impl/buffer-wrap (bytes.impl/byte-array [0 0 1 3])) 0)
 
 
   ; The bit selected for the extension protocol is bit 20 from the right (counting starts at 0) . 
@@ -483,17 +483,17 @@
   ; => 16
 
   (->
-   (bytes.core/buffer-allocate 4)
-   (bytes.core/put-int 0 16384)
-   (bytes.core/get-int 0))
+   (bytes.impl/buffer-allocate 4)
+   (bytes.impl/put-int 0 16384)
+   (bytes.impl/get-int 0))
 
-  (let [byte-buf  (bytes.core/buffer-allocate 4)
-        _ (bytes.core/put-int byte-buf 0 16384)
-        byte-arr (bytes.core/to-byte-array byte-buf)]
-    [(bytes.core/alength byte-arr)
+  (let [byte-buf  (bytes.impl/buffer-allocate 4)
+        _ (bytes.impl/put-int byte-buf 0 16384)
+        byte-arr (bytes.impl/to-byte-array byte-buf)]
+    [(bytes.impl/alength byte-arr)
      (-> byte-arr
-         (bytes.core/buffer-wrap)
-         (bytes.core/get-uint32 0))])
+         (bytes.impl/buffer-wrap)
+         (bytes.impl/get-uint32 0))])
 
 
   ;
