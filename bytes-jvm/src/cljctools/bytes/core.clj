@@ -96,8 +96,10 @@
   xs)
 
 (defn position
-  [^ByteBuffer buffer]
-  (.position buffer))
+  ([^ByteBuffer buffer]
+   (.position buffer))
+  ([^ByteBuffer buffer new-position]
+   (.position buffer ^int new-position)))
 
 (defn array-offset
   [^ByteBuffer buffer]
