@@ -5,11 +5,11 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljctools.transit.impl.core :as transit.impl.core]
+   [cljctools.transit.runtime.core :as transit.runtime.core]
    [cognitect.transit :as transit]
-   [cljctools.bytes.impl.core :as bytes.impl.core]
-   [cljctools.codec.impl.core :as codec.impl.core]
-   [cljctools.fs.impl.core :as fs.impl.core]))
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.codec.runtime.core :as codec.runtime.core]
+   [cljctools.fs.runtime.core :as fs.runtime.core]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
@@ -21,9 +21,9 @@
 (defn gen-neighbor-id
   [target-idBA node-idBA]
   (->>
-   [(bytes.impl.core/copy-byte-array target-idBA 0 10)
-    (bytes.impl.core/copy-byte-array node-idBA 10 (bytes.impl.core/alength node-idBA))]
-   (bytes.impl.core/concat)))
+   [(bytes.runtime.core/copy-byte-array target-idBA 0 10)
+    (bytes.runtime.core/copy-byte-array node-idBA 10 (bytes.runtime.core/alength node-idBA))]
+   (bytes.runtime.core/concat)))
 
 (defn encode-nodes
   [nodes]
@@ -34,28 +34,28 @@
                 (->>
                  (clojure.string/split (:host node) #"\.")
                  (map #?(:clj #(Integer/parseInt %) :cljs js/Number.parseInt))
-                 (bytes.impl.core/byte-array))
+                 (bytes.runtime.core/byte-array))
                 (->
                  (doto
-                  (bytes.impl.core/buffer-allocate 2)
-                   (bytes.impl.core/put-uint16 0 (:port node)))
-                 (bytes.impl.core/to-byte-array))]
-               (bytes.impl.core/concat))))
-       (bytes.impl.core/concat)))
+                  (bytes.runtime.core/buffer-allocate 2)
+                   (bytes.runtime.core/put-uint16 0 (:port node)))
+                 (bytes.runtime.core/to-byte-array))]
+               (bytes.runtime.core/concat))))
+       (bytes.runtime.core/concat)))
 
 (defn decode-nodes
   [nodesBA]
   (try
-    (let [nodesBB (bytes.impl.core/buffer-wrap nodesBA)]
-      (for [i (range 0 (bytes.impl.core/alength nodesBA) 26)]
-        (let [idBA (bytes.impl.core/copy-byte-array nodesBA i (#?(:clj unchecked-add :cljs +) i 20))]
-          {:id (codec.impl.core/hex-encode-string idBA)
+    (let [nodesBB (bytes.runtime.core/buffer-wrap nodesBA)]
+      (for [i (range 0 (bytes.runtime.core/alength nodesBA) 26)]
+        (let [idBA (bytes.runtime.core/copy-byte-array nodesBA i (#?(:clj unchecked-add :cljs +) i 20))]
+          {:id (codec.runtime.core/hex-encode-string idBA)
            :idBA idBA
-           :host (str (bytes.impl.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 20)) "."
-                      (bytes.impl.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 21)) "."
-                      (bytes.impl.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 22)) "."
-                      (bytes.impl.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 23)))
-           :port (bytes.impl.core/get-uint16 nodesBB (#?(:clj unchecked-add :cljs +) i 24))})))
+           :host (str (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 20)) "."
+                      (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 21)) "."
+                      (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 22)) "."
+                      (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 23)))
+           :port (bytes.runtime.core/get-uint16 nodesBB (#?(:clj unchecked-add :cljs +) i 24))})))
     (catch #?(:clj Exception :cljs :default) ex nil)))
 
 
@@ -65,40 +65,40 @@
    (flatten [values])
    (sequence
     (comp
-     (filter (fn [x] (bytes.impl.core/byte-array? x)))
+     (filter (fn [x] (bytes.runtime.core/byte-array? x)))
      (map
       (fn [peer-infoBA]
-        (let [peer-infoBB (bytes.impl.core/buffer-wrap  peer-infoBA)]
-          {:host (str (bytes.impl.core/get-uint8 peer-infoBB 0) "."
-                      (bytes.impl.core/get-uint8 peer-infoBB 1) "."
-                      (bytes.impl.core/get-uint8 peer-infoBB 2) "."
-                      (bytes.impl.core/get-uint8 peer-infoBB 3))
-           :port (bytes.impl.core/get-uint16 peer-infoBB 4)})))))))
+        (let [peer-infoBB (bytes.runtime.core/buffer-wrap  peer-infoBA)]
+          {:host (str (bytes.runtime.core/get-uint8 peer-infoBB 0) "."
+                      (bytes.runtime.core/get-uint8 peer-infoBB 1) "."
+                      (bytes.runtime.core/get-uint8 peer-infoBB 2) "."
+                      (bytes.runtime.core/get-uint8 peer-infoBB 3))
+           :port (bytes.runtime.core/get-uint16 peer-infoBB 4)})))))))
 
 (defn decode-samples
   [samplesBA]
-  (for [i (range 0 (bytes.impl.core/alength samplesBA) 20)]
-    (bytes.impl.core/copy-byte-array samplesBA i (#?(:clj unchecked-add :cljs +) i 20))))
+  (for [i (range 0 (bytes.runtime.core/alength samplesBA) 20)]
+    (bytes.runtime.core/copy-byte-array samplesBA i (#?(:clj unchecked-add :cljs +) i 20))))
 
 (defn xor-distance
   [xBA yBA]
-  (let [xBA-length (bytes.impl.core/alength xBA)]
-    (when-not (== xBA-length (bytes.impl.core/alength yBA))
+  (let [xBA-length (bytes.runtime.core/alength xBA)]
+    (when-not (== xBA-length (bytes.runtime.core/alength yBA))
       (throw (ex-info "xor-distance: args should have same length" {})))
-    (let [resultBB (bytes.impl.core/buffer-allocate xBA-length)]
+    (let [resultBB (bytes.runtime.core/buffer-allocate xBA-length)]
       (dotimes [i xBA-length]
-        (bytes.impl.core/put-uint8 resultBB i (bit-xor (bytes.impl.core/aget-byte xBA i) (bytes.impl.core/aget-byte yBA i))))
-      (bytes.impl.core/to-byte-array resultBB))))
+        (bytes.runtime.core/put-uint8 resultBB i (bit-xor (bytes.runtime.core/aget-byte xBA i) (bytes.runtime.core/aget-byte yBA i))))
+      (bytes.runtime.core/to-byte-array resultBB))))
 
 (defn distance-compare
   [distance1BA distance2BA]
-  (let [distance1BA-length (bytes.impl.core/alength distance1BA)]
-    (when-not (== distance1BA-length (bytes.impl.core/alength distance2BA))
+  (let [distance1BA-length (bytes.runtime.core/alength distance1BA)]
+    (when-not (== distance1BA-length (bytes.runtime.core/alength distance2BA))
       (throw (ex-info "distance-compare: buffers should have same length" {})))
     (reduce
      (fn [result i]
-       (let [a (bytes.impl.core/aget-byte distance1BA i)
-             b (bytes.impl.core/aget-byte distance2BA i)]
+       (let [a (bytes.runtime.core/aget-byte distance1BA i)
+             b (bytes.runtime.core/aget-byte distance2BA i)]
          (cond
            (== a b) 0
            (< a b) (reduced -1)
@@ -110,8 +110,8 @@
   [targetBA]
   (fn [id1 id2]
     (distance-compare
-     (xor-distance targetBA (codec.impl.core/hex-decode id1))
-     (xor-distance targetBA (codec.impl.core/hex-decode id2)))))
+     (xor-distance targetBA (codec.runtime.core/hex-decode id1))
+     (xor-distance targetBA (codec.runtime.core/hex-decode id2)))))
 
 (defn sorted-map-buffer
   "sliding according to comparator sorted-map buffer"
@@ -140,47 +140,47 @@
 
 
 (def transit-write
-  (let [handlers #?(:clj {bytes.impl.core/ByteArray
+  (let [handlers #?(:clj {bytes.runtime.core/ByteArray
                           (transit/write-handler
-                           (fn [byte-arr] "::bytes.impl.core/byte-array")
-                           (fn [byte-arr] (codec.impl.core/hex-encode-string byte-arr)))
+                           (fn [byte-arr] "::bytes.runtime.core/byte-array")
+                           (fn [byte-arr] (codec.runtime.core/hex-encode-string byte-arr)))
                           clojure.core.async.impl.channels.ManyToManyChannel
                           (transit/write-handler
                            (fn [c|] "ManyToManyChannel")
                            (fn [c|] nil))}
-                    :cljs {bytes.impl.core/Buffer
+                    :cljs {bytes.runtime.core/Buffer
                            (transit/write-handler
-                            (fn [buffer] "::bytes.impl.core/byte-array")
-                            (fn [buffer] (codec.impl.core/hex-encode-string buffer)))
+                            (fn [buffer] "::bytes.runtime.core/byte-array")
+                            (fn [buffer] (codec.runtime.core/hex-encode-string buffer)))
                            cljs.core.async.impl.channels/ManyToManyChannel
                            (transit/write-handler
                             (fn [c|] "ManyToManyChannel")
                             (fn [c|] nil))})]
     (fn [data]
-      (transit.impl.core/write-to-string data :json-verbose {:handlers handlers}))))
+      (transit.runtime.core/write-to-string data :json-verbose {:handlers handlers}))))
 
 (def transit-read
-  (let [handlers #?(:clj {"::bytes.impl.core/byte-array"
+  (let [handlers #?(:clj {"::bytes.runtime.core/byte-array"
                           (transit/read-handler
-                           (fn [string] (codec.impl.core/hex-decode string)))
+                           (fn [string] (codec.runtime.core/hex-decode string)))
                           "ManyToManyChannel"
                           (transit/read-handler
                            (fn [string] nil))}
-                    :cljs {"::bytes.impl.core/byte-array"
+                    :cljs {"::bytes.runtime.core/byte-array"
                            (transit/read-handler
-                            (fn [string] (codec.impl.core/hex-decode string)))
+                            (fn [string] (codec.runtime.core/hex-decode string)))
                            "ManyToManyChannel"
                            (transit/read-handler
                             (fn [string] nil))})]
     (fn [data-string]
-      (transit.impl.core/read-string data-string :json-verbose {:handlers handlers}))))
+      (transit.runtime.core/read-string data-string :json-verbose {:handlers handlers}))))
 
 (defn read-state-file
   [filepath]
   (go
     (try
-      (when (fs.impl.core/path-exists? filepath)
-        (let [data-string (bytes.impl.core/to-string (fs.impl.core/read-file filepath))]
+      (when (fs.runtime.core/path-exists? filepath)
+        (let [data-string (bytes.runtime.core/to-string (fs.runtime.core/read-file filepath))]
           (transit-read data-string)))
       (catch #?(:clj Exception :cljs :default) ex (println ::read-state-file ex)))))
 
@@ -189,8 +189,8 @@
   (go
     (try
       (let [data-string (transit-write data)]
-        (fs.impl.core/make-parents filepath)
-        (fs.impl.core/write-file filepath data-string))
+        (fs.runtime.core/make-parents filepath)
+        (fs.runtime.core/write-file filepath data-string))
       (catch #?(:clj Exception :cljs :default) ex (println ::write-state-file ex)))))
 
 (defn send-krpc-request-fn
@@ -202,7 +202,7 @@
     (go
       (loop []
         (when-let [{:keys [msg] :as value} (<! msg|tap)]
-          (when-let [txn-id (some-> (:t msg) (codec.impl.core/hex-encode-string))]
+          (when-let [txn-id (some-> (:t msg) (codec.runtime.core/hex-encode-string))]
             (when-let [response| (get @requestsA txn-id)]
               (put! response| value)
               (close! response|)
@@ -212,7 +212,7 @@
       ([msg node]
        (send-krpc-request msg node (timeout 2000)))
       ([msg {:keys [host port]} timeout|]
-       (let [txn-id (codec.impl.core/hex-encode-string (:t msg))
+       (let [txn-id (codec.runtime.core/hex-encode-string (:t msg))
              response| (chan 1)]
          (put! send| {:msg msg
                       :host host
@@ -315,11 +315,11 @@
 (comment
 
   (time
-   (let [byte-arr (bytes.impl.core/byte-array 20)]
+   (let [byte-arr (bytes.runtime.core/byte-array 20)]
      (dotimes [i 100000]
        (let [x (mod i 20)]
          (aget byte-arr x)
-         (bytes.impl.core/aset-uint8 byte-arr x x)))
+         (bytes.runtime.core/aset-uint8 byte-arr x x)))
      (vec byte-arr)))
 
   ; jvm    "Elapsed time: 1124.560132 msecs"
@@ -328,12 +328,12 @@
 
 
   (time
-   (let [buffer (bytes.impl.core/buffer-allocate 20)]
+   (let [buffer (bytes.runtime.core/buffer-allocate 20)]
      (dotimes [i 10000000]
        (let [x (mod i 20) #_(unchecked-remainder-int i 20)]
-         (bytes.impl.core/get-byte buffer x)
-         (bytes.impl.core/put-byte buffer x x)))
-     (vec (bytes.impl.core/to-byte-array buffer))))
+         (bytes.runtime.core/get-byte buffer x)
+         (bytes.runtime.core/put-byte buffer x x)))
+     (vec (bytes.runtime.core/to-byte-array buffer))))
 
   ; jvm    "Elapsed time: 122.298044 msecs"
   ; nodejs "Elapsed time: 82.160827 msecs"
@@ -341,20 +341,20 @@
 
   ; aget needs type hint ^bytes
   (time
-   (let [^bytes byte-arr (bytes.impl.core/byte-array 20)]
+   (let [^bytes byte-arr (bytes.runtime.core/byte-array 20)]
      (dotimes [i 100000]
        (let [^int x (mod i 20)]
          (aget byte-arr x)
-         (bytes.impl.core/aset-uint8 byte-arr x x)))
+         (bytes.runtime.core/aset-uint8 byte-arr x x)))
      (vec byte-arr)))
 
 
   (time
-   (let [byte-arr (bytes.impl.core/byte-array 20)]
+   (let [byte-arr (bytes.runtime.core/byte-array 20)]
      (dotimes [i 10000000]
        (let [x (mod i 20)]
-         (bytes.impl.core/aget-byte byte-arr x)
-         (bytes.impl.core/aset-uint8 byte-arr x x)))
+         (bytes.runtime.core/aget-byte byte-arr x)
+         (bytes.runtime.core/aset-uint8 byte-arr x x)))
      (vec byte-arr)))
 
   ; jvm    "Elapsed time: 704.516302 msecs"
@@ -362,7 +362,7 @@
 
 
   (time
-   (let [^bytes byte-arr (bytes.impl.core/byte-array 20)]
+   (let [^bytes byte-arr (bytes.runtime.core/byte-array 20)]
      (dotimes [i 10000000]
        (let [x (unchecked-remainder-int i 20)]
          (aget byte-arr x)
@@ -372,17 +372,17 @@
   ; "Elapsed time: 655.999327 msecs"
 
   (time
-   (let [byte-arr (bytes.impl.core/byte-array 20)]
+   (let [byte-arr (bytes.runtime.core/byte-array 20)]
      (dotimes [i 100000000]
-       (bytes.impl.core/alength byte-arr))))
+       (bytes.runtime.core/alength byte-arr))))
 
   ; jvm "Elapsed time: 51.61525 msecs"
   ; nodejs "Elapsed time: 139.426112 msecs"
 
   (time
-   (let [ba (bytes.impl.core/byte-array 20)
+   (let [ba (bytes.runtime.core/byte-array 20)
          foo (fn []
-               (bytes.impl.core/alength ba))]
+               (bytes.runtime.core/alength ba))]
      (dotimes [i 10000000]
        (unchecked-add i (foo))
        #_(+ i (foo)))))
@@ -431,18 +431,18 @@
 
   (time
    (dotimes [i 1000000]
-     (let [bb (bytes.impl.core/buffer-allocate 20)]
+     (let [bb (bytes.runtime.core/buffer-allocate 20)]
        (dotimes [i 20]
-         (bytes.impl.core/put-uint8 bb i 8))
-       (bytes.impl.core/to-byte-array bb))))
+         (bytes.runtime.core/put-uint8 bb i 8))
+       (bytes.runtime.core/to-byte-array bb))))
 
   ; "Elapsed time: 250.540999 msecs"
 
   (time
    (dotimes [i 1000000]
-     (let [ba (bytes.impl.core/byte-array 20)]
+     (let [ba (bytes.runtime.core/byte-array 20)]
        (dotimes [i 20]
-         (bytes.impl.core/aset-uint8 ba i 8))
+         (bytes.runtime.core/aset-uint8 ba i 8))
        ba)))
 
   ; "Elapsed time: 1281.031404 msecs"
@@ -450,15 +450,15 @@
 
 
   (time
-   (let [bb (bytes.impl.core/buffer-allocate 20)]
+   (let [bb (bytes.runtime.core/buffer-allocate 20)]
      (dotimes [i 100000000]
-       (bytes.impl.core/put-uint8 bb 8 8)
-       (bytes.impl.core/get-uint8 bb 8))))
+       (bytes.runtime.core/put-uint8 bb 8 8)
+       (bytes.runtime.core/get-uint8 bb 8))))
   (time
-   (let [^bytes ba (bytes.impl.core/byte-array 20)]
+   (let [^bytes ba (bytes.runtime.core/byte-array 20)]
      (dotimes [i 100000000]
-       (bytes.impl.core/aset-uint8 ba 8 8)
-       (bytes.impl.core/aget-byte ba 8))))
+       (bytes.runtime.core/aset-uint8 ba 8 8)
+       (bytes.runtime.core/aget-byte ba 8))))
 
   ; bb no put "Elapsed time: 56.157778 msecs"
   ; bb with put "Elapsed time: 59.037743 msecs"
@@ -488,13 +488,13 @@
 
   (time
    (dotimes [i 1000000]
-     (codec.impl.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
+     (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
   ; "Elapsed time: 93.882265 msecs"
 
   (time
-   (let [ba (codec.impl.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")]
+   (let [ba (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")]
      (dotimes [i 1000000]
-       (codec.impl.core/hex-encode-string ba))))
+       (codec.runtime.core/hex-encode-string ba))))
   ; "Elapsed time: 102.516529 msecs"
 
   ;

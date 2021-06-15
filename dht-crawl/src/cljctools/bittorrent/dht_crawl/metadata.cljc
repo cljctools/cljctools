@@ -10,9 +10,9 @@
    [clojure.string]
    [clojure.walk]
 
-   [cljctools.bytes.impl.core :as bytes.impl.core]
-   [cljctools.codec.impl.core :as codec.impl.core]
-   [cljctools.socket.impl.core :as socket.impl.core]
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.codec.runtime.core :as codec.runtime.core]
+   [cljctools.socket.runtime.core :as socket.runtime.core]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.protocols :as socket.protocols]
    [cljctools.bittorrent.bencode.core :as bencode.core]
@@ -37,7 +37,7 @@
           evt| (chan (sliding-buffer 10))
           msg| (chan 100
                      (map (fn [byte-arr]
-                            (bytes.impl.core/buffer-wrap byte-arr))))
+                            (bytes.runtime.core/buffer-wrap byte-arr))))
 
           send| (chan 100)
 
@@ -47,7 +47,7 @@
 
           socket-ex| (chan 1)
 
-          socket (socket.impl.core/create
+          socket (socket.runtime.core/create
                   {::socket.spec/port port
                    ::socket.spec/host host
                    ::socket.spec/evt| evt|
@@ -133,8 +133,8 @@
                          (->> (clojure.walk/postwalk
                                (fn [form]
                                  (cond
-                                   (bytes.impl.core/byte-array? form)
-                                   (bytes.impl.core/to-string form)
+                                   (bytes.runtime.core/byte-array? form)
+                                   (bytes.runtime.core/to-string form)
 
                                    :else form)))))]
            (release)
@@ -183,7 +183,7 @@
                            (go
                              (alt!
                                (send-krpc-request
-                                {:t (bytes.impl.core/random-bytes 4)
+                                {:t (bytes.runtime.core/random-bytes 4)
                                  :y "q"
                                  :q "get_peers"
                                  :a {:id self-idBA
@@ -205,7 +205,7 @@
                                            (when metadata
                                              (let [result (merge
                                                            metadata
-                                                           {:infohash (codec.impl.core/hex-encode-string infohashBA)
+                                                           {:infohash (codec.runtime.core/hex-encode-string infohashBA)
                                                             :seeder-count @seeders-countA})]
                                                (put! result| result)
                                                (put! out| result)))

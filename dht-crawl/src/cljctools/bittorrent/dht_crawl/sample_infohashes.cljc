@@ -5,8 +5,8 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljctools.bytes.impl.core :as bytes.impl.core]
-   [cljctools.codec.impl.core :as codec.impl.core]
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.codec.runtime.core :as codec.runtime.core]
    [cljctools.bittorrent.dht-crawl.impl :refer [decode-samples
                                                 decode-nodes
                                                 now]]))
@@ -52,11 +52,11 @@
                 (swap! stateA update-in [:routing-table-sampled] assoc id (merge node
                                                                                  {:timestamp (now)}))
                 (take! (send-krpc-request
-                        {:t (bytes.impl.core/random-bytes 4)
+                        {:t (bytes.runtime.core/random-bytes 4)
                          :y "q"
                          :q "sample_infohashes"
                          :a {:id self-idBA
-                             :target (bytes.impl.core/random-bytes 20)}}
+                             :target (bytes.runtime.core/random-bytes 20)}}
                         node
                         (timeout 2000))
                        (fn [value]

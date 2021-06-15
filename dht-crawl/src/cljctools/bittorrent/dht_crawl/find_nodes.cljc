@@ -5,8 +5,8 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
    [clojure.core.async.impl.protocols :refer [closed?]]
-   [cljctools.bytes.impl.core :as bytes.impl.core]
-   [cljctools.codec.impl.core :as codec.impl.core]
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.codec.runtime.core :as codec.runtime.core]
    [cljctools.bittorrent.dht-crawl.impl :refer [decode-nodes
                                                 now]]))
 
@@ -29,7 +29,7 @@
          (doseq [node nodes-bootstrap]
            (take!
             (send-krpc-request
-             {:t (bytes.impl.core/random-bytes 4)
+             {:t (bytes.runtime.core/random-bytes 4)
               :y "q"
               :q "find_node"
               :a {:id self-idBA
@@ -45,11 +45,11 @@
              (<! (timeout 500))
              (take!
               (send-krpc-request
-               {:t (bytes.impl.core/random-bytes 4)
+               {:t (bytes.runtime.core/random-bytes 4)
                 :y "q"
                 :q "find_node"
                 :a {:id self-idBA
-                    :target (codec.impl.core/hex-decode id)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
+                    :target (codec.runtime.core/hex-decode id)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
                node
                (timeout 2000))
               (fn [{:keys [msg] :as value}]
@@ -88,7 +88,7 @@
                                                                            :timestamp (now)})
              (take!
               (send-krpc-request
-               {:t (bytes.impl.core/random-bytes 4)
+               {:t (bytes.runtime.core/random-bytes 4)
                 :y "q"
                 :q "find_node"
                 :a {:id self-idBA
@@ -112,11 +112,11 @@
                                                                            :timestamp (now)})
              (take!
               (send-krpc-request
-               {:t (bytes.impl.core/random-bytes 4)
+               {:t (bytes.runtime.core/random-bytes 4)
                 :y "q"
                 :q "find_node"
                 :a {:id self-idBA
-                    :target (codec.impl.core/hex-decode k)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
+                    :target (codec.runtime.core/hex-decode k)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
                node
                (timeout 2000))
               (fn [{:keys [msg] :as value}]
