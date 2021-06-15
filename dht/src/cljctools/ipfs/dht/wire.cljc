@@ -6,17 +6,17 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
 
-   [cljctools.bytes.impl :as bytes.impl]
-   [cljctools.ipfs.impl :refer []]
+   [cljctools.bytes.impl.core :as bytes.impl.core]
+   [cljctools.ipfs.impl.core :refer []]
    [cljctools.ipfs.spec :as ipfs.spec]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
 
-(def multistreamBA (bytes.impl/to-byte-array "/multistream/1.0.0\n"))
-(def not-availableBA (bytes.impl/to-byte-array "na\n"))
-(def newlineBA (bytes.impl/to-byte-array "\n"))
-(def noiseBA (bytes.impl/to-byte-array "/noise"))
-(def mplexBA (bytes.impl/to-byte-array "/mplex/1.0.0"))
+(def multistreamBA (bytes.impl.core/to-byte-array "/multistream/1.0.0\n"))
+(def not-availableBA (bytes.impl.core/to-byte-array "na\n"))
+(def newlineBA (bytes.impl.core/to-byte-array "\n"))
+(def noiseBA (bytes.impl.core/to-byte-array "/noise"))
+(def mplexBA (bytes.impl.core/to-byte-array "/mplex/1.0.0"))
 
 (defn create
   [{:as opts

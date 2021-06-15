@@ -1,6 +1,6 @@
-(ns cljctools.ipfs.impl
+(ns cljctools.ipfs.impl.core
   (:require
-   [cljctools.bytes.impl :as bytes.impl]
+   [cljctools.bytes.impl.core :as bytes.impl.core]
    [clojure.java.io :as io :refer [input-stream]])
   (:import
    (java.security SecureRandom Security MessageDigest)
@@ -61,10 +61,20 @@
   (.update signer msg-bytes 0 (alength ^bytes msg-bytes))
   (.verifySignature signer signature))
 
+(defn varint-size
+  [buffer offset])
+
+(defn encode-varint
+  [x baos])
+
+(defn decode-varint
+  [buffer offset])
+
+
 (comment
 
   (require
-   '[cljctools.bytes.impl :as bytes.impl]
+   '[cljctools.bytes.impl.core :as bytes.impl.core]
    '[cljctools.crypto.core :refer [generate-keypair
                                    new-signer
                                    new-verifier
@@ -77,7 +87,7 @@
     (def kp (generate-keypair))
     (def s (new-signer (:private kp)))
     (def v (new-verifier (:public kp)))
-    (def msg (bytes.impl/to-byte-array "asdasdasd"))
+    (def msg (bytes.impl.core/to-byte-array "asdasdasd"))
     (def digest (digest-stream msg))
     (def signature (sign s digest))
     (verify v (digest-stream msg) signature))
