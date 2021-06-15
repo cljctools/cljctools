@@ -1,4 +1,4 @@
-(ns cljctools.codec.impl.core
+(ns cljctools.codec.runtime.core
   (:import
    (io.netty.buffer ByteBufUtil)
    #_(org.apache.commons.codec.binary Hex)))
@@ -29,12 +29,12 @@
                                                 timeout to-chan  sliding-buffer dropping-buffer
                                                 pipeline pipeline-async]])
     (require '[cljctools.codec.core :as codec.core])
-    (require '[cljctools.bytes.impl.core :as bytes.impl.core])
+    (require '[cljctools.bytes.runtime.core :as bytes.runtime.core])
     (import (io.netty.buffer ByteBufUtil)))
   
   
   
-  (let [hex (ByteBufUtil/hexDump (bytes.impl.core/random-bytes 20))]
+  (let [hex (ByteBufUtil/hexDump (bytes.runtime.core/random-bytes 20))]
     (= hex
        (ByteBufUtil/hexDump (ByteBufUtil/decodeHexDump hex))))
   

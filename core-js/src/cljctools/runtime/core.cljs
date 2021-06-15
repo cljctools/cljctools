@@ -1,4 +1,4 @@
-(ns cljctools.impl.core)
+(ns cljctools.runtime.core)
 
 (defn char-code
   [chr]

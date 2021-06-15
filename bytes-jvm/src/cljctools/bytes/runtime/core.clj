@@ -1,4 +1,4 @@
-(ns cljctools.bytes.impl.core
+(ns cljctools.bytes.runtime.core
   (:refer-clojure :exclude [alength byte-array concat aset-byte unchecked-int unchecked-byte])
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
@@ -487,7 +487,7 @@
   
   (do
     (set! *warn-on-reflection* true)
-    (require '[cljctools.bytes.impl.core :as bytes.impl.core] :reload))
+    (require '[cljctools.bytes.runtime.core :as bytes.runtime.core] :reload))
 
   (in-ns 'cljctools.bytes.core)
   
@@ -553,12 +553,12 @@
   
   (do
     (set! *warn-on-reflection* true)
-    (require '[cljctools.bytes.impl.core :as bytes.impl.core] :reload)
+    (require '[cljctools.bytes.runtime.core :as bytes.runtime.core] :reload)
     (require '[cljctools.codec.core :as codec.core] :reload))
   
   (->
    (java.security.MessageDigest/getInstance "sha1")
-   (.digest (bytes.impl.core/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
+   (.digest (bytes.runtime.core/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
    (codec.core/hex-encode-string))
   ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
   
@@ -599,7 +599,7 @@
 
     (defn foo
       [aset-byte]
-      (let [byte-arr (bytes.impl.core/byte-array 20)]
+      (let [byte-arr (bytes.runtime.core/byte-array 20)]
         (dotimes [i 10000000]
           (aset-byte byte-arr 5 5))))
 
@@ -635,20 +635,20 @@
 (comment
 
   (time
-   (let [ba (bytes.impl.core/byte-array (range 20))]
+   (let [ba (bytes.runtime.core/byte-array (range 20))]
      (dotimes [i 1000000]
-       (-> [(bytes.impl.core/copy-byte-array ba 0 10)
-            (bytes.impl.core/copy-byte-array ba 10 20)]
-           (bytes.impl.core/concat)))))
+       (-> [(bytes.runtime.core/copy-byte-array ba 0 10)
+            (bytes.runtime.core/copy-byte-array ba 10 20)]
+           (bytes.runtime.core/concat)))))
   ; "Elapsed time: 382.270465 msecs"
 
   (time
-   (let [ba (bytes.impl.core/byte-array (range 20))]
+   (let [ba (bytes.runtime.core/byte-array (range 20))]
      (dotimes [i 1000000]
-       (-> [(bytes.impl.core/buffer-wrap ba 0 10)
-            (bytes.impl.core/buffer-wrap ba 10 10)]
-           (bytes.impl.core/concat)
-           (bytes.impl.core/to-byte-array)))))
+       (-> [(bytes.runtime.core/buffer-wrap ba 0 10)
+            (bytes.runtime.core/buffer-wrap ba 10 10)]
+           (bytes.runtime.core/concat)
+           (bytes.runtime.core/to-byte-array)))))
   ; "Elapsed time: 1666.753437 msecs"
 
   ;

@@ -1,4 +1,4 @@
-(ns cljctools.fs.impl.core
+(ns cljctools.fs.runtime.core
   (:refer-clojure :exclude [remove])
   (:require
    [cljctools.fs.protocols :as fs.protocols]))

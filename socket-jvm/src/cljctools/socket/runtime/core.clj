@@ -1,4 +1,4 @@
-(ns cljctools.socket.impl.core
+(ns cljctools.socket.runtime.core
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >!  take! put! offer! poll! alt! alts! close! onto-chan!
                                      pub sub unsub mult tap untap mix admix unmix pipe
@@ -7,7 +7,7 @@
    [clojure.core.async.impl.protocols :refer [closed?]]
    [clojure.spec.alpha :as s]
 
-   [cljctools.bytes.impl.core :as bytes.impl.core]
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.protocols :as socket.protocols]
 
