@@ -7,4 +7,5 @@
         com.github.multiformats/java-multibase {:mvn/version "v1.1.0"}
         com.github.multiformats/java-multihash {:mvn/version "v1.3.0"}
         com.github.ipld/java-cid {:mvn/version "v1.3.1"}
-        com.github.multiformats/java-multiaddr {:mvn/version "v1.4.1"}}}
+        com.github.multiformats/java-multiaddr {:mvn/version "v1.4.1"}
+        com.google.protobuf/protobuf-java {:mvn/version "3.17.3"}}}

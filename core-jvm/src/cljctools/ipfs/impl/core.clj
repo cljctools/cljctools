@@ -14,7 +14,8 @@
    (io.ipfs.multiaddr MultiAddress)
    (io.ipfs.multibase Multibase Base58)
    (io.ipfs.multihash Multihash)
-   (io.ipfs.cid Cid)))
+   (io.ipfs.cid Cid)
+   (cljctools.ipfs.impl DhtProto)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
