@@ -1,6 +1,6 @@
-(ns cljctools.ipfs.impl.core
+(ns cljctools.ipfs.runtime.core
   (:require
-   [cljctools.bytes.impl.core :as bytes.impl.core]
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
    [clojure.java.io :as io :refer [input-stream]])
   (:import
    (java.security SecureRandom Security MessageDigest)
@@ -15,7 +15,7 @@
    (io.ipfs.multibase Multibase Base58)
    (io.ipfs.multihash Multihash)
    (io.ipfs.cid Cid)
-   (cljctools.ipfs.impl DhtProto)))
+   (cljctools.ipfs.runtime DhtProto)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -75,7 +75,7 @@
 (comment
 
   (require
-   '[cljctools.bytes.impl.core :as bytes.impl.core]
+   '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.crypto.core :refer [generate-keypair
                                    new-signer
                                    new-verifier
@@ -88,7 +88,7 @@
     (def kp (generate-keypair))
     (def s (new-signer (:private kp)))
     (def v (new-verifier (:public kp)))
-    (def msg (bytes.impl.core/to-byte-array "asdasdasd"))
+    (def msg (bytes.runtime.core/to-byte-array "asdasdasd"))
     (def digest (digest-stream msg))
     (def signature (sign s digest))
     (verify v (digest-stream msg) signature))
