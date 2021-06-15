@@ -1,4 +1,4 @@
-(ns cljctools.bytes.impl
+(ns cljctools.bytes.impl.core
   (:refer-clojure :exclude [alength concat])
   (:require
    ["randombytes" :as randomBytes]
@@ -278,9 +278,9 @@
                         :install-deps true}' \
   --repl-env node --compile cljctools.bytes.core --repl
   
-  (require '[cljctools.bytes.impl :as bytes.impl] :reload)
+  (require '[cljctools.bytes.impl.core :as bytes.impl.core] :reload)
   
-  (bytes.impl/random-bytes 20)
+  (bytes.impl.core/random-bytes 20)
   
   (in-ns 'cljctools.bytes.core)
 

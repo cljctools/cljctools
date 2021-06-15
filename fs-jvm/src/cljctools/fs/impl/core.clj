@@ -1,4 +1,4 @@
-(ns cljctools.fs.impl
+(ns cljctools.fs.impl.core
   (:refer-clojure :exclude [remove])
   (:require
    [clojure.java.io :as io]

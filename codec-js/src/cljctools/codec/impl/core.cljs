@@ -1,4 +1,4 @@
-(ns cljctools.codec.impl)
+(ns cljctools.codec.impl.core)
 
 ; requires js/Buffer
 

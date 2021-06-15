@@ -1,4 +1,4 @@
-(ns cljctools.impl)
+(ns cljctools.impl.core)
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
