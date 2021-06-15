@@ -1,0 +1,10 @@
+{:paths ["src"]
+ :mvn/repos {"central" {:url "https://repo1.maven.org/maven2/"}
+             "clojars" {:url "https://clojars.org/repo"}
+             "scijava" {:url "http://maven.scijava.org/content/repositories/public/"}}
+ :deps {github.cljctools.ipfs/core {:local/root "../core"}
+        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+        com.github.multiformats/java-multibase {:mvn/version "v1.1.0"}
+        com.github.multiformats/java-multihash {:mvn/version "v1.3.0"}
+        com.github.ipld/java-cid {:mvn/version "v1.3.1"}
+        com.github.multiformats/java-multiaddr {:mvn/version "v1.4.1"}}}

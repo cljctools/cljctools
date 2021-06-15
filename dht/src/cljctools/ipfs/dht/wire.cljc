@@ -7,7 +7,7 @@
    [clojure.spec.alpha :as s]
 
    [cljctools.bytes.impl :as bytes.impl]
-   [cljctools.ipfs.dht.impl :refer []]
+   [cljctools.ipfs.impl :refer []]
    [cljctools.ipfs.spec :as ipfs.spec]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
