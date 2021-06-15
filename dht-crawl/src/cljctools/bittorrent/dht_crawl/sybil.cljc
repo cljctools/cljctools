@@ -13,9 +13,9 @@
               [goog.object]
               [cljs.reader :refer [read-string]]])
 
-   [cljctools.bytes.impl :as bytes.impl]
-   [cljctools.codec.impl :as codec.impl]
-   [cljctools.datagram-socket.impl :as datagram-socket.impl]
+   [cljctools.bytes.impl.core :as bytes.impl.core]
+   [cljctools.codec.impl.core :as codec.impl.core]
+   [cljctools.datagram-socket.impl.core :as datagram-socket.impl.core]
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
    [cljctools.bittorrent.bencode.core :as bencode.core]
@@ -38,8 +38,8 @@
            infohash|
            count-messages-sybilA]}]
   (let [already-sybiledA (atom {})
-        self-idBA (bytes.impl/random-bytes 20)
-        self-id (codec.impl/hex-encode-string self-idBA)
+        self-idBA (bytes.impl.core/random-bytes 20)
+        self-id (codec.impl.core/hex-encode-string self-idBA)
 
         port 6882
         host "0.0.0.0"
@@ -77,16 +77,16 @@
     
     (go
       (<! (onto-chan! sybils| (map (fn [i]
-                                     (bytes.impl/random-bytes 20))
+                                     (bytes.impl.core/random-bytes 20))
                                    (range 0 (fixed-buf-size sybils|))) true))
       (doseq [node nodes-bootstrap]
         (take!
          (send-krpc-request
-          {:t (bytes.impl/random-bytes 4)
+          {:t (bytes.impl.core/random-bytes 4)
            :y "q"
            :q "find_node"
            :a {:id self-idBA
-               :target (gen-neighbor-id self-idBA (bytes.impl/random-bytes 20))}}
+               :target (gen-neighbor-id self-idBA (bytes.impl.core/random-bytes 20))}}
           node
           (timeout 2000))
          (fn [{:keys [msg] :as value}]
@@ -119,7 +119,7 @@
                 (swap! already-sybiledA assoc id true)
                 (take!
                  (send-krpc-request
-                  {:t (bytes.impl/random-bytes 4)
+                  {:t (bytes.impl.core/random-bytes 4)
                    :y "q"
                    :q "find_node"
                    :a {:id sybil-idBA
@@ -141,14 +141,14 @@
       (go
         (loop []
           (when-let [{:keys [msg host port] :as value} (<! msg|tap)]
-            (let [msg-y (some-> (:y msg) (bytes.impl/to-string))
-                  msg-q (some-> (:q msg) (bytes.impl/to-string))]
+            (let [msg-y (some-> (:y msg) (bytes.impl.core/to-string))
+                  msg-q (some-> (:q msg) (bytes.impl.core/to-string))]
               (cond
 
                 (and (= msg-y "q")  (= msg-q "ping"))
                 (let [txn-idBA  (:t msg)
                       node-idBA (get-in msg [:a :id])]
-                  (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20))
+                  (if (or (not txn-idBA) (not= (bytes.impl.core/alength node-idBA) 20))
                     (do nil :invalid-data)
                     (put! send| {:msg {:t txn-idBA
                                        :y "r"
@@ -161,7 +161,7 @@
                 (let [txn-idBA  (:t msg)
                       node-idBA (get-in msg [:a :id])
                       target-idBA (get-in msg [:a :target])]
-                  (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20))
+                  (if (or (not txn-idBA) (not= (bytes.impl.core/alength node-idBA) 20))
                     (println "invalid query args: find_node")
                     (put! send| {:msg {:id (gen-neighbor-id node-idBA self-idBA)
                                        :nodes (encode-nodes (take 8 @routing-tableA))}
@@ -173,8 +173,8 @@
                 (let [infohashBA (get-in msg [:a :info_hash])
                       txn-idBA (:t msg)
                       node-idBA (get-in msg [:a :id])
-                      tokenBA (-> (bytes.impl/buffer-wrap infohashBA 0 4) (bytes.impl/to-byte-array))]
-                  (if (or (not txn-idBA) (not= (bytes.impl/alength node-idBA) 20) (not= (bytes.impl/alength infohashBA) 20))
+                      tokenBA (-> (bytes.impl.core/buffer-wrap infohashBA 0 4) (bytes.impl.core/to-byte-array))]
+                  (if (or (not txn-idBA) (not= (bytes.impl.core/alength node-idBA) 20) (not= (bytes.impl.core/alength infohashBA) 20))
                     (println "invalid query args: get_peers")
                     (do
                       (put! infohash| {:infohashBA infohashBA})
@@ -192,7 +192,7 @@
                 (let [infohashBA   (get-in msg [:a :info_hash])
                       txn-idBA (:t msg)
                       node-idBA (get-in msg [:a :id])
-                      tokenBA (-> (bytes.impl/buffer-wrap infohashBA 0 4) (bytes.impl/to-byte-array))]
+                      tokenBA (-> (bytes.impl.core/buffer-wrap infohashBA 0 4) (bytes.impl.core/to-byte-array))]
                   (cond
                     (not txn-idBA)
                     (println "invalid query args: announce_peer")
@@ -225,7 +225,7 @@
            port]}]
   (let [ex| (chan 1)
         evt| (chan (sliding-buffer 10))
-        socket (datagram-socket.impl/create
+        socket (datagram-socket.impl.core/create
                 {::datagram-socket.spec/host host
                  ::datagram-socket.spec/port port
                  ::datagram-socket.spec/evt| evt|
