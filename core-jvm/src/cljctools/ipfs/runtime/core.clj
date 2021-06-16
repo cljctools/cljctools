@@ -62,14 +62,7 @@
   (.update signer msg-bytes 0 (alength ^bytes msg-bytes))
   (.verifySignature signer signature))
 
-(defn varint-size
-  [buffer offset])
 
-(defn encode-varint
-  [x baos])
-
-(defn decode-varint
-  [buffer offset])
 
 
 (comment

@@ -2,6 +2,7 @@
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.varint.core :as varint.core]
    [cljctools.ipfs.runtime.core :as ipfs.runtime.core]))
 
 (defn multiaddress-to-data
@@ -12,12 +13,12 @@
   ([buffer]
    (decode-mplex buffer 0))
   ([buffer offset]
-   (let [header (ipfs.runtime.core/decode-varint buffer 0)
+   (let [header (varint.core/decode-varint buffer 0)
          flag (bit-and header 0x07)
          stream-id (bit-shift-right header 3)
-         header-size (ipfs.runtime.core/varint-size header)
-         msg-length (ipfs.runtime.core/decode-varint buffer header-size)
-         msg-length-size (ipfs.runtime.core/varint-size msg-length)]
+         header-size (varint.core/varint-size header)
+         msg-length (varint.core/decode-varint buffer header-size)
+         msg-length-size (varint.core/varint-size msg-length)]
      {:flag (case flag
               0 :new-stream
               1 :message-receiver
@@ -35,8 +36,8 @@
     :keys [flag stream-id msgBB]}]
   (bytes.runtime.core/concat
    [(let [baos (bytes.runtime.core/byte-array-output-stream)]
-      (ipfs.runtime.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
-      (ipfs.runtime.core/encode-varint (bytes.runtime.core/capacity msgBB) baos)
+      (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
+      (varint.core/encode-varint (bytes.runtime.core/capacity msgBB) baos)
       (-> baos (bytes.protocols/to-byte-array*) (bytes.runtime.core/buffer-wrap)))
     msgBB]))
 
@@ -45,6 +46,7 @@
 
   (require
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
+   '[cljctools.varint.core :as varint.core]
    '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
    '[cljctools.ipfs.core :as ipfs.core]
    :reload)
