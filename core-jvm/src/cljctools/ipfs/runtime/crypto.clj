@@ -1,0 +1,230 @@
+(ns cljctools.ipfs.runtime.crypto
+  (:require
+   [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.ipfs.crypto :as ipfs.crypto]
+   [clojure.java.io :as io :refer [input-stream]])
+  (:import
+   (java.security PrivateKey PublicKey SecureRandom Security MessageDigest Signature KeyPairGenerator KeyPair KeyFactory Provider)
+   (java.security.spec X509EncodedKeySpec PKCS8EncodedKeySpec RSAPublicKeySpec)
+   (org.bouncycastle.crypto Signer KeyGenerationParameters)
+   (org.bouncycastle.crypto.generators Ed25519KeyPairGenerator RSAKeyPairGenerator)
+   (org.bouncycastle.crypto.params  Ed25519KeyGenerationParameters Ed25519PrivateKeyParameters Ed25519PublicKeyParameters RSAKeyGenerationParameters RSAKeyParameters RSAPrivateCrtKeyParameters)
+   (org.bouncycastle.crypto.signers Ed25519Signer RSADigestSigner)
+   (org.bouncycastle.util.encoders Base64)
+   (org.bouncycastle.crypto.util PrivateKeyInfoFactory)
+   (org.bouncycastle.jce.provider BouncyCastleProvider)
+   (org.bouncycastle.crypto.digests SHA3Digest)
+   (org.bouncycastle.asn1.pkcs RSAPrivateKey PrivateKeyInfo)
+   (org.bouncycastle.asn1 ASN1Primitive)
+   (io.ipfs.multiaddr MultiAddress)
+   (io.ipfs.multibase Multibase Base58)
+   (io.ipfs.multihash Multihash)
+   (io.ipfs.cid Cid)
+   (cljctools.ipfs.runtime DhtProto)))
+
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+
+(def ^Provider provider (BouncyCastleProvider.))
+
+(defmulti create-public-key (fn [key-type & more] key-type))
+(defmulti create-private-key (fn [key-type & more] key-type))
+(defmulti generate-keypair (fn [key-type & more] key-type))
+(defmulti decode-public-key (fn [key-type byte-arr] key-type))
+(defmulti decode-private-key (fn [key-type byte-arr] key-type))
+
+(defmethod create-public-key ::ipfs.crypto/RSA
+  [key-type ^PublicKey pub-key]
+  (let [signature (Signature/getInstance "SHA256withRSA" provider)]
+    (.initVerify signature pub-key)
+    ^{:type ::ipfs.crypto/public-key}
+    (reify
+      ipfs.crypto/Key
+      (key-type* [_] key-type)
+      (to-byte-array*
+        [_]
+        (.getEncoded pub-key))
+      (hash-code*
+        [_]
+        (.hashCode pub-key))
+      ipfs.crypto/PublicKey
+      (verify*
+        [_ dataBA signatureBA]
+        (.update signature ^bytes dataBA)
+        (.verify signature ^bytes signatureBA)))))
+
+(defmethod decode-public-key ::ipfs.crypto/RSA
+  [key-type byte-arr]
+  (create-public-key key-type (doto
+                               (KeyFactory/getInstance "RSA" provider)
+                                (.generatePublic (X509EncodedKeySpec. ^bytes byte-arr)))))
+
+(defmethod create-private-key ::ipfs.crypto/RSA
+  [key-type ^PrivateKey priv-key ^PublicKey pub-key]
+  (when-not (= (.getFormat priv-key) "PKCS#8")
+    (throw (ex-info "RSA private key must be PKCS#8" {})))
+  (let [signer (Ed25519Signer.)
+        public-key (create-public-key ::ipfs.crypto/RSA pub-key)
+        pkcs1-priv-key-byte-arr (->
+                                 (PrivateKeyInfo/getInstance (.getEncoded priv-key))
+                                 (.parsePrivateKey)
+                                 (.toASN1Primitive)
+                                 (.getEncoded))
+        signature (Signature/getInstance "SHA256withRSA" provider)]
+    (.initSign signature priv-key)
+    ^{:type ::ipfs.crypto/private-key}
+    (reify
+      ipfs.crypto/Key
+      (key-type* [_] key-type)
+      (to-byte-array*
+        [_]
+        pkcs1-priv-key-byte-arr)
+      (hash-code*
+        [_]
+        (.hashCode priv-key))
+      ipfs.crypto/PrivateKey
+      (public-key*
+        [_]
+        public-key)
+      (sign*
+        [_ dataBA]
+        (.update signature ^bytes dataBA)
+        (.sign signature)))))
+
+(defmethod decode-private-key ::ipfs.crypto/RSA
+  [key-type byte-arr]
+  (let [rsa-priv-key (RSAPrivateKey/getInstance
+                      (ASN1Primitive/fromByteArray ^bytes byte-arr))
+        rsa-priv-key-params (RSAPrivateCrtKeyParameters.
+                             (.getModulus rsa-priv-key)
+                             (.getPublicExponent rsa-priv-key)
+                             (.getPrivateExponent rsa-priv-key)
+                             (.getPrime1 rsa-priv-key)
+                             (.getPrime2 rsa-priv-key)
+                             (.getExponent1 rsa-priv-key)
+                             (.getExponent2 rsa-priv-key)
+                             (.getCoefficient rsa-priv-key))
+        rsa-priv-key-info (PrivateKeyInfoFactory/createPrivateKeyInfo rsa-priv-key-params)
+        algorithm-id (-> rsa-priv-key-info
+                         (.getPrivateKeyAlgorithm)
+                         (.getAlgorithm)
+                         (.getId))
+        priv-key-spec (PKCS8EncodedKeySpec. (.getEncoded rsa-priv-key-info))
+        priv-key (doto
+                  (KeyFactory/getInstance algorithm-id provider)
+                   (.generatePrivate priv-key-spec))
+        pub-key-spec (RSAPublicKeySpec.
+                      (.getModulus rsa-priv-key-params)
+                      (.getPublicExponent rsa-priv-key-params))
+        pub-key (doto
+                 (KeyFactory/getInstance "RSA" provider)
+                  (.generatePublic pub-key-spec))]
+    (create-private-key key-type priv-key pub-key)))
+
+(defmethod generate-keypair ::ipfs.crypto/RSA
+  [key-type bits]
+  (let [kpg (doto
+             (KeyPairGenerator/getInstance "RSA" provider)
+              (.initialize ^int bits (SecureRandom.)))
+        key-pair (.genKeyPair kpg)]
+    {::ipfs.crypto/private-key (create-private-key key-type (cast PrivateKey (.getPrivate key-pair)) (cast PublicKey (.getPublic key-pair)))
+     ::ipfs.crypto/public-key  (create-public-key key-type (cast PublicKey (.getPublic key-pair)))}))
+
+
+
+(defmethod create-public-key ::ipfs.crypto/Ed25519
+  [key-type ^Ed25519PublicKeyParameters pub-key]
+  (let [signer (Ed25519Signer.)]
+    (.init signer false pub-key)
+    ^{:type ::ipfs.crypto/public-key}
+    (reify
+      ipfs.crypto/Key
+      (key-type* [_] key-type)
+      (to-byte-array*
+        [_]
+        (.getEncoded pub-key))
+      (hash-code*
+        [_]
+        (.hashCode pub-key))
+      ipfs.crypto/PublicKey
+      (verify*
+        [_ dataBA signatureBA]
+        (.update signer ^bytes dataBA 0 (alength ^bytes dataBA))
+        (.verifySignature signer ^bytes signatureBA)))))
+
+(defmethod decode-public-key ::ipfs.crypto/Ed25519
+  [key-type byte-arr]
+  (create-public-key key-type (Ed25519PublicKeyParameters. ^bytes byte-arr 0)))
+
+(defmethod create-private-key ::ipfs.crypto/Ed25519
+  [key-type ^Ed25519PrivateKeyParameters priv-key]
+  (let [signer (Ed25519Signer.)]
+    (.init signer true priv-key)
+    ^{:type ::ipfs.crypto/private-key}
+    (reify
+      ipfs.crypto/Key
+      (key-type* [_] key-type)
+      (to-byte-array*
+        [_]
+        (.getEncoded priv-key))
+      (hash-code*
+        [_]
+        (.hashCode priv-key))
+      ipfs.crypto/PrivateKey
+      (public-key* [_]
+        (create-public-key ::ipfs.crypto/Ed25519 (.generatePublicKey priv-key)))
+      (sign*
+        [_ dataBA]
+        (.update signer dataBA 0 (alength ^bytes dataBA))
+        (.generateSignature signer)))))
+
+(defmethod decode-private-key ::ipfs.crypto/Ed25519
+  [key-type byte-arr]
+  (create-private-key key-type (Ed25519PrivateKeyParameters. ^bytes byte-arr 0)))
+
+(defmethod generate-keypair ::ipfs.crypto/Ed25519
+  [key-type]
+  (let [kpg (doto
+             (Ed25519KeyPairGenerator.)
+              (.init (Ed25519KeyGenerationParameters. (SecureRandom.))))
+        key-pair (.generateKeyPair kpg)]
+    {::ipfs.crypto/private-key (create-private-key key-type (cast Ed25519PrivateKeyParameters (.getPrivate key-pair)))
+     ::ipfs.crypto/public-key  (create-public-key key-type (cast Ed25519PublicKeyParameters (.getPublic key-pair)))}))
+
+
+(defn digest-stream
+  [input]
+  (Security/addProvider (BouncyCastleProvider.))
+  (with-open [in (input-stream input)]
+    (let [buf (byte-array 1024)
+          digest (SHA3Digest.)
+          hash-buffer (byte-array (.getDigestSize digest))]
+      (loop [n (.read in buf)]
+        (if (<= n 0)
+          (do (.doFinal digest hash-buffer 0) hash-buffer)
+          (recur (do (.update digest buf 0 n) (.read in buf))))))))
+
+(comment
+
+  (require
+   '[cljctools.bytes.runtime.core :as bytes.runtime.core]
+   '[cljctools.ipfs.crypto :as ipfs.crypto]
+   '[cljctools.ipfs.runtime.crypto :refer [generate-keypair]]
+   :reload)
+
+  (do
+    (def kp (generate-keypair ::ipfs.crypto/Ed25519))
+    (def msgBA (bytes.runtime.core/to-byte-array "asdasdasd"))
+    (->>
+     (ipfs.crypto/sign* (::ipfs.crypto/private-key kp) msgBA)
+     (ipfs.crypto/verify* (::ipfs.crypto/public-key kp) msgBA)))
+
+  (do
+    (def kp (generate-keypair ::ipfs.crypto/RSA 2048))
+    (def msgBA (bytes.runtime.core/to-byte-array "asdasdasd"))
+    (->>
+     (ipfs.crypto/sign* (::ipfs.crypto/private-key kp) msgBA)
+     (ipfs.crypto/verify* (::ipfs.crypto/public-key kp) msgBA)))
+
+
+  ;
+  )
