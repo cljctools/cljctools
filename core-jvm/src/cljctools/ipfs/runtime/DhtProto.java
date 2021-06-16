@@ -14,977 +14,177 @@ public final class DhtProto {
     registerAllExtensions(
         (com.google.protobuf.ExtensionRegistryLite) registry);
   }
-  public interface RecordOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:cljctools.ipfs.runtime.Record)
-      com.google.protobuf.MessageOrBuilder {
-
-    /**
-     * <pre>
-     * The key that references this record
-     * </pre>
-     *
-     * <code>bytes key = 1;</code>
-     * @return The key.
-     */
-    com.google.protobuf.ByteString getKey();
-
-    /**
-     * <pre>
-     * The actual value this record is storing
-     * </pre>
-     *
-     * <code>bytes value = 2;</code>
-     * @return The value.
-     */
-    com.google.protobuf.ByteString getValue();
-
-    /**
-     * <pre>
-     * Time the record was received, set by receiver
-     * </pre>
-     *
-     * <code>string timeReceived = 5;</code>
-     * @return The timeReceived.
-     */
-    java.lang.String getTimeReceived();
-    /**
-     * <pre>
-     * Time the record was received, set by receiver
-     * </pre>
-     *
-     * <code>string timeReceived = 5;</code>
-     * @return The bytes for timeReceived.
-     */
-    com.google.protobuf.ByteString
-        getTimeReceivedBytes();
-  }
   /**
-   * Protobuf type {@code cljctools.ipfs.runtime.Record}
+   * Protobuf enum {@code cljctools.ipfs.runtime.KeyType}
    */
-  public static final class Record extends
-      com.google.protobuf.GeneratedMessageV3 implements
-      // @@protoc_insertion_point(message_implements:cljctools.ipfs.runtime.Record)
-      RecordOrBuilder {
-  private static final long serialVersionUID = 0L;
-    // Use Record.newBuilder() to construct.
-    private Record(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
-      super(builder);
+  public enum KeyType
+      implements com.google.protobuf.ProtocolMessageEnum {
+    /**
+     * <code>RSA = 0;</code>
+     */
+    RSA(0),
+    /**
+     * <code>Ed25519 = 1;</code>
+     */
+    Ed25519(1),
+    /**
+     * <code>Secp256k1 = 2;</code>
+     */
+    Secp256k1(2),
+    /**
+     * <code>ECDSA = 3;</code>
+     */
+    ECDSA(3),
+    /**
+     * <code>Curve25519 = 4;</code>
+     */
+    Curve25519(4),
+    ;
+
+    /**
+     * <code>RSA = 0;</code>
+     */
+    public static final int RSA_VALUE = 0;
+    /**
+     * <code>Ed25519 = 1;</code>
+     */
+    public static final int Ed25519_VALUE = 1;
+    /**
+     * <code>Secp256k1 = 2;</code>
+     */
+    public static final int Secp256k1_VALUE = 2;
+    /**
+     * <code>ECDSA = 3;</code>
+     */
+    public static final int ECDSA_VALUE = 3;
+    /**
+     * <code>Curve25519 = 4;</code>
+     */
+    public static final int Curve25519_VALUE = 4;
+
+
+    public final int getNumber() {
+      return value;
     }
-    private Record() {
-      key_ = com.google.protobuf.ByteString.EMPTY;
-      value_ = com.google.protobuf.ByteString.EMPTY;
-      timeReceived_ = "";
+
+    /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
+     * @deprecated Use {@link #forNumber(int)} instead.
+     */
+    @java.lang.Deprecated
+    public static KeyType valueOf(int value) {
+      return forNumber(value);
     }
 
-    @java.lang.Override
-    @SuppressWarnings({"unused"})
-    protected java.lang.Object newInstance(
-        UnusedPrivateParameter unused) {
-      return new Record();
-    }
-
-    @java.lang.Override
-    public final com.google.protobuf.UnknownFieldSet
-    getUnknownFields() {
-      return this.unknownFields;
-    }
-    private Record(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      this();
-      if (extensionRegistry == null) {
-        throw new java.lang.NullPointerException();
-      }
-      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-          com.google.protobuf.UnknownFieldSet.newBuilder();
-      try {
-        boolean done = false;
-        while (!done) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              done = true;
-              break;
-            case 10: {
-
-              key_ = input.readBytes();
-              break;
-            }
-            case 18: {
-
-              value_ = input.readBytes();
-              break;
-            }
-            case 42: {
-              java.lang.String s = input.readStringRequireUtf8();
-
-              timeReceived_ = s;
-              break;
-            }
-            default: {
-              if (!parseUnknownField(
-                  input, unknownFields, extensionRegistry, tag)) {
-                done = true;
-              }
-              break;
-            }
-          }
-        }
-      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-        throw e.setUnfinishedMessage(this);
-      } catch (java.io.IOException e) {
-        throw new com.google.protobuf.InvalidProtocolBufferException(
-            e).setUnfinishedMessage(this);
-      } finally {
-        this.unknownFields = unknownFields.build();
-        makeExtensionsImmutable();
+    /**
+     * @param value The numeric wire value of the corresponding enum entry.
+     * @return The enum associated with the given numeric wire value.
+     */
+    public static KeyType forNumber(int value) {
+      switch (value) {
+        case 0: return RSA;
+        case 1: return Ed25519;
+        case 2: return Secp256k1;
+        case 3: return ECDSA;
+        case 4: return Curve25519;
+        default: return null;
       }
     }
-    public static final com.google.protobuf.Descriptors.Descriptor
+
+    public static com.google.protobuf.Internal.EnumLiteMap<KeyType>
+        internalGetValueMap() {
+      return internalValueMap;
+    }
+    private static final com.google.protobuf.Internal.EnumLiteMap<
+        KeyType> internalValueMap =
+          new com.google.protobuf.Internal.EnumLiteMap<KeyType>() {
+            public KeyType findValueByNumber(int number) {
+              return KeyType.forNumber(number);
+            }
+          };
+
+    public final com.google.protobuf.Descriptors.EnumValueDescriptor
+        getValueDescriptor() {
+      return getDescriptor().getValues().get(ordinal());
+    }
+    public final com.google.protobuf.Descriptors.EnumDescriptor
+        getDescriptorForType() {
+      return getDescriptor();
+    }
+    public static final com.google.protobuf.Descriptors.EnumDescriptor
         getDescriptor() {
-      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Record_descriptor;
+      return cljctools.ipfs.runtime.DhtProto.getDescriptor().getEnumTypes().get(0);
     }
 
-    @java.lang.Override
-    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-        internalGetFieldAccessorTable() {
-      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Record_fieldAccessorTable
-          .ensureFieldAccessorsInitialized(
-              cljctools.ipfs.runtime.DhtProto.Record.class, cljctools.ipfs.runtime.DhtProto.Record.Builder.class);
+    private static final KeyType[] VALUES = values();
+
+    public static KeyType valueOf(
+        com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
+      if (desc.getType() != getDescriptor()) {
+        throw new java.lang.IllegalArgumentException(
+          "EnumValueDescriptor is not for this type.");
+      }
+      return VALUES[desc.getIndex()];
     }
 
-    public static final int KEY_FIELD_NUMBER = 1;
-    private com.google.protobuf.ByteString key_;
-    /**
-     * <pre>
-     * The key that references this record
-     * </pre>
-     *
-     * <code>bytes key = 1;</code>
-     * @return The key.
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString getKey() {
-      return key_;
+    private final int value;
+
+    private KeyType(int value) {
+      this.value = value;
     }
 
-    public static final int VALUE_FIELD_NUMBER = 2;
-    private com.google.protobuf.ByteString value_;
-    /**
-     * <pre>
-     * The actual value this record is storing
-     * </pre>
-     *
-     * <code>bytes value = 2;</code>
-     * @return The value.
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString getValue() {
-      return value_;
-    }
-
-    public static final int TIMERECEIVED_FIELD_NUMBER = 5;
-    private volatile java.lang.Object timeReceived_;
-    /**
-     * <pre>
-     * Time the record was received, set by receiver
-     * </pre>
-     *
-     * <code>string timeReceived = 5;</code>
-     * @return The timeReceived.
-     */
-    @java.lang.Override
-    public java.lang.String getTimeReceived() {
-      java.lang.Object ref = timeReceived_;
-      if (ref instanceof java.lang.String) {
-        return (java.lang.String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        java.lang.String s = bs.toStringUtf8();
-        timeReceived_ = s;
-        return s;
-      }
-    }
-    /**
-     * <pre>
-     * Time the record was received, set by receiver
-     * </pre>
-     *
-     * <code>string timeReceived = 5;</code>
-     * @return The bytes for timeReceived.
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString
-        getTimeReceivedBytes() {
-      java.lang.Object ref = timeReceived_;
-      if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8(
-                (java.lang.String) ref);
-        timeReceived_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-
-    private byte memoizedIsInitialized = -1;
-    @java.lang.Override
-    public final boolean isInitialized() {
-      byte isInitialized = memoizedIsInitialized;
-      if (isInitialized == 1) return true;
-      if (isInitialized == 0) return false;
-
-      memoizedIsInitialized = 1;
-      return true;
-    }
-
-    @java.lang.Override
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-      if (!key_.isEmpty()) {
-        output.writeBytes(1, key_);
-      }
-      if (!value_.isEmpty()) {
-        output.writeBytes(2, value_);
-      }
-      if (!getTimeReceivedBytes().isEmpty()) {
-        com.google.protobuf.GeneratedMessageV3.writeString(output, 5, timeReceived_);
-      }
-      unknownFields.writeTo(output);
-    }
-
-    @java.lang.Override
-    public int getSerializedSize() {
-      int size = memoizedSize;
-      if (size != -1) return size;
-
-      size = 0;
-      if (!key_.isEmpty()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(1, key_);
-      }
-      if (!value_.isEmpty()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, value_);
-      }
-      if (!getTimeReceivedBytes().isEmpty()) {
-        size += com.google.protobuf.GeneratedMessageV3.computeStringSize(5, timeReceived_);
-      }
-      size += unknownFields.getSerializedSize();
-      memoizedSize = size;
-      return size;
-    }
-
-    @java.lang.Override
-    public boolean equals(final java.lang.Object obj) {
-      if (obj == this) {
-       return true;
-      }
-      if (!(obj instanceof cljctools.ipfs.runtime.DhtProto.Record)) {
-        return super.equals(obj);
-      }
-      cljctools.ipfs.runtime.DhtProto.Record other = (cljctools.ipfs.runtime.DhtProto.Record) obj;
-
-      if (!getKey()
-          .equals(other.getKey())) return false;
-      if (!getValue()
-          .equals(other.getValue())) return false;
-      if (!getTimeReceived()
-          .equals(other.getTimeReceived())) return false;
-      if (!unknownFields.equals(other.unknownFields)) return false;
-      return true;
-    }
-
-    @java.lang.Override
-    public int hashCode() {
-      if (memoizedHashCode != 0) {
-        return memoizedHashCode;
-      }
-      int hash = 41;
-      hash = (19 * hash) + getDescriptor().hashCode();
-      hash = (37 * hash) + KEY_FIELD_NUMBER;
-      hash = (53 * hash) + getKey().hashCode();
-      hash = (37 * hash) + VALUE_FIELD_NUMBER;
-      hash = (53 * hash) + getValue().hashCode();
-      hash = (37 * hash) + TIMERECEIVED_FIELD_NUMBER;
-      hash = (53 * hash) + getTimeReceived().hashCode();
-      hash = (29 * hash) + unknownFields.hashCode();
-      memoizedHashCode = hash;
-      return hash;
-    }
-
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        java.nio.ByteBuffer data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        java.nio.ByteBuffer data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data, extensionRegistry);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data, extensionRegistry);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return PARSER.parseFrom(data, extensionRegistry);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseWithIOException(PARSER, input);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseWithIOException(PARSER, input, extensionRegistry);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseDelimitedWithIOException(PARSER, input);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseDelimitedFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseWithIOException(PARSER, input);
-    }
-    public static cljctools.ipfs.runtime.DhtProto.Record parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return com.google.protobuf.GeneratedMessageV3
-          .parseWithIOException(PARSER, input, extensionRegistry);
-    }
-
-    @java.lang.Override
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder() {
-      return DEFAULT_INSTANCE.toBuilder();
-    }
-    public static Builder newBuilder(cljctools.ipfs.runtime.DhtProto.Record prototype) {
-      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
-    }
-    @java.lang.Override
-    public Builder toBuilder() {
-      return this == DEFAULT_INSTANCE
-          ? new Builder() : new Builder().mergeFrom(this);
-    }
-
-    @java.lang.Override
-    protected Builder newBuilderForType(
-        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
-      Builder builder = new Builder(parent);
-      return builder;
-    }
-    /**
-     * Protobuf type {@code cljctools.ipfs.runtime.Record}
-     */
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
-        // @@protoc_insertion_point(builder_implements:cljctools.ipfs.runtime.Record)
-        cljctools.ipfs.runtime.DhtProto.RecordOrBuilder {
-      public static final com.google.protobuf.Descriptors.Descriptor
-          getDescriptor() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Record_descriptor;
-      }
-
-      @java.lang.Override
-      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-          internalGetFieldAccessorTable() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Record_fieldAccessorTable
-            .ensureFieldAccessorsInitialized(
-                cljctools.ipfs.runtime.DhtProto.Record.class, cljctools.ipfs.runtime.DhtProto.Record.Builder.class);
-      }
-
-      // Construct using cljctools.ipfs.runtime.DhtProto.Record.newBuilder()
-      private Builder() {
-        maybeForceBuilderInitialization();
-      }
-
-      private Builder(
-          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
-        super(parent);
-        maybeForceBuilderInitialization();
-      }
-      private void maybeForceBuilderInitialization() {
-        if (com.google.protobuf.GeneratedMessageV3
-                .alwaysUseFieldBuilders) {
-        }
-      }
-      @java.lang.Override
-      public Builder clear() {
-        super.clear();
-        key_ = com.google.protobuf.ByteString.EMPTY;
-
-        value_ = com.google.protobuf.ByteString.EMPTY;
-
-        timeReceived_ = "";
-
-        return this;
-      }
-
-      @java.lang.Override
-      public com.google.protobuf.Descriptors.Descriptor
-          getDescriptorForType() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Record_descriptor;
-      }
-
-      @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Record getDefaultInstanceForType() {
-        return cljctools.ipfs.runtime.DhtProto.Record.getDefaultInstance();
-      }
-
-      @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Record build() {
-        cljctools.ipfs.runtime.DhtProto.Record result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return result;
-      }
-
-      @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Record buildPartial() {
-        cljctools.ipfs.runtime.DhtProto.Record result = new cljctools.ipfs.runtime.DhtProto.Record(this);
-        result.key_ = key_;
-        result.value_ = value_;
-        result.timeReceived_ = timeReceived_;
-        onBuilt();
-        return result;
-      }
-
-      @java.lang.Override
-      public Builder clone() {
-        return super.clone();
-      }
-      @java.lang.Override
-      public Builder setField(
-          com.google.protobuf.Descriptors.FieldDescriptor field,
-          java.lang.Object value) {
-        return super.setField(field, value);
-      }
-      @java.lang.Override
-      public Builder clearField(
-          com.google.protobuf.Descriptors.FieldDescriptor field) {
-        return super.clearField(field);
-      }
-      @java.lang.Override
-      public Builder clearOneof(
-          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
-        return super.clearOneof(oneof);
-      }
-      @java.lang.Override
-      public Builder setRepeatedField(
-          com.google.protobuf.Descriptors.FieldDescriptor field,
-          int index, java.lang.Object value) {
-        return super.setRepeatedField(field, index, value);
-      }
-      @java.lang.Override
-      public Builder addRepeatedField(
-          com.google.protobuf.Descriptors.FieldDescriptor field,
-          java.lang.Object value) {
-        return super.addRepeatedField(field, value);
-      }
-      @java.lang.Override
-      public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof cljctools.ipfs.runtime.DhtProto.Record) {
-          return mergeFrom((cljctools.ipfs.runtime.DhtProto.Record)other);
-        } else {
-          super.mergeFrom(other);
-          return this;
-        }
-      }
-
-      public Builder mergeFrom(cljctools.ipfs.runtime.DhtProto.Record other) {
-        if (other == cljctools.ipfs.runtime.DhtProto.Record.getDefaultInstance()) return this;
-        if (other.getKey() != com.google.protobuf.ByteString.EMPTY) {
-          setKey(other.getKey());
-        }
-        if (other.getValue() != com.google.protobuf.ByteString.EMPTY) {
-          setValue(other.getValue());
-        }
-        if (!other.getTimeReceived().isEmpty()) {
-          timeReceived_ = other.timeReceived_;
-          onChanged();
-        }
-        this.mergeUnknownFields(other.unknownFields);
-        onChanged();
-        return this;
-      }
-
-      @java.lang.Override
-      public final boolean isInitialized() {
-        return true;
-      }
-
-      @java.lang.Override
-      public Builder mergeFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        cljctools.ipfs.runtime.DhtProto.Record parsedMessage = null;
-        try {
-          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
-        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-          parsedMessage = (cljctools.ipfs.runtime.DhtProto.Record) e.getUnfinishedMessage();
-          throw e.unwrapIOException();
-        } finally {
-          if (parsedMessage != null) {
-            mergeFrom(parsedMessage);
-          }
-        }
-        return this;
-      }
-
-      private com.google.protobuf.ByteString key_ = com.google.protobuf.ByteString.EMPTY;
-      /**
-       * <pre>
-       * The key that references this record
-       * </pre>
-       *
-       * <code>bytes key = 1;</code>
-       * @return The key.
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString getKey() {
-        return key_;
-      }
-      /**
-       * <pre>
-       * The key that references this record
-       * </pre>
-       *
-       * <code>bytes key = 1;</code>
-       * @param value The key to set.
-       * @return This builder for chaining.
-       */
-      public Builder setKey(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  
-        key_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * The key that references this record
-       * </pre>
-       *
-       * <code>bytes key = 1;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearKey() {
-        
-        key_ = getDefaultInstance().getKey();
-        onChanged();
-        return this;
-      }
-
-      private com.google.protobuf.ByteString value_ = com.google.protobuf.ByteString.EMPTY;
-      /**
-       * <pre>
-       * The actual value this record is storing
-       * </pre>
-       *
-       * <code>bytes value = 2;</code>
-       * @return The value.
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString getValue() {
-        return value_;
-      }
-      /**
-       * <pre>
-       * The actual value this record is storing
-       * </pre>
-       *
-       * <code>bytes value = 2;</code>
-       * @param value The value to set.
-       * @return This builder for chaining.
-       */
-      public Builder setValue(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  
-        value_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * The actual value this record is storing
-       * </pre>
-       *
-       * <code>bytes value = 2;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearValue() {
-        
-        value_ = getDefaultInstance().getValue();
-        onChanged();
-        return this;
-      }
-
-      private java.lang.Object timeReceived_ = "";
-      /**
-       * <pre>
-       * Time the record was received, set by receiver
-       * </pre>
-       *
-       * <code>string timeReceived = 5;</code>
-       * @return The timeReceived.
-       */
-      public java.lang.String getTimeReceived() {
-        java.lang.Object ref = timeReceived_;
-        if (!(ref instanceof java.lang.String)) {
-          com.google.protobuf.ByteString bs =
-              (com.google.protobuf.ByteString) ref;
-          java.lang.String s = bs.toStringUtf8();
-          timeReceived_ = s;
-          return s;
-        } else {
-          return (java.lang.String) ref;
-        }
-      }
-      /**
-       * <pre>
-       * Time the record was received, set by receiver
-       * </pre>
-       *
-       * <code>string timeReceived = 5;</code>
-       * @return The bytes for timeReceived.
-       */
-      public com.google.protobuf.ByteString
-          getTimeReceivedBytes() {
-        java.lang.Object ref = timeReceived_;
-        if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
-              com.google.protobuf.ByteString.copyFromUtf8(
-                  (java.lang.String) ref);
-          timeReceived_ = b;
-          return b;
-        } else {
-          return (com.google.protobuf.ByteString) ref;
-        }
-      }
-      /**
-       * <pre>
-       * Time the record was received, set by receiver
-       * </pre>
-       *
-       * <code>string timeReceived = 5;</code>
-       * @param value The timeReceived to set.
-       * @return This builder for chaining.
-       */
-      public Builder setTimeReceived(
-          java.lang.String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  
-        timeReceived_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * Time the record was received, set by receiver
-       * </pre>
-       *
-       * <code>string timeReceived = 5;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearTimeReceived() {
-        
-        timeReceived_ = getDefaultInstance().getTimeReceived();
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * Time the record was received, set by receiver
-       * </pre>
-       *
-       * <code>string timeReceived = 5;</code>
-       * @param value The bytes for timeReceived to set.
-       * @return This builder for chaining.
-       */
-      public Builder setTimeReceivedBytes(
-          com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  checkByteStringIsUtf8(value);
-        
-        timeReceived_ = value;
-        onChanged();
-        return this;
-      }
-      @java.lang.Override
-      public final Builder setUnknownFields(
-          final com.google.protobuf.UnknownFieldSet unknownFields) {
-        return super.setUnknownFields(unknownFields);
-      }
-
-      @java.lang.Override
-      public final Builder mergeUnknownFields(
-          final com.google.protobuf.UnknownFieldSet unknownFields) {
-        return super.mergeUnknownFields(unknownFields);
-      }
-
-
-      // @@protoc_insertion_point(builder_scope:cljctools.ipfs.runtime.Record)
-    }
-
-    // @@protoc_insertion_point(class_scope:cljctools.ipfs.runtime.Record)
-    private static final cljctools.ipfs.runtime.DhtProto.Record DEFAULT_INSTANCE;
-    static {
-      DEFAULT_INSTANCE = new cljctools.ipfs.runtime.DhtProto.Record();
-    }
-
-    public static cljctools.ipfs.runtime.DhtProto.Record getDefaultInstance() {
-      return DEFAULT_INSTANCE;
-    }
-
-    private static final com.google.protobuf.Parser<Record>
-        PARSER = new com.google.protobuf.AbstractParser<Record>() {
-      @java.lang.Override
-      public Record parsePartialFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return new Record(input, extensionRegistry);
-      }
-    };
-
-    public static com.google.protobuf.Parser<Record> parser() {
-      return PARSER;
-    }
-
-    @java.lang.Override
-    public com.google.protobuf.Parser<Record> getParserForType() {
-      return PARSER;
-    }
-
-    @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Record getDefaultInstanceForType() {
-      return DEFAULT_INSTANCE;
-    }
-
+    // @@protoc_insertion_point(enum_scope:cljctools.ipfs.runtime.KeyType)
   }
 
-  public interface MessageOrBuilder extends
-      // @@protoc_insertion_point(interface_extends:cljctools.ipfs.runtime.Message)
+  public interface PublicKeyOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:cljctools.ipfs.runtime.PublicKey)
       com.google.protobuf.MessageOrBuilder {
 
     /**
-     * <pre>
-     * defines what type of message it is.
-     * </pre>
-     *
-     * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
-     * @return The enum numeric value on the wire for type.
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return Whether the type field is set.
      */
-    int getTypeValue();
+    boolean hasType();
     /**
-     * <pre>
-     * defines what type of message it is.
-     * </pre>
-     *
-     * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
      * @return The type.
      */
-    cljctools.ipfs.runtime.DhtProto.Message.MessageType getType();
+    cljctools.ipfs.runtime.DhtProto.KeyType getType();
 
     /**
-     * <pre>
-     * defines what coral cluster level this query/response belongs to.
-     * in case we want to implement coral's cluster rings in the future.
-     * </pre>
-     *
-     * <code>int32 clusterLevelRaw = 10;</code>
-     * @return The clusterLevelRaw.
+     * <code>required bytes Data = 2;</code>
+     * @return Whether the data field is set.
      */
-    int getClusterLevelRaw();
-
+    boolean hasData();
     /**
-     * <pre>
-     * Used to specify the key associated with this message.
-     * PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>bytes key = 2;</code>
-     * @return The key.
+     * <code>required bytes Data = 2;</code>
+     * @return The data.
      */
-    com.google.protobuf.ByteString getKey();
-
-    /**
-     * <pre>
-     * Used to return a value
-     * PUT_VALUE, GET_VALUE
-     * </pre>
-     *
-     * <code>bytes record = 3;</code>
-     * @return The record.
-     */
-    com.google.protobuf.ByteString getRecord();
-
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> 
-        getCloserPeersList();
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    cljctools.ipfs.runtime.DhtProto.Message.Peer getCloserPeers(int index);
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    int getCloserPeersCount();
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-        getCloserPeersOrBuilderList();
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getCloserPeersOrBuilder(
-        int index);
-
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> 
-        getProviderPeersList();
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    cljctools.ipfs.runtime.DhtProto.Message.Peer getProviderPeers(int index);
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    int getProviderPeersCount();
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-        getProviderPeersOrBuilderList();
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getProviderPeersOrBuilder(
-        int index);
+    com.google.protobuf.ByteString getData();
   }
   /**
-   * Protobuf type {@code cljctools.ipfs.runtime.Message}
+   * Protobuf type {@code cljctools.ipfs.runtime.PublicKey}
    */
-  public static final class Message extends
+  public static final class PublicKey extends
       com.google.protobuf.GeneratedMessageV3 implements
-      // @@protoc_insertion_point(message_implements:cljctools.ipfs.runtime.Message)
-      MessageOrBuilder {
+      // @@protoc_insertion_point(message_implements:cljctools.ipfs.runtime.PublicKey)
+      PublicKeyOrBuilder {
   private static final long serialVersionUID = 0L;
-    // Use Message.newBuilder() to construct.
-    private Message(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+    // Use PublicKey.newBuilder() to construct.
+    private PublicKey(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
       super(builder);
     }
-    private Message() {
+    private PublicKey() {
       type_ = 0;
-      key_ = com.google.protobuf.ByteString.EMPTY;
-      record_ = com.google.protobuf.ByteString.EMPTY;
-      closerPeers_ = java.util.Collections.emptyList();
-      providerPeers_ = java.util.Collections.emptyList();
+      data_ = com.google.protobuf.ByteString.EMPTY;
     }
 
     @java.lang.Override
     @SuppressWarnings({"unused"})
     protected java.lang.Object newInstance(
         UnusedPrivateParameter unused) {
-      return new Message();
+      return new PublicKey();
     }
 
     @java.lang.Override
@@ -992,7 +192,7 @@ public final class DhtProto {
     getUnknownFields() {
       return this.unknownFields;
     }
-    private Message(
+    private PublicKey(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -1013,41 +213,19 @@ public final class DhtProto {
               break;
             case 8: {
               int rawValue = input.readEnum();
-
-              type_ = rawValue;
+                @SuppressWarnings("deprecation")
+              cljctools.ipfs.runtime.DhtProto.KeyType value = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(rawValue);
+              if (value == null) {
+                unknownFields.mergeVarintField(1, rawValue);
+              } else {
+                bitField0_ |= 0x00000001;
+                type_ = rawValue;
+              }
               break;
             }
             case 18: {
-
-              key_ = input.readBytes();
-              break;
-            }
-            case 26: {
-
-              record_ = input.readBytes();
-              break;
-            }
-            case 66: {
-              if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-                closerPeers_ = new java.util.ArrayList<cljctools.ipfs.runtime.DhtProto.Message.Peer>();
-                mutable_bitField0_ |= 0x00000001;
-              }
-              closerPeers_.add(
-                  input.readMessage(cljctools.ipfs.runtime.DhtProto.Message.Peer.parser(), extensionRegistry));
-              break;
-            }
-            case 74: {
-              if (!((mutable_bitField0_ & 0x00000002) != 0)) {
-                providerPeers_ = new java.util.ArrayList<cljctools.ipfs.runtime.DhtProto.Message.Peer>();
-                mutable_bitField0_ |= 0x00000002;
-              }
-              providerPeers_.add(
-                  input.readMessage(cljctools.ipfs.runtime.DhtProto.Message.Peer.parser(), extensionRegistry));
-              break;
-            }
-            case 80: {
-
-              clusterLevelRaw_ = input.readInt32();
+              bitField0_ |= 0x00000002;
+              data_ = input.readBytes();
               break;
             }
             default: {
@@ -1065,1422 +243,60 @@ public final class DhtProto {
         throw new com.google.protobuf.InvalidProtocolBufferException(
             e).setUnfinishedMessage(this);
       } finally {
-        if (((mutable_bitField0_ & 0x00000001) != 0)) {
-          closerPeers_ = java.util.Collections.unmodifiableList(closerPeers_);
-        }
-        if (((mutable_bitField0_ & 0x00000002) != 0)) {
-          providerPeers_ = java.util.Collections.unmodifiableList(providerPeers_);
-        }
         this.unknownFields = unknownFields.build();
         makeExtensionsImmutable();
       }
     }
     public static final com.google.protobuf.Descriptors.Descriptor
         getDescriptor() {
-      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_descriptor;
+      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PublicKey_descriptor;
     }
 
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
         internalGetFieldAccessorTable() {
-      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_fieldAccessorTable
+      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PublicKey_fieldAccessorTable
           .ensureFieldAccessorsInitialized(
-              cljctools.ipfs.runtime.DhtProto.Message.class, cljctools.ipfs.runtime.DhtProto.Message.Builder.class);
+              cljctools.ipfs.runtime.DhtProto.PublicKey.class, cljctools.ipfs.runtime.DhtProto.PublicKey.Builder.class);
     }
 
-    /**
-     * Protobuf enum {@code cljctools.ipfs.runtime.Message.MessageType}
-     */
-    public enum MessageType
-        implements com.google.protobuf.ProtocolMessageEnum {
-      /**
-       * <code>PUT_VALUE = 0;</code>
-       */
-      PUT_VALUE(0),
-      /**
-       * <code>GET_VALUE = 1;</code>
-       */
-      GET_VALUE(1),
-      /**
-       * <code>ADD_PROVIDER = 2;</code>
-       */
-      ADD_PROVIDER(2),
-      /**
-       * <code>GET_PROVIDERS = 3;</code>
-       */
-      GET_PROVIDERS(3),
-      /**
-       * <code>FIND_NODE = 4;</code>
-       */
-      FIND_NODE(4),
-      /**
-       * <code>PING = 5;</code>
-       */
-      PING(5),
-      UNRECOGNIZED(-1),
-      ;
-
-      /**
-       * <code>PUT_VALUE = 0;</code>
-       */
-      public static final int PUT_VALUE_VALUE = 0;
-      /**
-       * <code>GET_VALUE = 1;</code>
-       */
-      public static final int GET_VALUE_VALUE = 1;
-      /**
-       * <code>ADD_PROVIDER = 2;</code>
-       */
-      public static final int ADD_PROVIDER_VALUE = 2;
-      /**
-       * <code>GET_PROVIDERS = 3;</code>
-       */
-      public static final int GET_PROVIDERS_VALUE = 3;
-      /**
-       * <code>FIND_NODE = 4;</code>
-       */
-      public static final int FIND_NODE_VALUE = 4;
-      /**
-       * <code>PING = 5;</code>
-       */
-      public static final int PING_VALUE = 5;
-
-
-      public final int getNumber() {
-        if (this == UNRECOGNIZED) {
-          throw new java.lang.IllegalArgumentException(
-              "Can't get the number of an unknown enum value.");
-        }
-        return value;
-      }
-
-      /**
-       * @param value The numeric wire value of the corresponding enum entry.
-       * @return The enum associated with the given numeric wire value.
-       * @deprecated Use {@link #forNumber(int)} instead.
-       */
-      @java.lang.Deprecated
-      public static MessageType valueOf(int value) {
-        return forNumber(value);
-      }
-
-      /**
-       * @param value The numeric wire value of the corresponding enum entry.
-       * @return The enum associated with the given numeric wire value.
-       */
-      public static MessageType forNumber(int value) {
-        switch (value) {
-          case 0: return PUT_VALUE;
-          case 1: return GET_VALUE;
-          case 2: return ADD_PROVIDER;
-          case 3: return GET_PROVIDERS;
-          case 4: return FIND_NODE;
-          case 5: return PING;
-          default: return null;
-        }
-      }
-
-      public static com.google.protobuf.Internal.EnumLiteMap<MessageType>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static final com.google.protobuf.Internal.EnumLiteMap<
-          MessageType> internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<MessageType>() {
-              public MessageType findValueByNumber(int number) {
-                return MessageType.forNumber(number);
-              }
-            };
-
-      public final com.google.protobuf.Descriptors.EnumValueDescriptor
-          getValueDescriptor() {
-        if (this == UNRECOGNIZED) {
-          throw new java.lang.IllegalStateException(
-              "Can't get the descriptor of an unrecognized enum value.");
-        }
-        return getDescriptor().getValues().get(ordinal());
-      }
-      public final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptorForType() {
-        return getDescriptor();
-      }
-      public static final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptor() {
-        return cljctools.ipfs.runtime.DhtProto.Message.getDescriptor().getEnumTypes().get(0);
-      }
-
-      private static final MessageType[] VALUES = values();
-
-      public static MessageType valueOf(
-          com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
-        if (desc.getType() != getDescriptor()) {
-          throw new java.lang.IllegalArgumentException(
-            "EnumValueDescriptor is not for this type.");
-        }
-        if (desc.getIndex() == -1) {
-          return UNRECOGNIZED;
-        }
-        return VALUES[desc.getIndex()];
-      }
-
-      private final int value;
-
-      private MessageType(int value) {
-        this.value = value;
-      }
-
-      // @@protoc_insertion_point(enum_scope:cljctools.ipfs.runtime.Message.MessageType)
-    }
-
-    /**
-     * Protobuf enum {@code cljctools.ipfs.runtime.Message.ConnectionType}
-     */
-    public enum ConnectionType
-        implements com.google.protobuf.ProtocolMessageEnum {
-      /**
-       * <pre>
-       * sender does not have a connection to peer, and no extra information (default)
-       * </pre>
-       *
-       * <code>NOT_CONNECTED = 0;</code>
-       */
-      NOT_CONNECTED(0),
-      /**
-       * <pre>
-       * sender has a live connection to peer
-       * </pre>
-       *
-       * <code>CONNECTED = 1;</code>
-       */
-      CONNECTED(1),
-      /**
-       * <pre>
-       * sender recently connected to peer
-       * </pre>
-       *
-       * <code>CAN_CONNECT = 2;</code>
-       */
-      CAN_CONNECT(2),
-      /**
-       * <pre>
-       * sender recently tried to connect to peer repeatedly but failed to connect
-       * ("try" here is loose, but this should signal "made strong effort, failed")
-       * </pre>
-       *
-       * <code>CANNOT_CONNECT = 3;</code>
-       */
-      CANNOT_CONNECT(3),
-      UNRECOGNIZED(-1),
-      ;
-
-      /**
-       * <pre>
-       * sender does not have a connection to peer, and no extra information (default)
-       * </pre>
-       *
-       * <code>NOT_CONNECTED = 0;</code>
-       */
-      public static final int NOT_CONNECTED_VALUE = 0;
-      /**
-       * <pre>
-       * sender has a live connection to peer
-       * </pre>
-       *
-       * <code>CONNECTED = 1;</code>
-       */
-      public static final int CONNECTED_VALUE = 1;
-      /**
-       * <pre>
-       * sender recently connected to peer
-       * </pre>
-       *
-       * <code>CAN_CONNECT = 2;</code>
-       */
-      public static final int CAN_CONNECT_VALUE = 2;
-      /**
-       * <pre>
-       * sender recently tried to connect to peer repeatedly but failed to connect
-       * ("try" here is loose, but this should signal "made strong effort, failed")
-       * </pre>
-       *
-       * <code>CANNOT_CONNECT = 3;</code>
-       */
-      public static final int CANNOT_CONNECT_VALUE = 3;
-
-
-      public final int getNumber() {
-        if (this == UNRECOGNIZED) {
-          throw new java.lang.IllegalArgumentException(
-              "Can't get the number of an unknown enum value.");
-        }
-        return value;
-      }
-
-      /**
-       * @param value The numeric wire value of the corresponding enum entry.
-       * @return The enum associated with the given numeric wire value.
-       * @deprecated Use {@link #forNumber(int)} instead.
-       */
-      @java.lang.Deprecated
-      public static ConnectionType valueOf(int value) {
-        return forNumber(value);
-      }
-
-      /**
-       * @param value The numeric wire value of the corresponding enum entry.
-       * @return The enum associated with the given numeric wire value.
-       */
-      public static ConnectionType forNumber(int value) {
-        switch (value) {
-          case 0: return NOT_CONNECTED;
-          case 1: return CONNECTED;
-          case 2: return CAN_CONNECT;
-          case 3: return CANNOT_CONNECT;
-          default: return null;
-        }
-      }
-
-      public static com.google.protobuf.Internal.EnumLiteMap<ConnectionType>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static final com.google.protobuf.Internal.EnumLiteMap<
-          ConnectionType> internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<ConnectionType>() {
-              public ConnectionType findValueByNumber(int number) {
-                return ConnectionType.forNumber(number);
-              }
-            };
-
-      public final com.google.protobuf.Descriptors.EnumValueDescriptor
-          getValueDescriptor() {
-        if (this == UNRECOGNIZED) {
-          throw new java.lang.IllegalStateException(
-              "Can't get the descriptor of an unrecognized enum value.");
-        }
-        return getDescriptor().getValues().get(ordinal());
-      }
-      public final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptorForType() {
-        return getDescriptor();
-      }
-      public static final com.google.protobuf.Descriptors.EnumDescriptor
-          getDescriptor() {
-        return cljctools.ipfs.runtime.DhtProto.Message.getDescriptor().getEnumTypes().get(1);
-      }
-
-      private static final ConnectionType[] VALUES = values();
-
-      public static ConnectionType valueOf(
-          com.google.protobuf.Descriptors.EnumValueDescriptor desc) {
-        if (desc.getType() != getDescriptor()) {
-          throw new java.lang.IllegalArgumentException(
-            "EnumValueDescriptor is not for this type.");
-        }
-        if (desc.getIndex() == -1) {
-          return UNRECOGNIZED;
-        }
-        return VALUES[desc.getIndex()];
-      }
-
-      private final int value;
-
-      private ConnectionType(int value) {
-        this.value = value;
-      }
-
-      // @@protoc_insertion_point(enum_scope:cljctools.ipfs.runtime.Message.ConnectionType)
-    }
-
-    public interface PeerOrBuilder extends
-        // @@protoc_insertion_point(interface_extends:cljctools.ipfs.runtime.Message.Peer)
-        com.google.protobuf.MessageOrBuilder {
-
-      /**
-       * <pre>
-       * ID of a given peer.
-       * </pre>
-       *
-       * <code>bytes id = 1;</code>
-       * @return The id.
-       */
-      com.google.protobuf.ByteString getId();
-
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @return A list containing the addrs.
-       */
-      java.util.List<com.google.protobuf.ByteString> getAddrsList();
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @return The count of addrs.
-       */
-      int getAddrsCount();
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @param index The index of the element to return.
-       * @return The addrs at the given index.
-       */
-      com.google.protobuf.ByteString getAddrs(int index);
-
-      /**
-       * <pre>
-       * used to signal the sender's connection capabilities to the peer
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-       * @return The enum numeric value on the wire for connection.
-       */
-      int getConnectionValue();
-      /**
-       * <pre>
-       * used to signal the sender's connection capabilities to the peer
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-       * @return The connection.
-       */
-      cljctools.ipfs.runtime.DhtProto.Message.ConnectionType getConnection();
-    }
-    /**
-     * Protobuf type {@code cljctools.ipfs.runtime.Message.Peer}
-     */
-    public static final class Peer extends
-        com.google.protobuf.GeneratedMessageV3 implements
-        // @@protoc_insertion_point(message_implements:cljctools.ipfs.runtime.Message.Peer)
-        PeerOrBuilder {
-    private static final long serialVersionUID = 0L;
-      // Use Peer.newBuilder() to construct.
-      private Peer(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
-        super(builder);
-      }
-      private Peer() {
-        id_ = com.google.protobuf.ByteString.EMPTY;
-        addrs_ = java.util.Collections.emptyList();
-        connection_ = 0;
-      }
-
-      @java.lang.Override
-      @SuppressWarnings({"unused"})
-      protected java.lang.Object newInstance(
-          UnusedPrivateParameter unused) {
-        return new Peer();
-      }
-
-      @java.lang.Override
-      public final com.google.protobuf.UnknownFieldSet
-      getUnknownFields() {
-        return this.unknownFields;
-      }
-      private Peer(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        this();
-        if (extensionRegistry == null) {
-          throw new java.lang.NullPointerException();
-        }
-        int mutable_bitField0_ = 0;
-        com.google.protobuf.UnknownFieldSet.Builder unknownFields =
-            com.google.protobuf.UnknownFieldSet.newBuilder();
-        try {
-          boolean done = false;
-          while (!done) {
-            int tag = input.readTag();
-            switch (tag) {
-              case 0:
-                done = true;
-                break;
-              case 10: {
-
-                id_ = input.readBytes();
-                break;
-              }
-              case 18: {
-                if (!((mutable_bitField0_ & 0x00000001) != 0)) {
-                  addrs_ = new java.util.ArrayList<com.google.protobuf.ByteString>();
-                  mutable_bitField0_ |= 0x00000001;
-                }
-                addrs_.add(input.readBytes());
-                break;
-              }
-              case 24: {
-                int rawValue = input.readEnum();
-
-                connection_ = rawValue;
-                break;
-              }
-              default: {
-                if (!parseUnknownField(
-                    input, unknownFields, extensionRegistry, tag)) {
-                  done = true;
-                }
-                break;
-              }
-            }
-          }
-        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-          throw e.setUnfinishedMessage(this);
-        } catch (java.io.IOException e) {
-          throw new com.google.protobuf.InvalidProtocolBufferException(
-              e).setUnfinishedMessage(this);
-        } finally {
-          if (((mutable_bitField0_ & 0x00000001) != 0)) {
-            addrs_ = java.util.Collections.unmodifiableList(addrs_); // C
-          }
-          this.unknownFields = unknownFields.build();
-          makeExtensionsImmutable();
-        }
-      }
-      public static final com.google.protobuf.Descriptors.Descriptor
-          getDescriptor() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor;
-      }
-
-      @java.lang.Override
-      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-          internalGetFieldAccessorTable() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_Peer_fieldAccessorTable
-            .ensureFieldAccessorsInitialized(
-                cljctools.ipfs.runtime.DhtProto.Message.Peer.class, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder.class);
-      }
-
-      public static final int ID_FIELD_NUMBER = 1;
-      private com.google.protobuf.ByteString id_;
-      /**
-       * <pre>
-       * ID of a given peer.
-       * </pre>
-       *
-       * <code>bytes id = 1;</code>
-       * @return The id.
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString getId() {
-        return id_;
-      }
-
-      public static final int ADDRS_FIELD_NUMBER = 2;
-      private java.util.List<com.google.protobuf.ByteString> addrs_;
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @return A list containing the addrs.
-       */
-      @java.lang.Override
-      public java.util.List<com.google.protobuf.ByteString>
-          getAddrsList() {
-        return addrs_;
-      }
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @return The count of addrs.
-       */
-      public int getAddrsCount() {
-        return addrs_.size();
-      }
-      /**
-       * <pre>
-       * multiaddrs for a given peer
-       * </pre>
-       *
-       * <code>repeated bytes addrs = 2;</code>
-       * @param index The index of the element to return.
-       * @return The addrs at the given index.
-       */
-      public com.google.protobuf.ByteString getAddrs(int index) {
-        return addrs_.get(index);
-      }
-
-      public static final int CONNECTION_FIELD_NUMBER = 3;
-      private int connection_;
-      /**
-       * <pre>
-       * used to signal the sender's connection capabilities to the peer
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-       * @return The enum numeric value on the wire for connection.
-       */
-      @java.lang.Override public int getConnectionValue() {
-        return connection_;
-      }
-      /**
-       * <pre>
-       * used to signal the sender's connection capabilities to the peer
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-       * @return The connection.
-       */
-      @java.lang.Override public cljctools.ipfs.runtime.DhtProto.Message.ConnectionType getConnection() {
-        @SuppressWarnings("deprecation")
-        cljctools.ipfs.runtime.DhtProto.Message.ConnectionType result = cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.valueOf(connection_);
-        return result == null ? cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.UNRECOGNIZED : result;
-      }
-
-      private byte memoizedIsInitialized = -1;
-      @java.lang.Override
-      public final boolean isInitialized() {
-        byte isInitialized = memoizedIsInitialized;
-        if (isInitialized == 1) return true;
-        if (isInitialized == 0) return false;
-
-        memoizedIsInitialized = 1;
-        return true;
-      }
-
-      @java.lang.Override
-      public void writeTo(com.google.protobuf.CodedOutputStream output)
-                          throws java.io.IOException {
-        if (!id_.isEmpty()) {
-          output.writeBytes(1, id_);
-        }
-        for (int i = 0; i < addrs_.size(); i++) {
-          output.writeBytes(2, addrs_.get(i));
-        }
-        if (connection_ != cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.NOT_CONNECTED.getNumber()) {
-          output.writeEnum(3, connection_);
-        }
-        unknownFields.writeTo(output);
-      }
-
-      @java.lang.Override
-      public int getSerializedSize() {
-        int size = memoizedSize;
-        if (size != -1) return size;
-
-        size = 0;
-        if (!id_.isEmpty()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeBytesSize(1, id_);
-        }
-        {
-          int dataSize = 0;
-          for (int i = 0; i < addrs_.size(); i++) {
-            dataSize += com.google.protobuf.CodedOutputStream
-              .computeBytesSizeNoTag(addrs_.get(i));
-          }
-          size += dataSize;
-          size += 1 * getAddrsList().size();
-        }
-        if (connection_ != cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.NOT_CONNECTED.getNumber()) {
-          size += com.google.protobuf.CodedOutputStream
-            .computeEnumSize(3, connection_);
-        }
-        size += unknownFields.getSerializedSize();
-        memoizedSize = size;
-        return size;
-      }
-
-      @java.lang.Override
-      public boolean equals(final java.lang.Object obj) {
-        if (obj == this) {
-         return true;
-        }
-        if (!(obj instanceof cljctools.ipfs.runtime.DhtProto.Message.Peer)) {
-          return super.equals(obj);
-        }
-        cljctools.ipfs.runtime.DhtProto.Message.Peer other = (cljctools.ipfs.runtime.DhtProto.Message.Peer) obj;
-
-        if (!getId()
-            .equals(other.getId())) return false;
-        if (!getAddrsList()
-            .equals(other.getAddrsList())) return false;
-        if (connection_ != other.connection_) return false;
-        if (!unknownFields.equals(other.unknownFields)) return false;
-        return true;
-      }
-
-      @java.lang.Override
-      public int hashCode() {
-        if (memoizedHashCode != 0) {
-          return memoizedHashCode;
-        }
-        int hash = 41;
-        hash = (19 * hash) + getDescriptor().hashCode();
-        hash = (37 * hash) + ID_FIELD_NUMBER;
-        hash = (53 * hash) + getId().hashCode();
-        if (getAddrsCount() > 0) {
-          hash = (37 * hash) + ADDRS_FIELD_NUMBER;
-          hash = (53 * hash) + getAddrsList().hashCode();
-        }
-        hash = (37 * hash) + CONNECTION_FIELD_NUMBER;
-        hash = (53 * hash) + connection_;
-        hash = (29 * hash) + unknownFields.hashCode();
-        memoizedHashCode = hash;
-        return hash;
-      }
-
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          java.nio.ByteBuffer data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          java.nio.ByteBuffer data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          com.google.protobuf.ByteString data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          com.google.protobuf.ByteString data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(byte[] data)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          byte[] data,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        return PARSER.parseFrom(data, extensionRegistry);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseWithIOException(PARSER, input);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseDelimitedFrom(java.io.InputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseDelimitedWithIOException(PARSER, input);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseDelimitedFrom(
-          java.io.InputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          com.google.protobuf.CodedInputStream input)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseWithIOException(PARSER, input);
-      }
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer parseFrom(
-          com.google.protobuf.CodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        return com.google.protobuf.GeneratedMessageV3
-            .parseWithIOException(PARSER, input, extensionRegistry);
-      }
-
-      @java.lang.Override
-      public Builder newBuilderForType() { return newBuilder(); }
-      public static Builder newBuilder() {
-        return DEFAULT_INSTANCE.toBuilder();
-      }
-      public static Builder newBuilder(cljctools.ipfs.runtime.DhtProto.Message.Peer prototype) {
-        return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
-      }
-      @java.lang.Override
-      public Builder toBuilder() {
-        return this == DEFAULT_INSTANCE
-            ? new Builder() : new Builder().mergeFrom(this);
-      }
-
-      @java.lang.Override
-      protected Builder newBuilderForType(
-          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
-        Builder builder = new Builder(parent);
-        return builder;
-      }
-      /**
-       * Protobuf type {@code cljctools.ipfs.runtime.Message.Peer}
-       */
-      public static final class Builder extends
-          com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
-          // @@protoc_insertion_point(builder_implements:cljctools.ipfs.runtime.Message.Peer)
-          cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder {
-        public static final com.google.protobuf.Descriptors.Descriptor
-            getDescriptor() {
-          return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor;
-        }
-
-        @java.lang.Override
-        protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-            internalGetFieldAccessorTable() {
-          return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_Peer_fieldAccessorTable
-              .ensureFieldAccessorsInitialized(
-                  cljctools.ipfs.runtime.DhtProto.Message.Peer.class, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder.class);
-        }
-
-        // Construct using cljctools.ipfs.runtime.DhtProto.Message.Peer.newBuilder()
-        private Builder() {
-          maybeForceBuilderInitialization();
-        }
-
-        private Builder(
-            com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
-          super(parent);
-          maybeForceBuilderInitialization();
-        }
-        private void maybeForceBuilderInitialization() {
-          if (com.google.protobuf.GeneratedMessageV3
-                  .alwaysUseFieldBuilders) {
-          }
-        }
-        @java.lang.Override
-        public Builder clear() {
-          super.clear();
-          id_ = com.google.protobuf.ByteString.EMPTY;
-
-          addrs_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000001);
-          connection_ = 0;
-
-          return this;
-        }
-
-        @java.lang.Override
-        public com.google.protobuf.Descriptors.Descriptor
-            getDescriptorForType() {
-          return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor;
-        }
-
-        @java.lang.Override
-        public cljctools.ipfs.runtime.DhtProto.Message.Peer getDefaultInstanceForType() {
-          return cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance();
-        }
-
-        @java.lang.Override
-        public cljctools.ipfs.runtime.DhtProto.Message.Peer build() {
-          cljctools.ipfs.runtime.DhtProto.Message.Peer result = buildPartial();
-          if (!result.isInitialized()) {
-            throw newUninitializedMessageException(result);
-          }
-          return result;
-        }
-
-        @java.lang.Override
-        public cljctools.ipfs.runtime.DhtProto.Message.Peer buildPartial() {
-          cljctools.ipfs.runtime.DhtProto.Message.Peer result = new cljctools.ipfs.runtime.DhtProto.Message.Peer(this);
-          int from_bitField0_ = bitField0_;
-          result.id_ = id_;
-          if (((bitField0_ & 0x00000001) != 0)) {
-            addrs_ = java.util.Collections.unmodifiableList(addrs_);
-            bitField0_ = (bitField0_ & ~0x00000001);
-          }
-          result.addrs_ = addrs_;
-          result.connection_ = connection_;
-          onBuilt();
-          return result;
-        }
-
-        @java.lang.Override
-        public Builder clone() {
-          return super.clone();
-        }
-        @java.lang.Override
-        public Builder setField(
-            com.google.protobuf.Descriptors.FieldDescriptor field,
-            java.lang.Object value) {
-          return super.setField(field, value);
-        }
-        @java.lang.Override
-        public Builder clearField(
-            com.google.protobuf.Descriptors.FieldDescriptor field) {
-          return super.clearField(field);
-        }
-        @java.lang.Override
-        public Builder clearOneof(
-            com.google.protobuf.Descriptors.OneofDescriptor oneof) {
-          return super.clearOneof(oneof);
-        }
-        @java.lang.Override
-        public Builder setRepeatedField(
-            com.google.protobuf.Descriptors.FieldDescriptor field,
-            int index, java.lang.Object value) {
-          return super.setRepeatedField(field, index, value);
-        }
-        @java.lang.Override
-        public Builder addRepeatedField(
-            com.google.protobuf.Descriptors.FieldDescriptor field,
-            java.lang.Object value) {
-          return super.addRepeatedField(field, value);
-        }
-        @java.lang.Override
-        public Builder mergeFrom(com.google.protobuf.Message other) {
-          if (other instanceof cljctools.ipfs.runtime.DhtProto.Message.Peer) {
-            return mergeFrom((cljctools.ipfs.runtime.DhtProto.Message.Peer)other);
-          } else {
-            super.mergeFrom(other);
-            return this;
-          }
-        }
-
-        public Builder mergeFrom(cljctools.ipfs.runtime.DhtProto.Message.Peer other) {
-          if (other == cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance()) return this;
-          if (other.getId() != com.google.protobuf.ByteString.EMPTY) {
-            setId(other.getId());
-          }
-          if (!other.addrs_.isEmpty()) {
-            if (addrs_.isEmpty()) {
-              addrs_ = other.addrs_;
-              bitField0_ = (bitField0_ & ~0x00000001);
-            } else {
-              ensureAddrsIsMutable();
-              addrs_.addAll(other.addrs_);
-            }
-            onChanged();
-          }
-          if (other.connection_ != 0) {
-            setConnectionValue(other.getConnectionValue());
-          }
-          this.mergeUnknownFields(other.unknownFields);
-          onChanged();
-          return this;
-        }
-
-        @java.lang.Override
-        public final boolean isInitialized() {
-          return true;
-        }
-
-        @java.lang.Override
-        public Builder mergeFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws java.io.IOException {
-          cljctools.ipfs.runtime.DhtProto.Message.Peer parsedMessage = null;
-          try {
-            parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
-          } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-            parsedMessage = (cljctools.ipfs.runtime.DhtProto.Message.Peer) e.getUnfinishedMessage();
-            throw e.unwrapIOException();
-          } finally {
-            if (parsedMessage != null) {
-              mergeFrom(parsedMessage);
-            }
-          }
-          return this;
-        }
-        private int bitField0_;
-
-        private com.google.protobuf.ByteString id_ = com.google.protobuf.ByteString.EMPTY;
-        /**
-         * <pre>
-         * ID of a given peer.
-         * </pre>
-         *
-         * <code>bytes id = 1;</code>
-         * @return The id.
-         */
-        @java.lang.Override
-        public com.google.protobuf.ByteString getId() {
-          return id_;
-        }
-        /**
-         * <pre>
-         * ID of a given peer.
-         * </pre>
-         *
-         * <code>bytes id = 1;</code>
-         * @param value The id to set.
-         * @return This builder for chaining.
-         */
-        public Builder setId(com.google.protobuf.ByteString value) {
-          if (value == null) {
-    throw new NullPointerException();
-  }
-  
-          id_ = value;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * ID of a given peer.
-         * </pre>
-         *
-         * <code>bytes id = 1;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearId() {
-          
-          id_ = getDefaultInstance().getId();
-          onChanged();
-          return this;
-        }
-
-        private java.util.List<com.google.protobuf.ByteString> addrs_ = java.util.Collections.emptyList();
-        private void ensureAddrsIsMutable() {
-          if (!((bitField0_ & 0x00000001) != 0)) {
-            addrs_ = new java.util.ArrayList<com.google.protobuf.ByteString>(addrs_);
-            bitField0_ |= 0x00000001;
-           }
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @return A list containing the addrs.
-         */
-        public java.util.List<com.google.protobuf.ByteString>
-            getAddrsList() {
-          return ((bitField0_ & 0x00000001) != 0) ?
-                   java.util.Collections.unmodifiableList(addrs_) : addrs_;
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @return The count of addrs.
-         */
-        public int getAddrsCount() {
-          return addrs_.size();
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @param index The index of the element to return.
-         * @return The addrs at the given index.
-         */
-        public com.google.protobuf.ByteString getAddrs(int index) {
-          return addrs_.get(index);
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @param index The index to set the value at.
-         * @param value The addrs to set.
-         * @return This builder for chaining.
-         */
-        public Builder setAddrs(
-            int index, com.google.protobuf.ByteString value) {
-          if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureAddrsIsMutable();
-          addrs_.set(index, value);
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @param value The addrs to add.
-         * @return This builder for chaining.
-         */
-        public Builder addAddrs(com.google.protobuf.ByteString value) {
-          if (value == null) {
-    throw new NullPointerException();
-  }
-  ensureAddrsIsMutable();
-          addrs_.add(value);
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @param values The addrs to add.
-         * @return This builder for chaining.
-         */
-        public Builder addAllAddrs(
-            java.lang.Iterable<? extends com.google.protobuf.ByteString> values) {
-          ensureAddrsIsMutable();
-          com.google.protobuf.AbstractMessageLite.Builder.addAll(
-              values, addrs_);
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * multiaddrs for a given peer
-         * </pre>
-         *
-         * <code>repeated bytes addrs = 2;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearAddrs() {
-          addrs_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000001);
-          onChanged();
-          return this;
-        }
-
-        private int connection_ = 0;
-        /**
-         * <pre>
-         * used to signal the sender's connection capabilities to the peer
-         * </pre>
-         *
-         * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-         * @return The enum numeric value on the wire for connection.
-         */
-        @java.lang.Override public int getConnectionValue() {
-          return connection_;
-        }
-        /**
-         * <pre>
-         * used to signal the sender's connection capabilities to the peer
-         * </pre>
-         *
-         * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-         * @param value The enum numeric value on the wire for connection to set.
-         * @return This builder for chaining.
-         */
-        public Builder setConnectionValue(int value) {
-          
-          connection_ = value;
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * used to signal the sender's connection capabilities to the peer
-         * </pre>
-         *
-         * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-         * @return The connection.
-         */
-        @java.lang.Override
-        public cljctools.ipfs.runtime.DhtProto.Message.ConnectionType getConnection() {
-          @SuppressWarnings("deprecation")
-          cljctools.ipfs.runtime.DhtProto.Message.ConnectionType result = cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.valueOf(connection_);
-          return result == null ? cljctools.ipfs.runtime.DhtProto.Message.ConnectionType.UNRECOGNIZED : result;
-        }
-        /**
-         * <pre>
-         * used to signal the sender's connection capabilities to the peer
-         * </pre>
-         *
-         * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-         * @param value The connection to set.
-         * @return This builder for chaining.
-         */
-        public Builder setConnection(cljctools.ipfs.runtime.DhtProto.Message.ConnectionType value) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          
-          connection_ = value.getNumber();
-          onChanged();
-          return this;
-        }
-        /**
-         * <pre>
-         * used to signal the sender's connection capabilities to the peer
-         * </pre>
-         *
-         * <code>.cljctools.ipfs.runtime.Message.ConnectionType connection = 3;</code>
-         * @return This builder for chaining.
-         */
-        public Builder clearConnection() {
-          
-          connection_ = 0;
-          onChanged();
-          return this;
-        }
-        @java.lang.Override
-        public final Builder setUnknownFields(
-            final com.google.protobuf.UnknownFieldSet unknownFields) {
-          return super.setUnknownFields(unknownFields);
-        }
-
-        @java.lang.Override
-        public final Builder mergeUnknownFields(
-            final com.google.protobuf.UnknownFieldSet unknownFields) {
-          return super.mergeUnknownFields(unknownFields);
-        }
-
-
-        // @@protoc_insertion_point(builder_scope:cljctools.ipfs.runtime.Message.Peer)
-      }
-
-      // @@protoc_insertion_point(class_scope:cljctools.ipfs.runtime.Message.Peer)
-      private static final cljctools.ipfs.runtime.DhtProto.Message.Peer DEFAULT_INSTANCE;
-      static {
-        DEFAULT_INSTANCE = new cljctools.ipfs.runtime.DhtProto.Message.Peer();
-      }
-
-      public static cljctools.ipfs.runtime.DhtProto.Message.Peer getDefaultInstance() {
-        return DEFAULT_INSTANCE;
-      }
-
-      private static final com.google.protobuf.Parser<Peer>
-          PARSER = new com.google.protobuf.AbstractParser<Peer>() {
-        @java.lang.Override
-        public Peer parsePartialFrom(
-            com.google.protobuf.CodedInputStream input,
-            com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-            throws com.google.protobuf.InvalidProtocolBufferException {
-          return new Peer(input, extensionRegistry);
-        }
-      };
-
-      public static com.google.protobuf.Parser<Peer> parser() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public com.google.protobuf.Parser<Peer> getParserForType() {
-        return PARSER;
-      }
-
-      @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer getDefaultInstanceForType() {
-        return DEFAULT_INSTANCE;
-      }
-
-    }
-
+    private int bitField0_;
     public static final int TYPE_FIELD_NUMBER = 1;
     private int type_;
     /**
-     * <pre>
-     * defines what type of message it is.
-     * </pre>
-     *
-     * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
-     * @return The enum numeric value on the wire for type.
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return Whether the type field is set.
      */
-    @java.lang.Override public int getTypeValue() {
-      return type_;
+    @java.lang.Override public boolean hasType() {
+      return ((bitField0_ & 0x00000001) != 0);
     }
     /**
-     * <pre>
-     * defines what type of message it is.
-     * </pre>
-     *
-     * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
      * @return The type.
      */
-    @java.lang.Override public cljctools.ipfs.runtime.DhtProto.Message.MessageType getType() {
+    @java.lang.Override public cljctools.ipfs.runtime.DhtProto.KeyType getType() {
       @SuppressWarnings("deprecation")
-      cljctools.ipfs.runtime.DhtProto.Message.MessageType result = cljctools.ipfs.runtime.DhtProto.Message.MessageType.valueOf(type_);
-      return result == null ? cljctools.ipfs.runtime.DhtProto.Message.MessageType.UNRECOGNIZED : result;
+      cljctools.ipfs.runtime.DhtProto.KeyType result = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(type_);
+      return result == null ? cljctools.ipfs.runtime.DhtProto.KeyType.RSA : result;
     }
 
-    public static final int CLUSTERLEVELRAW_FIELD_NUMBER = 10;
-    private int clusterLevelRaw_;
+    public static final int DATA_FIELD_NUMBER = 2;
+    private com.google.protobuf.ByteString data_;
     /**
-     * <pre>
-     * defines what coral cluster level this query/response belongs to.
-     * in case we want to implement coral's cluster rings in the future.
-     * </pre>
-     *
-     * <code>int32 clusterLevelRaw = 10;</code>
-     * @return The clusterLevelRaw.
+     * <code>required bytes Data = 2;</code>
+     * @return Whether the data field is set.
      */
     @java.lang.Override
-    public int getClusterLevelRaw() {
-      return clusterLevelRaw_;
-    }
-
-    public static final int KEY_FIELD_NUMBER = 2;
-    private com.google.protobuf.ByteString key_;
-    /**
-     * <pre>
-     * Used to specify the key associated with this message.
-     * PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>bytes key = 2;</code>
-     * @return The key.
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString getKey() {
-      return key_;
-    }
-
-    public static final int RECORD_FIELD_NUMBER = 3;
-    private com.google.protobuf.ByteString record_;
-    /**
-     * <pre>
-     * Used to return a value
-     * PUT_VALUE, GET_VALUE
-     * </pre>
-     *
-     * <code>bytes record = 3;</code>
-     * @return The record.
-     */
-    @java.lang.Override
-    public com.google.protobuf.ByteString getRecord() {
-      return record_;
-    }
-
-    public static final int CLOSERPEERS_FIELD_NUMBER = 8;
-    private java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> closerPeers_;
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    @java.lang.Override
-    public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> getCloserPeersList() {
-      return closerPeers_;
+    public boolean hasData() {
+      return ((bitField0_ & 0x00000002) != 0);
     }
     /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
+     * <code>required bytes Data = 2;</code>
+     * @return The data.
      */
     @java.lang.Override
-    public java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-        getCloserPeersOrBuilderList() {
-      return closerPeers_;
-    }
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    @java.lang.Override
-    public int getCloserPeersCount() {
-      return closerPeers_.size();
-    }
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Message.Peer getCloserPeers(int index) {
-      return closerPeers_.get(index);
-    }
-    /**
-     * <pre>
-     * Used to return peers closer to a key in a query
-     * GET_VALUE, GET_PROVIDERS, FIND_NODE
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-     */
-    @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getCloserPeersOrBuilder(
-        int index) {
-      return closerPeers_.get(index);
-    }
-
-    public static final int PROVIDERPEERS_FIELD_NUMBER = 9;
-    private java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> providerPeers_;
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    @java.lang.Override
-    public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> getProviderPeersList() {
-      return providerPeers_;
-    }
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    @java.lang.Override
-    public java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-        getProviderPeersOrBuilderList() {
-      return providerPeers_;
-    }
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    @java.lang.Override
-    public int getProviderPeersCount() {
-      return providerPeers_.size();
-    }
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Message.Peer getProviderPeers(int index) {
-      return providerPeers_.get(index);
-    }
-    /**
-     * <pre>
-     * Used to return Providers
-     * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-     * </pre>
-     *
-     * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-     */
-    @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getProviderPeersOrBuilder(
-        int index) {
-      return providerPeers_.get(index);
+    public com.google.protobuf.ByteString getData() {
+      return data_;
     }
 
     private byte memoizedIsInitialized = -1;
@@ -2490,6 +306,14 @@ public final class DhtProto {
       if (isInitialized == 1) return true;
       if (isInitialized == 0) return false;
 
+      if (!hasType()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasData()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -2497,23 +321,11 @@ public final class DhtProto {
     @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-      if (type_ != cljctools.ipfs.runtime.DhtProto.Message.MessageType.PUT_VALUE.getNumber()) {
+      if (((bitField0_ & 0x00000001) != 0)) {
         output.writeEnum(1, type_);
       }
-      if (!key_.isEmpty()) {
-        output.writeBytes(2, key_);
-      }
-      if (!record_.isEmpty()) {
-        output.writeBytes(3, record_);
-      }
-      for (int i = 0; i < closerPeers_.size(); i++) {
-        output.writeMessage(8, closerPeers_.get(i));
-      }
-      for (int i = 0; i < providerPeers_.size(); i++) {
-        output.writeMessage(9, providerPeers_.get(i));
-      }
-      if (clusterLevelRaw_ != 0) {
-        output.writeInt32(10, clusterLevelRaw_);
+      if (((bitField0_ & 0x00000002) != 0)) {
+        output.writeBytes(2, data_);
       }
       unknownFields.writeTo(output);
     }
@@ -2524,29 +336,13 @@ public final class DhtProto {
       if (size != -1) return size;
 
       size = 0;
-      if (type_ != cljctools.ipfs.runtime.DhtProto.Message.MessageType.PUT_VALUE.getNumber()) {
+      if (((bitField0_ & 0x00000001) != 0)) {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(1, type_);
       }
-      if (!key_.isEmpty()) {
+      if (((bitField0_ & 0x00000002) != 0)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(2, key_);
-      }
-      if (!record_.isEmpty()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(3, record_);
-      }
-      for (int i = 0; i < closerPeers_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(8, closerPeers_.get(i));
-      }
-      for (int i = 0; i < providerPeers_.size(); i++) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(9, providerPeers_.get(i));
-      }
-      if (clusterLevelRaw_ != 0) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeInt32Size(10, clusterLevelRaw_);
+          .computeBytesSize(2, data_);
       }
       size += unknownFields.getSerializedSize();
       memoizedSize = size;
@@ -2558,22 +354,20 @@ public final class DhtProto {
       if (obj == this) {
        return true;
       }
-      if (!(obj instanceof cljctools.ipfs.runtime.DhtProto.Message)) {
+      if (!(obj instanceof cljctools.ipfs.runtime.DhtProto.PublicKey)) {
         return super.equals(obj);
       }
-      cljctools.ipfs.runtime.DhtProto.Message other = (cljctools.ipfs.runtime.DhtProto.Message) obj;
+      cljctools.ipfs.runtime.DhtProto.PublicKey other = (cljctools.ipfs.runtime.DhtProto.PublicKey) obj;
 
-      if (type_ != other.type_) return false;
-      if (getClusterLevelRaw()
-          != other.getClusterLevelRaw()) return false;
-      if (!getKey()
-          .equals(other.getKey())) return false;
-      if (!getRecord()
-          .equals(other.getRecord())) return false;
-      if (!getCloserPeersList()
-          .equals(other.getCloserPeersList())) return false;
-      if (!getProviderPeersList()
-          .equals(other.getProviderPeersList())) return false;
+      if (hasType() != other.hasType()) return false;
+      if (hasType()) {
+        if (type_ != other.type_) return false;
+      }
+      if (hasData() != other.hasData()) return false;
+      if (hasData()) {
+        if (!getData()
+            .equals(other.getData())) return false;
+      }
       if (!unknownFields.equals(other.unknownFields)) return false;
       return true;
     }
@@ -2585,90 +379,82 @@ public final class DhtProto {
       }
       int hash = 41;
       hash = (19 * hash) + getDescriptor().hashCode();
-      hash = (37 * hash) + TYPE_FIELD_NUMBER;
-      hash = (53 * hash) + type_;
-      hash = (37 * hash) + CLUSTERLEVELRAW_FIELD_NUMBER;
-      hash = (53 * hash) + getClusterLevelRaw();
-      hash = (37 * hash) + KEY_FIELD_NUMBER;
-      hash = (53 * hash) + getKey().hashCode();
-      hash = (37 * hash) + RECORD_FIELD_NUMBER;
-      hash = (53 * hash) + getRecord().hashCode();
-      if (getCloserPeersCount() > 0) {
-        hash = (37 * hash) + CLOSERPEERS_FIELD_NUMBER;
-        hash = (53 * hash) + getCloserPeersList().hashCode();
+      if (hasType()) {
+        hash = (37 * hash) + TYPE_FIELD_NUMBER;
+        hash = (53 * hash) + type_;
       }
-      if (getProviderPeersCount() > 0) {
-        hash = (37 * hash) + PROVIDERPEERS_FIELD_NUMBER;
-        hash = (53 * hash) + getProviderPeersList().hashCode();
+      if (hasData()) {
+        hash = (37 * hash) + DATA_FIELD_NUMBER;
+        hash = (53 * hash) + getData().hashCode();
       }
       hash = (29 * hash) + unknownFields.hashCode();
       memoizedHashCode = hash;
       return hash;
     }
 
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         java.nio.ByteBuffer data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         java.nio.ByteBuffer data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(byte[] data)
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         byte[] data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
       return PARSER.parseFrom(data, extensionRegistry);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(java.io.InputStream input)
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(java.io.InputStream input)
         throws java.io.IOException {
       return com.google.protobuf.GeneratedMessageV3
           .parseWithIOException(PARSER, input);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return com.google.protobuf.GeneratedMessageV3
           .parseWithIOException(PARSER, input, extensionRegistry);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseDelimitedFrom(java.io.InputStream input)
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseDelimitedFrom(java.io.InputStream input)
         throws java.io.IOException {
       return com.google.protobuf.GeneratedMessageV3
           .parseDelimitedWithIOException(PARSER, input);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseDelimitedFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseDelimitedFrom(
         java.io.InputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
       return com.google.protobuf.GeneratedMessageV3
           .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         com.google.protobuf.CodedInputStream input)
         throws java.io.IOException {
       return com.google.protobuf.GeneratedMessageV3
           .parseWithIOException(PARSER, input);
     }
-    public static cljctools.ipfs.runtime.DhtProto.Message parseFrom(
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey parseFrom(
         com.google.protobuf.CodedInputStream input,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws java.io.IOException {
@@ -2681,7 +467,7 @@ public final class DhtProto {
     public static Builder newBuilder() {
       return DEFAULT_INSTANCE.toBuilder();
     }
-    public static Builder newBuilder(cljctools.ipfs.runtime.DhtProto.Message prototype) {
+    public static Builder newBuilder(cljctools.ipfs.runtime.DhtProto.PublicKey prototype) {
       return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
     }
     @java.lang.Override
@@ -2697,26 +483,26 @@ public final class DhtProto {
       return builder;
     }
     /**
-     * Protobuf type {@code cljctools.ipfs.runtime.Message}
+     * Protobuf type {@code cljctools.ipfs.runtime.PublicKey}
      */
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
-        // @@protoc_insertion_point(builder_implements:cljctools.ipfs.runtime.Message)
-        cljctools.ipfs.runtime.DhtProto.MessageOrBuilder {
+        // @@protoc_insertion_point(builder_implements:cljctools.ipfs.runtime.PublicKey)
+        cljctools.ipfs.runtime.DhtProto.PublicKeyOrBuilder {
       public static final com.google.protobuf.Descriptors.Descriptor
           getDescriptor() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_descriptor;
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PublicKey_descriptor;
       }
 
       @java.lang.Override
       protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
           internalGetFieldAccessorTable() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_fieldAccessorTable
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PublicKey_fieldAccessorTable
             .ensureFieldAccessorsInitialized(
-                cljctools.ipfs.runtime.DhtProto.Message.class, cljctools.ipfs.runtime.DhtProto.Message.Builder.class);
+                cljctools.ipfs.runtime.DhtProto.PublicKey.class, cljctools.ipfs.runtime.DhtProto.PublicKey.Builder.class);
       }
 
-      // Construct using cljctools.ipfs.runtime.DhtProto.Message.newBuilder()
+      // Construct using cljctools.ipfs.runtime.DhtProto.PublicKey.newBuilder()
       private Builder() {
         maybeForceBuilderInitialization();
       }
@@ -2729,50 +515,32 @@ public final class DhtProto {
       private void maybeForceBuilderInitialization() {
         if (com.google.protobuf.GeneratedMessageV3
                 .alwaysUseFieldBuilders) {
-          getCloserPeersFieldBuilder();
-          getProviderPeersFieldBuilder();
         }
       }
       @java.lang.Override
       public Builder clear() {
         super.clear();
         type_ = 0;
-
-        clusterLevelRaw_ = 0;
-
-        key_ = com.google.protobuf.ByteString.EMPTY;
-
-        record_ = com.google.protobuf.ByteString.EMPTY;
-
-        if (closerPeersBuilder_ == null) {
-          closerPeers_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000001);
-        } else {
-          closerPeersBuilder_.clear();
-        }
-        if (providerPeersBuilder_ == null) {
-          providerPeers_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000002);
-        } else {
-          providerPeersBuilder_.clear();
-        }
+        bitField0_ = (bitField0_ & ~0x00000001);
+        data_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
 
       @java.lang.Override
       public com.google.protobuf.Descriptors.Descriptor
           getDescriptorForType() {
-        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_Message_descriptor;
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PublicKey_descriptor;
       }
 
       @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Message getDefaultInstanceForType() {
-        return cljctools.ipfs.runtime.DhtProto.Message.getDefaultInstance();
+      public cljctools.ipfs.runtime.DhtProto.PublicKey getDefaultInstanceForType() {
+        return cljctools.ipfs.runtime.DhtProto.PublicKey.getDefaultInstance();
       }
 
       @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Message build() {
-        cljctools.ipfs.runtime.DhtProto.Message result = buildPartial();
+      public cljctools.ipfs.runtime.DhtProto.PublicKey build() {
+        cljctools.ipfs.runtime.DhtProto.PublicKey result = buildPartial();
         if (!result.isInitialized()) {
           throw newUninitializedMessageException(result);
         }
@@ -2780,31 +548,19 @@ public final class DhtProto {
       }
 
       @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Message buildPartial() {
-        cljctools.ipfs.runtime.DhtProto.Message result = new cljctools.ipfs.runtime.DhtProto.Message(this);
+      public cljctools.ipfs.runtime.DhtProto.PublicKey buildPartial() {
+        cljctools.ipfs.runtime.DhtProto.PublicKey result = new cljctools.ipfs.runtime.DhtProto.PublicKey(this);
         int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          to_bitField0_ |= 0x00000001;
+        }
         result.type_ = type_;
-        result.clusterLevelRaw_ = clusterLevelRaw_;
-        result.key_ = key_;
-        result.record_ = record_;
-        if (closerPeersBuilder_ == null) {
-          if (((bitField0_ & 0x00000001) != 0)) {
-            closerPeers_ = java.util.Collections.unmodifiableList(closerPeers_);
-            bitField0_ = (bitField0_ & ~0x00000001);
-          }
-          result.closerPeers_ = closerPeers_;
-        } else {
-          result.closerPeers_ = closerPeersBuilder_.build();
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          to_bitField0_ |= 0x00000002;
         }
-        if (providerPeersBuilder_ == null) {
-          if (((bitField0_ & 0x00000002) != 0)) {
-            providerPeers_ = java.util.Collections.unmodifiableList(providerPeers_);
-            bitField0_ = (bitField0_ & ~0x00000002);
-          }
-          result.providerPeers_ = providerPeers_;
-        } else {
-          result.providerPeers_ = providerPeersBuilder_.build();
-        }
+        result.data_ = data_;
+        result.bitField0_ = to_bitField0_;
         onBuilt();
         return result;
       }
@@ -2843,79 +599,21 @@ public final class DhtProto {
       }
       @java.lang.Override
       public Builder mergeFrom(com.google.protobuf.Message other) {
-        if (other instanceof cljctools.ipfs.runtime.DhtProto.Message) {
-          return mergeFrom((cljctools.ipfs.runtime.DhtProto.Message)other);
+        if (other instanceof cljctools.ipfs.runtime.DhtProto.PublicKey) {
+          return mergeFrom((cljctools.ipfs.runtime.DhtProto.PublicKey)other);
         } else {
           super.mergeFrom(other);
           return this;
         }
       }
 
-      public Builder mergeFrom(cljctools.ipfs.runtime.DhtProto.Message other) {
-        if (other == cljctools.ipfs.runtime.DhtProto.Message.getDefaultInstance()) return this;
-        if (other.type_ != 0) {
-          setTypeValue(other.getTypeValue());
+      public Builder mergeFrom(cljctools.ipfs.runtime.DhtProto.PublicKey other) {
+        if (other == cljctools.ipfs.runtime.DhtProto.PublicKey.getDefaultInstance()) return this;
+        if (other.hasType()) {
+          setType(other.getType());
         }
-        if (other.getClusterLevelRaw() != 0) {
-          setClusterLevelRaw(other.getClusterLevelRaw());
-        }
-        if (other.getKey() != com.google.protobuf.ByteString.EMPTY) {
-          setKey(other.getKey());
-        }
-        if (other.getRecord() != com.google.protobuf.ByteString.EMPTY) {
-          setRecord(other.getRecord());
-        }
-        if (closerPeersBuilder_ == null) {
-          if (!other.closerPeers_.isEmpty()) {
-            if (closerPeers_.isEmpty()) {
-              closerPeers_ = other.closerPeers_;
-              bitField0_ = (bitField0_ & ~0x00000001);
-            } else {
-              ensureCloserPeersIsMutable();
-              closerPeers_.addAll(other.closerPeers_);
-            }
-            onChanged();
-          }
-        } else {
-          if (!other.closerPeers_.isEmpty()) {
-            if (closerPeersBuilder_.isEmpty()) {
-              closerPeersBuilder_.dispose();
-              closerPeersBuilder_ = null;
-              closerPeers_ = other.closerPeers_;
-              bitField0_ = (bitField0_ & ~0x00000001);
-              closerPeersBuilder_ = 
-                com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
-                   getCloserPeersFieldBuilder() : null;
-            } else {
-              closerPeersBuilder_.addAllMessages(other.closerPeers_);
-            }
-          }
-        }
-        if (providerPeersBuilder_ == null) {
-          if (!other.providerPeers_.isEmpty()) {
-            if (providerPeers_.isEmpty()) {
-              providerPeers_ = other.providerPeers_;
-              bitField0_ = (bitField0_ & ~0x00000002);
-            } else {
-              ensureProviderPeersIsMutable();
-              providerPeers_.addAll(other.providerPeers_);
-            }
-            onChanged();
-          }
-        } else {
-          if (!other.providerPeers_.isEmpty()) {
-            if (providerPeersBuilder_.isEmpty()) {
-              providerPeersBuilder_.dispose();
-              providerPeersBuilder_ = null;
-              providerPeers_ = other.providerPeers_;
-              bitField0_ = (bitField0_ & ~0x00000002);
-              providerPeersBuilder_ = 
-                com.google.protobuf.GeneratedMessageV3.alwaysUseFieldBuilders ?
-                   getProviderPeersFieldBuilder() : null;
-            } else {
-              providerPeersBuilder_.addAllMessages(other.providerPeers_);
-            }
-          }
+        if (other.hasData()) {
+          setData(other.getData());
         }
         this.mergeUnknownFields(other.unknownFields);
         onChanged();
@@ -2924,6 +622,12 @@ public final class DhtProto {
 
       @java.lang.Override
       public final boolean isInitialized() {
+        if (!hasType()) {
+          return false;
+        }
+        if (!hasData()) {
+          return false;
+        }
         return true;
       }
 
@@ -2932,11 +636,11 @@ public final class DhtProto {
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
-        cljctools.ipfs.runtime.DhtProto.Message parsedMessage = null;
+        cljctools.ipfs.runtime.DhtProto.PublicKey parsedMessage = null;
         try {
           parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
         } catch (com.google.protobuf.InvalidProtocolBufferException e) {
-          parsedMessage = (cljctools.ipfs.runtime.DhtProto.Message) e.getUnfinishedMessage();
+          parsedMessage = (cljctools.ipfs.runtime.DhtProto.PublicKey) e.getUnfinishedMessage();
           throw e.unwrapIOException();
         } finally {
           if (parsedMessage != null) {
@@ -2949,880 +653,87 @@ public final class DhtProto {
 
       private int type_ = 0;
       /**
-       * <pre>
-       * defines what type of message it is.
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
-       * @return The enum numeric value on the wire for type.
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+       * @return Whether the type field is set.
        */
-      @java.lang.Override public int getTypeValue() {
-        return type_;
+      @java.lang.Override public boolean hasType() {
+        return ((bitField0_ & 0x00000001) != 0);
       }
       /**
-       * <pre>
-       * defines what type of message it is.
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
-       * @param value The enum numeric value on the wire for type to set.
-       * @return This builder for chaining.
-       */
-      public Builder setTypeValue(int value) {
-        
-        type_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * defines what type of message it is.
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
        * @return The type.
        */
       @java.lang.Override
-      public cljctools.ipfs.runtime.DhtProto.Message.MessageType getType() {
+      public cljctools.ipfs.runtime.DhtProto.KeyType getType() {
         @SuppressWarnings("deprecation")
-        cljctools.ipfs.runtime.DhtProto.Message.MessageType result = cljctools.ipfs.runtime.DhtProto.Message.MessageType.valueOf(type_);
-        return result == null ? cljctools.ipfs.runtime.DhtProto.Message.MessageType.UNRECOGNIZED : result;
+        cljctools.ipfs.runtime.DhtProto.KeyType result = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(type_);
+        return result == null ? cljctools.ipfs.runtime.DhtProto.KeyType.RSA : result;
       }
       /**
-       * <pre>
-       * defines what type of message it is.
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
        * @param value The type to set.
        * @return This builder for chaining.
        */
-      public Builder setType(cljctools.ipfs.runtime.DhtProto.Message.MessageType value) {
+      public Builder setType(cljctools.ipfs.runtime.DhtProto.KeyType value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        
+        bitField0_ |= 0x00000001;
         type_ = value.getNumber();
         onChanged();
         return this;
       }
       /**
-       * <pre>
-       * defines what type of message it is.
-       * </pre>
-       *
-       * <code>.cljctools.ipfs.runtime.Message.MessageType type = 1;</code>
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
        * @return This builder for chaining.
        */
       public Builder clearType() {
-        
+        bitField0_ = (bitField0_ & ~0x00000001);
         type_ = 0;
         onChanged();
         return this;
       }
 
-      private int clusterLevelRaw_ ;
+      private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
       /**
-       * <pre>
-       * defines what coral cluster level this query/response belongs to.
-       * in case we want to implement coral's cluster rings in the future.
-       * </pre>
-       *
-       * <code>int32 clusterLevelRaw = 10;</code>
-       * @return The clusterLevelRaw.
+       * <code>required bytes Data = 2;</code>
+       * @return Whether the data field is set.
        */
       @java.lang.Override
-      public int getClusterLevelRaw() {
-        return clusterLevelRaw_;
+      public boolean hasData() {
+        return ((bitField0_ & 0x00000002) != 0);
       }
       /**
-       * <pre>
-       * defines what coral cluster level this query/response belongs to.
-       * in case we want to implement coral's cluster rings in the future.
-       * </pre>
-       *
-       * <code>int32 clusterLevelRaw = 10;</code>
-       * @param value The clusterLevelRaw to set.
-       * @return This builder for chaining.
-       */
-      public Builder setClusterLevelRaw(int value) {
-        
-        clusterLevelRaw_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * defines what coral cluster level this query/response belongs to.
-       * in case we want to implement coral's cluster rings in the future.
-       * </pre>
-       *
-       * <code>int32 clusterLevelRaw = 10;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearClusterLevelRaw() {
-        
-        clusterLevelRaw_ = 0;
-        onChanged();
-        return this;
-      }
-
-      private com.google.protobuf.ByteString key_ = com.google.protobuf.ByteString.EMPTY;
-      /**
-       * <pre>
-       * Used to specify the key associated with this message.
-       * PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>bytes key = 2;</code>
-       * @return The key.
+       * <code>required bytes Data = 2;</code>
+       * @return The data.
        */
       @java.lang.Override
-      public com.google.protobuf.ByteString getKey() {
-        return key_;
+      public com.google.protobuf.ByteString getData() {
+        return data_;
       }
       /**
-       * <pre>
-       * Used to specify the key associated with this message.
-       * PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>bytes key = 2;</code>
-       * @param value The key to set.
+       * <code>required bytes Data = 2;</code>
+       * @param value The data to set.
        * @return This builder for chaining.
        */
-      public Builder setKey(com.google.protobuf.ByteString value) {
+      public Builder setData(com.google.protobuf.ByteString value) {
         if (value == null) {
     throw new NullPointerException();
   }
-  
-        key_ = value;
+  bitField0_ |= 0x00000002;
+        data_ = value;
         onChanged();
         return this;
       }
       /**
-       * <pre>
-       * Used to specify the key associated with this message.
-       * PUT_VALUE, GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>bytes key = 2;</code>
+       * <code>required bytes Data = 2;</code>
        * @return This builder for chaining.
        */
-      public Builder clearKey() {
-        
-        key_ = getDefaultInstance().getKey();
+      public Builder clearData() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        data_ = getDefaultInstance().getData();
         onChanged();
         return this;
-      }
-
-      private com.google.protobuf.ByteString record_ = com.google.protobuf.ByteString.EMPTY;
-      /**
-       * <pre>
-       * Used to return a value
-       * PUT_VALUE, GET_VALUE
-       * </pre>
-       *
-       * <code>bytes record = 3;</code>
-       * @return The record.
-       */
-      @java.lang.Override
-      public com.google.protobuf.ByteString getRecord() {
-        return record_;
-      }
-      /**
-       * <pre>
-       * Used to return a value
-       * PUT_VALUE, GET_VALUE
-       * </pre>
-       *
-       * <code>bytes record = 3;</code>
-       * @param value The record to set.
-       * @return This builder for chaining.
-       */
-      public Builder setRecord(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  
-        record_ = value;
-        onChanged();
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return a value
-       * PUT_VALUE, GET_VALUE
-       * </pre>
-       *
-       * <code>bytes record = 3;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearRecord() {
-        
-        record_ = getDefaultInstance().getRecord();
-        onChanged();
-        return this;
-      }
-
-      private java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> closerPeers_ =
-        java.util.Collections.emptyList();
-      private void ensureCloserPeersIsMutable() {
-        if (!((bitField0_ & 0x00000001) != 0)) {
-          closerPeers_ = new java.util.ArrayList<cljctools.ipfs.runtime.DhtProto.Message.Peer>(closerPeers_);
-          bitField0_ |= 0x00000001;
-         }
-      }
-
-      private com.google.protobuf.RepeatedFieldBuilderV3<
-          cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> closerPeersBuilder_;
-
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> getCloserPeersList() {
-        if (closerPeersBuilder_ == null) {
-          return java.util.Collections.unmodifiableList(closerPeers_);
-        } else {
-          return closerPeersBuilder_.getMessageList();
-        }
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public int getCloserPeersCount() {
-        if (closerPeersBuilder_ == null) {
-          return closerPeers_.size();
-        } else {
-          return closerPeersBuilder_.getCount();
-        }
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer getCloserPeers(int index) {
-        if (closerPeersBuilder_ == null) {
-          return closerPeers_.get(index);
-        } else {
-          return closerPeersBuilder_.getMessage(index);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder setCloserPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (closerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureCloserPeersIsMutable();
-          closerPeers_.set(index, value);
-          onChanged();
-        } else {
-          closerPeersBuilder_.setMessage(index, value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder setCloserPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (closerPeersBuilder_ == null) {
-          ensureCloserPeersIsMutable();
-          closerPeers_.set(index, builderForValue.build());
-          onChanged();
-        } else {
-          closerPeersBuilder_.setMessage(index, builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder addCloserPeers(cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (closerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureCloserPeersIsMutable();
-          closerPeers_.add(value);
-          onChanged();
-        } else {
-          closerPeersBuilder_.addMessage(value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder addCloserPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (closerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureCloserPeersIsMutable();
-          closerPeers_.add(index, value);
-          onChanged();
-        } else {
-          closerPeersBuilder_.addMessage(index, value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder addCloserPeers(
-          cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (closerPeersBuilder_ == null) {
-          ensureCloserPeersIsMutable();
-          closerPeers_.add(builderForValue.build());
-          onChanged();
-        } else {
-          closerPeersBuilder_.addMessage(builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder addCloserPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (closerPeersBuilder_ == null) {
-          ensureCloserPeersIsMutable();
-          closerPeers_.add(index, builderForValue.build());
-          onChanged();
-        } else {
-          closerPeersBuilder_.addMessage(index, builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder addAllCloserPeers(
-          java.lang.Iterable<? extends cljctools.ipfs.runtime.DhtProto.Message.Peer> values) {
-        if (closerPeersBuilder_ == null) {
-          ensureCloserPeersIsMutable();
-          com.google.protobuf.AbstractMessageLite.Builder.addAll(
-              values, closerPeers_);
-          onChanged();
-        } else {
-          closerPeersBuilder_.addAllMessages(values);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder clearCloserPeers() {
-        if (closerPeersBuilder_ == null) {
-          closerPeers_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000001);
-          onChanged();
-        } else {
-          closerPeersBuilder_.clear();
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public Builder removeCloserPeers(int index) {
-        if (closerPeersBuilder_ == null) {
-          ensureCloserPeersIsMutable();
-          closerPeers_.remove(index);
-          onChanged();
-        } else {
-          closerPeersBuilder_.remove(index);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder getCloserPeersBuilder(
-          int index) {
-        return getCloserPeersFieldBuilder().getBuilder(index);
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getCloserPeersOrBuilder(
-          int index) {
-        if (closerPeersBuilder_ == null) {
-          return closerPeers_.get(index);  } else {
-          return closerPeersBuilder_.getMessageOrBuilder(index);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-           getCloserPeersOrBuilderList() {
-        if (closerPeersBuilder_ != null) {
-          return closerPeersBuilder_.getMessageOrBuilderList();
-        } else {
-          return java.util.Collections.unmodifiableList(closerPeers_);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder addCloserPeersBuilder() {
-        return getCloserPeersFieldBuilder().addBuilder(
-            cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance());
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder addCloserPeersBuilder(
-          int index) {
-        return getCloserPeersFieldBuilder().addBuilder(
-            index, cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance());
-      }
-      /**
-       * <pre>
-       * Used to return peers closer to a key in a query
-       * GET_VALUE, GET_PROVIDERS, FIND_NODE
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer closerPeers = 8;</code>
-       */
-      public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder> 
-           getCloserPeersBuilderList() {
-        return getCloserPeersFieldBuilder().getBuilderList();
-      }
-      private com.google.protobuf.RepeatedFieldBuilderV3<
-          cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-          getCloserPeersFieldBuilder() {
-        if (closerPeersBuilder_ == null) {
-          closerPeersBuilder_ = new com.google.protobuf.RepeatedFieldBuilderV3<
-              cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder>(
-                  closerPeers_,
-                  ((bitField0_ & 0x00000001) != 0),
-                  getParentForChildren(),
-                  isClean());
-          closerPeers_ = null;
-        }
-        return closerPeersBuilder_;
-      }
-
-      private java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> providerPeers_ =
-        java.util.Collections.emptyList();
-      private void ensureProviderPeersIsMutable() {
-        if (!((bitField0_ & 0x00000002) != 0)) {
-          providerPeers_ = new java.util.ArrayList<cljctools.ipfs.runtime.DhtProto.Message.Peer>(providerPeers_);
-          bitField0_ |= 0x00000002;
-         }
-      }
-
-      private com.google.protobuf.RepeatedFieldBuilderV3<
-          cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> providerPeersBuilder_;
-
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer> getProviderPeersList() {
-        if (providerPeersBuilder_ == null) {
-          return java.util.Collections.unmodifiableList(providerPeers_);
-        } else {
-          return providerPeersBuilder_.getMessageList();
-        }
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public int getProviderPeersCount() {
-        if (providerPeersBuilder_ == null) {
-          return providerPeers_.size();
-        } else {
-          return providerPeersBuilder_.getCount();
-        }
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer getProviderPeers(int index) {
-        if (providerPeersBuilder_ == null) {
-          return providerPeers_.get(index);
-        } else {
-          return providerPeersBuilder_.getMessage(index);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder setProviderPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (providerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureProviderPeersIsMutable();
-          providerPeers_.set(index, value);
-          onChanged();
-        } else {
-          providerPeersBuilder_.setMessage(index, value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder setProviderPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (providerPeersBuilder_ == null) {
-          ensureProviderPeersIsMutable();
-          providerPeers_.set(index, builderForValue.build());
-          onChanged();
-        } else {
-          providerPeersBuilder_.setMessage(index, builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder addProviderPeers(cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (providerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureProviderPeersIsMutable();
-          providerPeers_.add(value);
-          onChanged();
-        } else {
-          providerPeersBuilder_.addMessage(value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder addProviderPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer value) {
-        if (providerPeersBuilder_ == null) {
-          if (value == null) {
-            throw new NullPointerException();
-          }
-          ensureProviderPeersIsMutable();
-          providerPeers_.add(index, value);
-          onChanged();
-        } else {
-          providerPeersBuilder_.addMessage(index, value);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder addProviderPeers(
-          cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (providerPeersBuilder_ == null) {
-          ensureProviderPeersIsMutable();
-          providerPeers_.add(builderForValue.build());
-          onChanged();
-        } else {
-          providerPeersBuilder_.addMessage(builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder addProviderPeers(
-          int index, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder builderForValue) {
-        if (providerPeersBuilder_ == null) {
-          ensureProviderPeersIsMutable();
-          providerPeers_.add(index, builderForValue.build());
-          onChanged();
-        } else {
-          providerPeersBuilder_.addMessage(index, builderForValue.build());
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder addAllProviderPeers(
-          java.lang.Iterable<? extends cljctools.ipfs.runtime.DhtProto.Message.Peer> values) {
-        if (providerPeersBuilder_ == null) {
-          ensureProviderPeersIsMutable();
-          com.google.protobuf.AbstractMessageLite.Builder.addAll(
-              values, providerPeers_);
-          onChanged();
-        } else {
-          providerPeersBuilder_.addAllMessages(values);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder clearProviderPeers() {
-        if (providerPeersBuilder_ == null) {
-          providerPeers_ = java.util.Collections.emptyList();
-          bitField0_ = (bitField0_ & ~0x00000002);
-          onChanged();
-        } else {
-          providerPeersBuilder_.clear();
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public Builder removeProviderPeers(int index) {
-        if (providerPeersBuilder_ == null) {
-          ensureProviderPeersIsMutable();
-          providerPeers_.remove(index);
-          onChanged();
-        } else {
-          providerPeersBuilder_.remove(index);
-        }
-        return this;
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder getProviderPeersBuilder(
-          int index) {
-        return getProviderPeersFieldBuilder().getBuilder(index);
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder getProviderPeersOrBuilder(
-          int index) {
-        if (providerPeersBuilder_ == null) {
-          return providerPeers_.get(index);  } else {
-          return providerPeersBuilder_.getMessageOrBuilder(index);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public java.util.List<? extends cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-           getProviderPeersOrBuilderList() {
-        if (providerPeersBuilder_ != null) {
-          return providerPeersBuilder_.getMessageOrBuilderList();
-        } else {
-          return java.util.Collections.unmodifiableList(providerPeers_);
-        }
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder addProviderPeersBuilder() {
-        return getProviderPeersFieldBuilder().addBuilder(
-            cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance());
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder addProviderPeersBuilder(
-          int index) {
-        return getProviderPeersFieldBuilder().addBuilder(
-            index, cljctools.ipfs.runtime.DhtProto.Message.Peer.getDefaultInstance());
-      }
-      /**
-       * <pre>
-       * Used to return Providers
-       * GET_VALUE, ADD_PROVIDER, GET_PROVIDERS
-       * </pre>
-       *
-       * <code>repeated .cljctools.ipfs.runtime.Message.Peer providerPeers = 9;</code>
-       */
-      public java.util.List<cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder> 
-           getProviderPeersBuilderList() {
-        return getProviderPeersFieldBuilder().getBuilderList();
-      }
-      private com.google.protobuf.RepeatedFieldBuilderV3<
-          cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder> 
-          getProviderPeersFieldBuilder() {
-        if (providerPeersBuilder_ == null) {
-          providerPeersBuilder_ = new com.google.protobuf.RepeatedFieldBuilderV3<
-              cljctools.ipfs.runtime.DhtProto.Message.Peer, cljctools.ipfs.runtime.DhtProto.Message.Peer.Builder, cljctools.ipfs.runtime.DhtProto.Message.PeerOrBuilder>(
-                  providerPeers_,
-                  ((bitField0_ & 0x00000002) != 0),
-                  getParentForChildren(),
-                  isClean());
-          providerPeers_ = null;
-        }
-        return providerPeersBuilder_;
       }
       @java.lang.Override
       public final Builder setUnknownFields(
@@ -3837,61 +748,707 @@ public final class DhtProto {
       }
 
 
-      // @@protoc_insertion_point(builder_scope:cljctools.ipfs.runtime.Message)
+      // @@protoc_insertion_point(builder_scope:cljctools.ipfs.runtime.PublicKey)
     }
 
-    // @@protoc_insertion_point(class_scope:cljctools.ipfs.runtime.Message)
-    private static final cljctools.ipfs.runtime.DhtProto.Message DEFAULT_INSTANCE;
+    // @@protoc_insertion_point(class_scope:cljctools.ipfs.runtime.PublicKey)
+    private static final cljctools.ipfs.runtime.DhtProto.PublicKey DEFAULT_INSTANCE;
     static {
-      DEFAULT_INSTANCE = new cljctools.ipfs.runtime.DhtProto.Message();
+      DEFAULT_INSTANCE = new cljctools.ipfs.runtime.DhtProto.PublicKey();
     }
 
-    public static cljctools.ipfs.runtime.DhtProto.Message getDefaultInstance() {
+    public static cljctools.ipfs.runtime.DhtProto.PublicKey getDefaultInstance() {
       return DEFAULT_INSTANCE;
     }
 
-    private static final com.google.protobuf.Parser<Message>
-        PARSER = new com.google.protobuf.AbstractParser<Message>() {
+    @java.lang.Deprecated public static final com.google.protobuf.Parser<PublicKey>
+        PARSER = new com.google.protobuf.AbstractParser<PublicKey>() {
       @java.lang.Override
-      public Message parsePartialFrom(
+      public PublicKey parsePartialFrom(
           com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws com.google.protobuf.InvalidProtocolBufferException {
-        return new Message(input, extensionRegistry);
+        return new PublicKey(input, extensionRegistry);
       }
     };
 
-    public static com.google.protobuf.Parser<Message> parser() {
+    public static com.google.protobuf.Parser<PublicKey> parser() {
       return PARSER;
     }
 
     @java.lang.Override
-    public com.google.protobuf.Parser<Message> getParserForType() {
+    public com.google.protobuf.Parser<PublicKey> getParserForType() {
       return PARSER;
     }
 
     @java.lang.Override
-    public cljctools.ipfs.runtime.DhtProto.Message getDefaultInstanceForType() {
+    public cljctools.ipfs.runtime.DhtProto.PublicKey getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface PrivateKeyOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:cljctools.ipfs.runtime.PrivateKey)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return Whether the type field is set.
+     */
+    boolean hasType();
+    /**
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return The type.
+     */
+    cljctools.ipfs.runtime.DhtProto.KeyType getType();
+
+    /**
+     * <code>required bytes Data = 2;</code>
+     * @return Whether the data field is set.
+     */
+    boolean hasData();
+    /**
+     * <code>required bytes Data = 2;</code>
+     * @return The data.
+     */
+    com.google.protobuf.ByteString getData();
+  }
+  /**
+   * Protobuf type {@code cljctools.ipfs.runtime.PrivateKey}
+   */
+  public static final class PrivateKey extends
+      com.google.protobuf.GeneratedMessageV3 implements
+      // @@protoc_insertion_point(message_implements:cljctools.ipfs.runtime.PrivateKey)
+      PrivateKeyOrBuilder {
+  private static final long serialVersionUID = 0L;
+    // Use PrivateKey.newBuilder() to construct.
+    private PrivateKey(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
+      super(builder);
+    }
+    private PrivateKey() {
+      type_ = 0;
+      data_ = com.google.protobuf.ByteString.EMPTY;
+    }
+
+    @java.lang.Override
+    @SuppressWarnings({"unused"})
+    protected java.lang.Object newInstance(
+        UnusedPrivateParameter unused) {
+      return new PrivateKey();
+    }
+
+    @java.lang.Override
+    public final com.google.protobuf.UnknownFieldSet
+    getUnknownFields() {
+      return this.unknownFields;
+    }
+    private PrivateKey(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      this();
+      if (extensionRegistry == null) {
+        throw new java.lang.NullPointerException();
+      }
+      int mutable_bitField0_ = 0;
+      com.google.protobuf.UnknownFieldSet.Builder unknownFields =
+          com.google.protobuf.UnknownFieldSet.newBuilder();
+      try {
+        boolean done = false;
+        while (!done) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              done = true;
+              break;
+            case 8: {
+              int rawValue = input.readEnum();
+                @SuppressWarnings("deprecation")
+              cljctools.ipfs.runtime.DhtProto.KeyType value = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(rawValue);
+              if (value == null) {
+                unknownFields.mergeVarintField(1, rawValue);
+              } else {
+                bitField0_ |= 0x00000001;
+                type_ = rawValue;
+              }
+              break;
+            }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              data_ = input.readBytes();
+              break;
+            }
+            default: {
+              if (!parseUnknownField(
+                  input, unknownFields, extensionRegistry, tag)) {
+                done = true;
+              }
+              break;
+            }
+          }
+        }
+      } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+        throw e.setUnfinishedMessage(this);
+      } catch (java.io.IOException e) {
+        throw new com.google.protobuf.InvalidProtocolBufferException(
+            e).setUnfinishedMessage(this);
+      } finally {
+        this.unknownFields = unknownFields.build();
+        makeExtensionsImmutable();
+      }
+    }
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PrivateKey_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              cljctools.ipfs.runtime.DhtProto.PrivateKey.class, cljctools.ipfs.runtime.DhtProto.PrivateKey.Builder.class);
+    }
+
+    private int bitField0_;
+    public static final int TYPE_FIELD_NUMBER = 1;
+    private int type_;
+    /**
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return Whether the type field is set.
+     */
+    @java.lang.Override public boolean hasType() {
+      return ((bitField0_ & 0x00000001) != 0);
+    }
+    /**
+     * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+     * @return The type.
+     */
+    @java.lang.Override public cljctools.ipfs.runtime.DhtProto.KeyType getType() {
+      @SuppressWarnings("deprecation")
+      cljctools.ipfs.runtime.DhtProto.KeyType result = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(type_);
+      return result == null ? cljctools.ipfs.runtime.DhtProto.KeyType.RSA : result;
+    }
+
+    public static final int DATA_FIELD_NUMBER = 2;
+    private com.google.protobuf.ByteString data_;
+    /**
+     * <code>required bytes Data = 2;</code>
+     * @return Whether the data field is set.
+     */
+    @java.lang.Override
+    public boolean hasData() {
+      return ((bitField0_ & 0x00000002) != 0);
+    }
+    /**
+     * <code>required bytes Data = 2;</code>
+     * @return The data.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString getData() {
+      return data_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      if (!hasType()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasData()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (((bitField0_ & 0x00000001) != 0)) {
+        output.writeEnum(1, type_);
+      }
+      if (((bitField0_ & 0x00000002) != 0)) {
+        output.writeBytes(2, data_);
+      }
+      unknownFields.writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (((bitField0_ & 0x00000001) != 0)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(1, type_);
+      }
+      if (((bitField0_ & 0x00000002) != 0)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(2, data_);
+      }
+      size += unknownFields.getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof cljctools.ipfs.runtime.DhtProto.PrivateKey)) {
+        return super.equals(obj);
+      }
+      cljctools.ipfs.runtime.DhtProto.PrivateKey other = (cljctools.ipfs.runtime.DhtProto.PrivateKey) obj;
+
+      if (hasType() != other.hasType()) return false;
+      if (hasType()) {
+        if (type_ != other.type_) return false;
+      }
+      if (hasData() != other.hasData()) return false;
+      if (hasData()) {
+        if (!getData()
+            .equals(other.getData())) return false;
+      }
+      if (!unknownFields.equals(other.unknownFields)) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      if (hasType()) {
+        hash = (37 * hash) + TYPE_FIELD_NUMBER;
+        hash = (53 * hash) + type_;
+      }
+      if (hasData()) {
+        hash = (37 * hash) + DATA_FIELD_NUMBER;
+        hash = (53 * hash) + getData().hashCode();
+      }
+      hash = (29 * hash) + unknownFields.hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input);
+    }
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessageV3
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(cljctools.ipfs.runtime.DhtProto.PrivateKey prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code cljctools.ipfs.runtime.PrivateKey}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageV3.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:cljctools.ipfs.runtime.PrivateKey)
+        cljctools.ipfs.runtime.DhtProto.PrivateKeyOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PrivateKey_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                cljctools.ipfs.runtime.DhtProto.PrivateKey.class, cljctools.ipfs.runtime.DhtProto.PrivateKey.Builder.class);
+      }
+
+      // Construct using cljctools.ipfs.runtime.DhtProto.PrivateKey.newBuilder()
+      private Builder() {
+        maybeForceBuilderInitialization();
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessageV3.BuilderParent parent) {
+        super(parent);
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessageV3
+                .alwaysUseFieldBuilders) {
+        }
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        type_ = 0;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        data_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return cljctools.ipfs.runtime.DhtProto.internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor;
+      }
+
+      @java.lang.Override
+      public cljctools.ipfs.runtime.DhtProto.PrivateKey getDefaultInstanceForType() {
+        return cljctools.ipfs.runtime.DhtProto.PrivateKey.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public cljctools.ipfs.runtime.DhtProto.PrivateKey build() {
+        cljctools.ipfs.runtime.DhtProto.PrivateKey result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public cljctools.ipfs.runtime.DhtProto.PrivateKey buildPartial() {
+        cljctools.ipfs.runtime.DhtProto.PrivateKey result = new cljctools.ipfs.runtime.DhtProto.PrivateKey(this);
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.type_ = type_;
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.data_ = data_;
+        result.bitField0_ = to_bitField0_;
+        onBuilt();
+        return result;
+      }
+
+      @java.lang.Override
+      public Builder clone() {
+        return super.clone();
+      }
+      @java.lang.Override
+      public Builder setField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.setField(field, value);
+      }
+      @java.lang.Override
+      public Builder clearField(
+          com.google.protobuf.Descriptors.FieldDescriptor field) {
+        return super.clearField(field);
+      }
+      @java.lang.Override
+      public Builder clearOneof(
+          com.google.protobuf.Descriptors.OneofDescriptor oneof) {
+        return super.clearOneof(oneof);
+      }
+      @java.lang.Override
+      public Builder setRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          int index, java.lang.Object value) {
+        return super.setRepeatedField(field, index, value);
+      }
+      @java.lang.Override
+      public Builder addRepeatedField(
+          com.google.protobuf.Descriptors.FieldDescriptor field,
+          java.lang.Object value) {
+        return super.addRepeatedField(field, value);
+      }
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof cljctools.ipfs.runtime.DhtProto.PrivateKey) {
+          return mergeFrom((cljctools.ipfs.runtime.DhtProto.PrivateKey)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(cljctools.ipfs.runtime.DhtProto.PrivateKey other) {
+        if (other == cljctools.ipfs.runtime.DhtProto.PrivateKey.getDefaultInstance()) return this;
+        if (other.hasType()) {
+          setType(other.getType());
+        }
+        if (other.hasData()) {
+          setData(other.getData());
+        }
+        this.mergeUnknownFields(other.unknownFields);
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        if (!hasType()) {
+          return false;
+        }
+        if (!hasData()) {
+          return false;
+        }
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        cljctools.ipfs.runtime.DhtProto.PrivateKey parsedMessage = null;
+        try {
+          parsedMessage = PARSER.parsePartialFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          parsedMessage = (cljctools.ipfs.runtime.DhtProto.PrivateKey) e.getUnfinishedMessage();
+          throw e.unwrapIOException();
+        } finally {
+          if (parsedMessage != null) {
+            mergeFrom(parsedMessage);
+          }
+        }
+        return this;
+      }
+      private int bitField0_;
+
+      private int type_ = 0;
+      /**
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+       * @return Whether the type field is set.
+       */
+      @java.lang.Override public boolean hasType() {
+        return ((bitField0_ & 0x00000001) != 0);
+      }
+      /**
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+       * @return The type.
+       */
+      @java.lang.Override
+      public cljctools.ipfs.runtime.DhtProto.KeyType getType() {
+        @SuppressWarnings("deprecation")
+        cljctools.ipfs.runtime.DhtProto.KeyType result = cljctools.ipfs.runtime.DhtProto.KeyType.valueOf(type_);
+        return result == null ? cljctools.ipfs.runtime.DhtProto.KeyType.RSA : result;
+      }
+      /**
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+       * @param value The type to set.
+       * @return This builder for chaining.
+       */
+      public Builder setType(cljctools.ipfs.runtime.DhtProto.KeyType value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000001;
+        type_ = value.getNumber();
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required .cljctools.ipfs.runtime.KeyType Type = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearType() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        type_ = 0;
+        onChanged();
+        return this;
+      }
+
+      private com.google.protobuf.ByteString data_ = com.google.protobuf.ByteString.EMPTY;
+      /**
+       * <code>required bytes Data = 2;</code>
+       * @return Whether the data field is set.
+       */
+      @java.lang.Override
+      public boolean hasData() {
+        return ((bitField0_ & 0x00000002) != 0);
+      }
+      /**
+       * <code>required bytes Data = 2;</code>
+       * @return The data.
+       */
+      @java.lang.Override
+      public com.google.protobuf.ByteString getData() {
+        return data_;
+      }
+      /**
+       * <code>required bytes Data = 2;</code>
+       * @param value The data to set.
+       * @return This builder for chaining.
+       */
+      public Builder setData(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        data_ = value;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>required bytes Data = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearData() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        data_ = getDefaultInstance().getData();
+        onChanged();
+        return this;
+      }
+      @java.lang.Override
+      public final Builder setUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.setUnknownFields(unknownFields);
+      }
+
+      @java.lang.Override
+      public final Builder mergeUnknownFields(
+          final com.google.protobuf.UnknownFieldSet unknownFields) {
+        return super.mergeUnknownFields(unknownFields);
+      }
+
+
+      // @@protoc_insertion_point(builder_scope:cljctools.ipfs.runtime.PrivateKey)
+    }
+
+    // @@protoc_insertion_point(class_scope:cljctools.ipfs.runtime.PrivateKey)
+    private static final cljctools.ipfs.runtime.DhtProto.PrivateKey DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new cljctools.ipfs.runtime.DhtProto.PrivateKey();
+    }
+
+    public static cljctools.ipfs.runtime.DhtProto.PrivateKey getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    @java.lang.Deprecated public static final com.google.protobuf.Parser<PrivateKey>
+        PARSER = new com.google.protobuf.AbstractParser<PrivateKey>() {
+      @java.lang.Override
+      public PrivateKey parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        return new PrivateKey(input, extensionRegistry);
+      }
+    };
+
+    public static com.google.protobuf.Parser<PrivateKey> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<PrivateKey> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public cljctools.ipfs.runtime.DhtProto.PrivateKey getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }
 
   }
 
   private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_cljctools_ipfs_runtime_Record_descriptor;
+    internal_static_cljctools_ipfs_runtime_PublicKey_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_cljctools_ipfs_runtime_Record_fieldAccessorTable;
+      internal_static_cljctools_ipfs_runtime_PublicKey_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_cljctools_ipfs_runtime_Message_descriptor;
+    internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_cljctools_ipfs_runtime_Message_fieldAccessorTable;
-  private static final com.google.protobuf.Descriptors.Descriptor
-    internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor;
-  private static final 
-    com.google.protobuf.GeneratedMessageV3.FieldAccessorTable
-      internal_static_cljctools_ipfs_runtime_Message_Peer_fieldAccessorTable;
+      internal_static_cljctools_ipfs_runtime_PrivateKey_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -3903,45 +1460,29 @@ public final class DhtProto {
     java.lang.String[] descriptorData = {
       "\n8ipfs/core-jvm/src/cljctools/ipfs/runti" +
       "me/dht_proto.proto\022\026cljctools.ipfs.runti" +
-      "me\":\n\006Record\022\013\n\003key\030\001 \001(\014\022\r\n\005value\030\002 \001(\014" +
-      "\022\024\n\014timeReceived\030\005 \001(\t\"\235\004\n\007Message\0229\n\004ty" +
-      "pe\030\001 \001(\0162+.cljctools.ipfs.runtime.Messag" +
-      "e.MessageType\022\027\n\017clusterLevelRaw\030\n \001(\005\022\013" +
-      "\n\003key\030\002 \001(\014\022\016\n\006record\030\003 \001(\014\0229\n\013closerPee" +
-      "rs\030\010 \003(\0132$.cljctools.ipfs.runtime.Messag" +
-      "e.Peer\022;\n\rproviderPeers\030\t \003(\0132$.cljctool" +
-      "s.ipfs.runtime.Message.Peer\032e\n\004Peer\022\n\n\002i" +
-      "d\030\001 \001(\014\022\r\n\005addrs\030\002 \003(\014\022B\n\nconnection\030\003 \001" +
-      "(\0162..cljctools.ipfs.runtime.Message.Conn" +
-      "ectionType\"i\n\013MessageType\022\r\n\tPUT_VALUE\020\000" +
-      "\022\r\n\tGET_VALUE\020\001\022\020\n\014ADD_PROVIDER\020\002\022\021\n\rGET" +
-      "_PROVIDERS\020\003\022\r\n\tFIND_NODE\020\004\022\010\n\004PING\020\005\"W\n" +
-      "\016ConnectionType\022\021\n\rNOT_CONNECTED\020\000\022\r\n\tCO" +
-      "NNECTED\020\001\022\017\n\013CAN_CONNECT\020\002\022\022\n\016CANNOT_CON" +
-      "NECT\020\003b\006proto3"
+      "me\"H\n\tPublicKey\022-\n\004Type\030\001 \002(\0162\037.cljctool" +
+      "s.ipfs.runtime.KeyType\022\014\n\004Data\030\002 \002(\014\"I\n\n" +
+      "PrivateKey\022-\n\004Type\030\001 \002(\0162\037.cljctools.ipf" +
+      "s.runtime.KeyType\022\014\n\004Data\030\002 \002(\014*I\n\007KeyTy" +
+      "pe\022\007\n\003RSA\020\000\022\013\n\007Ed25519\020\001\022\r\n\tSecp256k1\020\002\022" +
+      "\t\n\005ECDSA\020\003\022\016\n\nCurve25519\020\004"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
         new com.google.protobuf.Descriptors.FileDescriptor[] {
         });
-    internal_static_cljctools_ipfs_runtime_Record_descriptor =
+    internal_static_cljctools_ipfs_runtime_PublicKey_descriptor =
       getDescriptor().getMessageTypes().get(0);
-    internal_static_cljctools_ipfs_runtime_Record_fieldAccessorTable = new
+    internal_static_cljctools_ipfs_runtime_PublicKey_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_cljctools_ipfs_runtime_Record_descriptor,
-        new java.lang.String[] { "Key", "Value", "TimeReceived", });
-    internal_static_cljctools_ipfs_runtime_Message_descriptor =
+        internal_static_cljctools_ipfs_runtime_PublicKey_descriptor,
+        new java.lang.String[] { "Type", "Data", });
+    internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor =
       getDescriptor().getMessageTypes().get(1);
-    internal_static_cljctools_ipfs_runtime_Message_fieldAccessorTable = new
+    internal_static_cljctools_ipfs_runtime_PrivateKey_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_cljctools_ipfs_runtime_Message_descriptor,
-        new java.lang.String[] { "Type", "ClusterLevelRaw", "Key", "Record", "CloserPeers", "ProviderPeers", });
-    internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor =
-      internal_static_cljctools_ipfs_runtime_Message_descriptor.getNestedTypes().get(0);
-    internal_static_cljctools_ipfs_runtime_Message_Peer_fieldAccessorTable = new
-      com.google.protobuf.GeneratedMessageV3.FieldAccessorTable(
-        internal_static_cljctools_ipfs_runtime_Message_Peer_descriptor,
-        new java.lang.String[] { "Id", "Addrs", "Connection", });
+        internal_static_cljctools_ipfs_runtime_PrivateKey_descriptor,
+        new java.lang.String[] { "Type", "Data", });
   }
 
   // @@protoc_insertion_point(outer_class_scope)
