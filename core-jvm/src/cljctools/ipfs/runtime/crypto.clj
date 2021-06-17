@@ -16,16 +16,37 @@
    (org.bouncycastle.crypto.digests SHA3Digest)
    (org.bouncycastle.asn1.pkcs RSAPrivateKey PrivateKeyInfo)
    (org.bouncycastle.asn1 ASN1Primitive)
-   (io.ipfs.multiaddr MultiAddress)
-   (io.ipfs.multibase Multibase Base58)
-   (io.ipfs.multihash Multihash)
-   (io.ipfs.cid Cid)
    (com.google.protobuf ByteString)
+   (org.bouncycastle.jcajce.provider.digest SHA3 SHA3$Digest224 SHA3$Digest256 SHA3$Digest384 SHA3$Digest512)
    (cljctools.ipfs.runtime DhtProto DhtProto$KeyType DhtProto$PrivateKey DhtProto$PublicKey)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
 (def ^Provider provider (BouncyCastleProvider.))
+
+(defn sha1 [^bytes byte-arr] ^bytes
+  (-> (java.security.MessageDigest/getInstance "SHA-1") (.digest byte-arr)))
+
+(defn sha2-256 [^bytes byte-arr] ^bytes
+  (-> (java.security.MessageDigest/getInstance "SHA-256") (.digest byte-arr)))
+
+(defn sha2-512 [^bytes byte-arr] ^bytes
+  (-> (java.security.MessageDigest/getInstance "SHA-512") (.digest byte-arr)))
+
+(defn md5 [^bytes byte-arr] ^bytes
+  (-> (java.security.MessageDigest/getInstance "md5") (.digest byte-arr)))
+
+(defn sha3-224 [^bytes byte-arr] ^bytes
+  (-> (SHA3$Digest224.) (.digest byte-arr)))
+
+(defn sha3-256 [^bytes byte-arr] ^bytes
+  (-> (SHA3$Digest256.) (.digest byte-arr)))
+
+(defn sha3-384 [^bytes byte-arr] ^bytes
+  (-> (SHA3$Digest384.) (.digest byte-arr)))
+
+(defn sha3-512 [^bytes byte-arr] ^bytes
+  (-> (SHA3$Digest512.) (.digest byte-arr)))
 
 (defmulti create-public-key (fn [key-type & more] key-type))
 (defmulti create-private-key (fn [key-type & more] key-type))

@@ -1,9 +1,21 @@
 (ns cljctools.ipfs.core
   (:require
+   [clojure.spec.alpha :as s]
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
    [cljctools.varint.core :as varint.core]
+   [cljctools.ipfs.crypto :as ipfs.crypto]
+   [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.runtime.core :as ipfs.runtime.core]))
+
+
+(defn create-peer-id
+  [public-key]
+  (->
+   public-key
+   (ipfs.runtime.crypto/protobuf-encode-public-key)
+   (ipfs.runtime.core/encode-multihash)))
+
 
 (defn multiaddress-to-data
   [multiaddress]
@@ -42,14 +54,26 @@
     msgBB]))
 
 
+
+
+
 (comment
 
   (require
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.varint.core :as varint.core]
+   '[cljctools.ipfs.crypto :as ipfs.crypto]
+   '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
    '[cljctools.ipfs.core :as ipfs.core]
    :reload)
+
+  (do
+    (def key-pair (ipfs.runtime.crypto/generate-keypair ::ipfs.crypto/RSA 2048))
+    (def private-key (::ipfs.crypto/private-key key-pair))
+    (def public-key (::ipfs.crypto/public-key key-pair))
+    (def peer-idBA (ipfs.core/create-peer-id public-key))
+    (ipfs.runtime.core/to-base58 peer-idBA))
 
   ;
   )
