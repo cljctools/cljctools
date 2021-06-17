@@ -36,6 +36,12 @@
   [byte-arr from to]
   (Arrays/copyOfRange ^bytes byte-arr ^int from ^int to))
 
+(defmulti equals? (fn [x & more] (type x)) :hierarchy #'types)
+
+(defmethod equals? ::bytes.spec/byte-array ^Boolean
+  [byte-arr1 byte-arr2]
+  (Arrays/equals ^bytes byte-arr1 ^bytes byte-arr2))
+
 (defmulti to-byte-array (fn [x & more] (type x)) :hierarchy #'types)
 
 (defmethod to-byte-array ::string ^bytes
