@@ -379,7 +379,7 @@
   "takes byte array, returns byte array"
   [^bytes byte-arr]
   (->
-   (java.security.MessageDigest/getInstance "sha1")
+   (java.security.MessageDigest/getInstance "SHA-1")
    (.digest byte-arr)))
 
 (comment
