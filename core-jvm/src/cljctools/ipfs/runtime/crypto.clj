@@ -1,7 +1,8 @@
 (ns cljctools.ipfs.runtime.crypto
   (:require
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
-   [cljctools.ipfs.crypto :as ipfs.crypto]
+   [cljctools.ipfs.protocols :as ipfs.protocols]
+   [cljctools.ipfs.spec :as ipfs.spec]
    [clojure.java.io :as io :refer [input-stream]])
   (:import
    (java.security PrivateKey PublicKey SecureRandom Security MessageDigest Signature KeyPairGenerator KeyPair KeyFactory Provider)
@@ -54,38 +55,39 @@
 (defmulti decode-public-key (fn [key-type byte-arr] key-type))
 (defmulti decode-private-key (fn [key-type byte-arr] key-type))
 
-(defmethod create-public-key ::ipfs.crypto/RSA
+(defmethod create-public-key ::ipfs.spec/RSA
   [key-type ^PublicKey pub-key]
   (let [signature (Signature/getInstance "SHA256withRSA" provider)]
     (.initVerify signature pub-key)
-    ^{:type ::ipfs.crypto/public-key}
+    ^{:type ::ipfs.spec/public-key}
     (reify
-      ipfs.crypto/Key
+      ipfs.protocols/Key
       (key-type* [_] key-type)
-      (to-byte-array*
-        [_]
-        (.getEncoded pub-key))
       (hash-code*
         [_]
         (.hashCode pub-key))
-      ipfs.crypto/PublicKey
+      ipfs.protocols/ToByteArray
+      (to-byte-array*
+        [_]
+        (.getEncoded pub-key))
+      ipfs.protocols/PublicKey
       (verify*
         [_ dataBA signatureBA]
         (.update signature ^bytes dataBA)
         (.verify signature ^bytes signatureBA)))))
 
-(defmethod decode-public-key ::ipfs.crypto/RSA
+(defmethod decode-public-key ::ipfs.spec/RSA
   [key-type byte-arr]
   (create-public-key key-type (->
                                (KeyFactory/getInstance "RSA" provider)
                                (.generatePublic (X509EncodedKeySpec. ^bytes byte-arr)))))
 
-(defmethod create-private-key ::ipfs.crypto/RSA
+(defmethod create-private-key ::ipfs.spec/RSA
   [key-type ^PrivateKey priv-key ^PublicKey pub-key]
   (when-not (= (.getFormat priv-key) "PKCS#8")
     (throw (ex-info "RSA private key must be PKCS#8" {})))
   (let [signer (Ed25519Signer.)
-        public-key (create-public-key ::ipfs.crypto/RSA pub-key)
+        public-key (create-public-key ::ipfs.spec/RSA pub-key)
         pkcs1-priv-key-byte-arr (->
                                  (PrivateKeyInfo/getInstance (.getEncoded priv-key))
                                  (.parsePrivateKey)
@@ -93,17 +95,18 @@
                                  (.getEncoded))
         signature (Signature/getInstance "SHA256withRSA" provider)]
     (.initSign signature priv-key)
-    ^{:type ::ipfs.crypto/private-key}
+    ^{:type ::ipfs.spec/private-key}
     (reify
-      ipfs.crypto/Key
+      ipfs.protocols/Key
       (key-type* [_] key-type)
-      (to-byte-array*
-        [_]
-        pkcs1-priv-key-byte-arr)
       (hash-code*
         [_]
         (.hashCode priv-key))
-      ipfs.crypto/PrivateKey
+      ipfs.protocols/ToByteArray
+      (to-byte-array*
+        [_]
+        pkcs1-priv-key-byte-arr)
+      ipfs.protocols/PrivateKey
       (public-key*
         [_]
         public-key)
@@ -112,7 +115,7 @@
         (.update signature ^bytes dataBA)
         (.sign signature)))))
 
-(defmethod decode-private-key ::ipfs.crypto/RSA
+(defmethod decode-private-key ::ipfs.spec/RSA
   [key-type byte-arr]
   (let [rsa-priv-key (RSAPrivateKey/getInstance
                       (ASN1Primitive/fromByteArray ^bytes byte-arr))
@@ -142,81 +145,83 @@
                  (.generatePublic pub-key-spec))]
     (create-private-key key-type priv-key pub-key)))
 
-(defmethod generate-keypair ::ipfs.crypto/RSA
+(defmethod generate-keypair ::ipfs.spec/RSA
   [key-type bits]
   (let [kpg (doto
              (KeyPairGenerator/getInstance "RSA" provider)
               (.initialize ^int bits (SecureRandom.)))
         key-pair (.genKeyPair kpg)]
-    {::ipfs.crypto/private-key (create-private-key key-type (cast PrivateKey (.getPrivate key-pair)) (cast PublicKey (.getPublic key-pair)))
-     ::ipfs.crypto/public-key  (create-public-key key-type (cast PublicKey (.getPublic key-pair)))}))
+    {::ipfs.spec/private-key (create-private-key key-type (cast PrivateKey (.getPrivate key-pair)) (cast PublicKey (.getPublic key-pair)))
+     ::ipfs.spec/public-key  (create-public-key key-type (cast PublicKey (.getPublic key-pair)))}))
 
 
 
-(defmethod create-public-key ::ipfs.crypto/Ed25519
+(defmethod create-public-key ::ipfs.spec/Ed25519
   [key-type ^Ed25519PublicKeyParameters pub-key]
   (let [signer (Ed25519Signer.)]
     (.init signer false pub-key)
-    ^{:type ::ipfs.crypto/public-key}
+    ^{:type ::ipfs.spec/public-key}
     (reify
-      ipfs.crypto/Key
+      ipfs.protocols/Key
       (key-type* [_] key-type)
-      (to-byte-array*
-        [_]
-        (.getEncoded pub-key))
       (hash-code*
         [_]
         (.hashCode pub-key))
-      ipfs.crypto/PublicKey
+      ipfs.protocols/ToByteArray
+      (to-byte-array*
+        [_]
+        (.getEncoded pub-key))
+      ipfs.protocols/PublicKey
       (verify*
         [_ dataBA signatureBA]
         (.update signer ^bytes dataBA 0 (alength ^bytes dataBA))
         (.verifySignature signer ^bytes signatureBA)))))
 
-(defmethod decode-public-key ::ipfs.crypto/Ed25519
+(defmethod decode-public-key ::ipfs.spec/Ed25519
   [key-type byte-arr]
   (create-public-key key-type (Ed25519PublicKeyParameters. ^bytes byte-arr 0)))
 
-(defmethod create-private-key ::ipfs.crypto/Ed25519
+(defmethod create-private-key ::ipfs.spec/Ed25519
   [key-type ^Ed25519PrivateKeyParameters priv-key]
   (let [signer (Ed25519Signer.)]
     (.init signer true priv-key)
-    ^{:type ::ipfs.crypto/private-key}
+    ^{:type ::ipfs.spec/private-key}
     (reify
-      ipfs.crypto/Key
+      ipfs.protocols/Key
       (key-type* [_] key-type)
-      (to-byte-array*
-        [_]
-        (.getEncoded priv-key))
       (hash-code*
         [_]
         (.hashCode priv-key))
-      ipfs.crypto/PrivateKey
+      ipfs.protocols/ToByteArray
+      (to-byte-array*
+        [_]
+        (.getEncoded priv-key))
+      ipfs.protocols/PrivateKey
       (public-key* [_]
-        (create-public-key ::ipfs.crypto/Ed25519 (.generatePublicKey priv-key)))
+        (create-public-key ::ipfs.spec/Ed25519 (.generatePublicKey priv-key)))
       (sign*
         [_ dataBA]
         (.update signer dataBA 0 (alength ^bytes dataBA))
         (.generateSignature signer)))))
 
-(defmethod decode-private-key ::ipfs.crypto/Ed25519
+(defmethod decode-private-key ::ipfs.spec/Ed25519
   [key-type byte-arr]
   (create-private-key key-type (Ed25519PrivateKeyParameters. ^bytes byte-arr 0)))
 
-(defmethod generate-keypair ::ipfs.crypto/Ed25519
+(defmethod generate-keypair ::ipfs.spec/Ed25519
   [key-type]
   (let [kpg (doto
              (Ed25519KeyPairGenerator.)
               (.init (Ed25519KeyGenerationParameters. (SecureRandom.))))
         key-pair (.generateKeyPair kpg)]
-    {::ipfs.crypto/private-key (create-private-key key-type (cast Ed25519PrivateKeyParameters (.getPrivate key-pair)))
-     ::ipfs.crypto/public-key  (create-public-key key-type (cast Ed25519PublicKeyParameters (.getPublic key-pair)))}))
+    {::ipfs.spec/private-key (create-private-key key-type (cast Ed25519PrivateKeyParameters (.getPrivate key-pair)))
+     ::ipfs.spec/public-key  (create-public-key key-type (cast Ed25519PublicKeyParameters (.getPublic key-pair)))}))
 
 (def key-type-to-proto-enum
-  {::ipfs.crypto/RSA DhtProto$KeyType/RSA
-   ::ipfs.crypto/Ed25519 DhtProto$KeyType/Ed25519
-   ::ipfs.crypto/Secp256k1 DhtProto$KeyType/Secp256k1
-   ::ipfs.crypto/ECDSA DhtProto$KeyType/ECDSA})
+  {::ipfs.spec/RSA DhtProto$KeyType/RSA
+   ::ipfs.spec/Ed25519 DhtProto$KeyType/Ed25519
+   ::ipfs.spec/Secp256k1 DhtProto$KeyType/Secp256k1
+   ::ipfs.spec/ECDSA DhtProto$KeyType/ECDSA})
 
 (def proto-enum-to-key-type
   (->>
@@ -228,8 +233,8 @@
   [public-key]
   (->
    (DhtProto$PublicKey/newBuilder)
-   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.crypto/key-type* public-key)))
-   (.setData (ByteString/copyFrom ^bytes (ipfs.crypto/to-byte-array* public-key)))
+   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* public-key)))
+   (.setData (ByteString/copyFrom ^bytes (ipfs.protocols/to-byte-array* public-key)))
    (.build)
    (.toByteArray)))
 
@@ -243,8 +248,8 @@
   [private-key]
   (->
    (DhtProto$PrivateKey/newBuilder)
-   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.crypto/key-type* private-key)))
-   (.setData (ByteString/copyFrom ^bytes (ipfs.crypto/to-byte-array* private-key)))
+   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* private-key)))
+   (.setData (ByteString/copyFrom ^bytes (ipfs.protocols/to-byte-array* private-key)))
    (.build)
    (.toByteArray)))
 
@@ -270,7 +275,8 @@
 
   (require
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
-   '[cljctools.ipfs.crypto :as ipfs.crypto]
+   '[cljctools.ipfs.protocols :as ipfs.protocols]
+   '[cljctools.ipfs.spec :as ipfs.spec]
    '[cljctools.ipfs.runtime.crypto :refer [generate-keypair
                                            protobuf-encode-private-key
                                            protobuf-decode-private-key
@@ -278,33 +284,33 @@
                                            protobuf-decode-public-key]]
    :reload)
 
-  (let [key-pair (generate-keypair ::ipfs.crypto/Ed25519)
+  (let [key-pair (generate-keypair ::ipfs.spec/Ed25519)
         msgBA (bytes.runtime.core/to-byte-array "asdasdasd")]
     (->>
-     (ipfs.crypto/sign* (::ipfs.crypto/private-key key-pair) msgBA)
-     (ipfs.crypto/verify* (::ipfs.crypto/public-key key-pair) msgBA)))
+     (ipfs.protocols/sign* (::ipfs.spec/private-key key-pair) msgBA)
+     (ipfs.protocols/verify* (::ipfs.spec/public-key key-pair) msgBA)))
 
-  (let [key-pair (generate-keypair ::ipfs.crypto/RSA 2048)
+  (let [key-pair (generate-keypair ::ipfs.spec/RSA 2048)
         msgBA (bytes.runtime.core/to-byte-array "asdasdasd")]
     (->>
-     (ipfs.crypto/sign* (::ipfs.crypto/private-key key-pair) msgBA)
-     (ipfs.crypto/verify* (::ipfs.crypto/public-key key-pair) msgBA)))
+     (ipfs.protocols/sign* (::ipfs.spec/private-key key-pair) msgBA)
+     (ipfs.protocols/verify* (::ipfs.spec/public-key key-pair) msgBA)))
 
   (let [key-pair
-        #_(generate-keypair ::ipfs.crypto/RSA 2048)
-        (generate-keypair ::ipfs.crypto/Ed25519)
+        #_(generate-keypair ::ipfs.spec/RSA 2048)
+        (generate-keypair ::ipfs.spec/Ed25519)
         msgBA (bytes.runtime.core/to-byte-array "asdasdasd")
         private-key (->
-                     (::ipfs.crypto/private-key key-pair)
+                     (::ipfs.spec/private-key key-pair)
                      (protobuf-encode-private-key)
                      (protobuf-decode-private-key))
         public-key (->
-                    (::ipfs.crypto/public-key key-pair)
+                    (::ipfs.spec/public-key key-pair)
                     (protobuf-encode-public-key)
                     (protobuf-decode-public-key))]
     (->>
-     (ipfs.crypto/sign* private-key msgBA)
-     (ipfs.crypto/verify* public-key msgBA)))
+     (ipfs.protocols/sign* private-key msgBA)
+     (ipfs.protocols/verify* public-key msgBA)))
 
 
   ;
