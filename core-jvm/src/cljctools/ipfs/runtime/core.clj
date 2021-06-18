@@ -1,6 +1,18 @@
 (ns cljctools.ipfs.runtime.core
   (:require
+   [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
+                                     pub sub unsub mult tap untap mix admix unmix pipe
+                                     timeout to-chan  sliding-buffer dropping-buffer
+                                     pipeline pipeline-async]]
+
+   [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
+   [cljctools.varint.core :as varint.core]
+
+   [manifold.deferred :as d]
+   [manifold.stream :as sm]
+   [aleph.tcp]
+
    [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.spec :as ipfs.spec])
@@ -8,7 +20,11 @@
    (io.ipfs.multiaddr MultiAddress)
    (io.ipfs.multibase Multibase Base58)
    (io.ipfs.multihash Multihash Multihash$Type)
-   (io.ipfs.cid Cid Cid$Codec)))
+   (io.ipfs.cid Cid Cid$Codec)
+   (com.southernstorm.noise.protocol Noise CipherState DHState HandshakeState)
+   (java.net InetSocketAddress)
+   (io.netty.bootstrap Bootstrap)
+   (io.netty.channel ChannelPipeline)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -90,6 +106,100 @@
    (ipfs.runtime.crypto/protobuf-encode-public-key)
    (encode-multihash)
    (create-peer-id)))
+
+(defn decode-mplex
+  ([buffer]
+   (decode-mplex buffer 0))
+  ([buffer offset]
+   (let [header (varint.core/decode-varint buffer 0)
+         flag (bit-and header 0x07)
+         stream-id (bit-shift-right header 3)
+         header-size (varint.core/varint-size header)
+         msg-length (varint.core/decode-varint buffer header-size)
+         msg-length-size (varint.core/varint-size msg-length)]
+     {:flag (case flag
+              0 :new-stream
+              1 :message-receiver
+              2 :message-initiator
+              3 :close-receiver
+              4 :close-initiator
+              5 :reset-receiver
+              6 :reset-initiator)
+      :stream-id stream-id
+      :msg-length msg-length
+      :msgBB (bytes.runtime.core/buffer-slice buffer (+ header-size msg-length-size) msg-length)})))
+
+(defn encode-mplex
+  [{:as data
+    :keys [flag stream-id msgBB]}]
+  (bytes.runtime.core/concat
+   [(let [baos (bytes.runtime.core/byte-array-output-stream)]
+      (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
+      (varint.core/encode-varint (bytes.runtime.core/capacity msgBB) baos)
+      (-> baos (bytes.protocols/to-byte-array*) (bytes.runtime.core/buffer-wrap)))
+    msgBB]))
+
+(def multistreamBA (bytes.runtime.core/to-byte-array "/multistream/1.0.0\n"))
+(def not-availableBA (bytes.runtime.core/to-byte-array "na\n"))
+(def newlineBA (bytes.runtime.core/to-byte-array "\n"))
+(def noiseBA (bytes.runtime.core/to-byte-array "/noise"))
+(def mplexBA (bytes.runtime.core/to-byte-array "/mplex/1.0.0"))
+
+#_[private-key-25519BA (doto (byte-array 32)
+                         (Noise/random))]
+
+(defn connect
+  []
+  (let [host nil
+        port nil
+        msg| (chan 100)
+        evt| (chan (sliding-buffer 10))
+        ex| (chan 1)
+        streamV (volatile! nil)]
+    ^{:type ::ipfs.spec/connection}
+    (reify
+      ipfs.protocols/Connection
+      (connect*
+       [t]
+       (->
+        (d/chain
+         (aleph.tcp/client {:host host
+                            :port port
+                            :insecure? true
+                            :pipeline-transform (fn [^ChannelPipeline pipeline])})
+         (fn [stream]
+           (vreset! streamV stream)
+           (put! evt| {:op :connected})
+           stream)
+         (fn [stream]
+           (d/loop []
+             (->
+              (sm/take! stream nil)
+              (d/chain
+               (fn [byte-arr]
+                 (if byte-arr
+                   (do
+                     (put! msg| byte-arr)
+                     (d/recur))
+                   (do
+                     (when @streamV
+                       (throw (ex-info (str ::socket-stream-closed) {} nil)))))))
+              (d/catch Exception (fn [ex]
+                                   (put! ex| ex)
+                                   (ipfs.protocols/close* t)))))))
+        (d/catch Exception (fn [ex]
+                             (put! ex| ex)
+                             (ipfs.protocols/close* t)))))
+      (send*
+        [_ byte-arr]
+        (sm/put! @streamV byte-arr))
+      ipfs.protocols/Close
+      (close*
+        [_]
+        (when-let [stream @streamV]
+          (vreset! streamV nil)
+          (sm/close! stream))))))
+
 
 (comment
 

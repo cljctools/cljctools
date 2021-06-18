@@ -11,13 +11,10 @@
    [cljctools.socket.runtime.core :as socket.runtime.core]
 
    [cljctools.ipfs.spec :as ipfs.spec]
-   [cljctools.ipfs.dht.wire :as dht.wire]
-   [cljctools.ipfs.core :refer [multiaddress-to-data]]))
+   [cljctools.ipfs.protocols :as ipfs.protocols]
+   [cljctools.ipfs.runtime.core :as ipfs.runtime.core]))
 
 #?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
-
-(declare
- connect)
 
 (defn create
   [{:as opts
@@ -41,50 +38,3 @@
 
       (go
         (loop [])))))
-
-
-(defn connect
-  [{:as opts
-    :keys [::ipfs.spec/multiaddress
-           ::send|
-           ::msg|
-           ::ex|]}]
-  (go
-    (let [socket-msg| (chan 100)
-          socket-evt| (chan (sliding-buffer 10))
-          socket-ex| (chan 1)
-
-          {:keys [::ipfs.spec/host
-                  ::ipfs.spec/port]} (multiaddress-to-data multiaddress)
-          socket (socket.runtime.core/create
-                  {::socket.spec/port port
-                   ::socket.spec/host host
-                   ::socket.spec/evt| socket-evt|
-                   ::socket.spec/msg| socket-msg|
-                   ::socket.spec/ex| socket-ex|})
-
-          release (fn []
-                    (socket.protocols/close* socket)
-                    (close! socket-msg|)
-                    (close! socket-evt|))]
-
-      (dht.wire/create {::recv| socket-msg|
-                        ::send| send|
-                        ::msg| msg|})
-
-      (go
-        (when-let [evt (<! socket-evt|)]
-          #_(println ::socket evt))
-        (loop []
-          (alt!
-            socket-ex|
-            ([ex]
-             (when ex
-               (>! ex| ex)))
-
-            send|
-            ([value]
-             (when value
-               (socket.protocols/send* socket value)
-               (recur)))
-            :priority true))))))

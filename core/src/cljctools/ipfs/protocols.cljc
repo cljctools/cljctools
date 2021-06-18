@@ -28,3 +28,11 @@
 (defprotocol PublicKey
   (verify* [_ dataBA signatureBA])
   #_Key)
+
+(defprotocol Close
+  (close* [_]))
+
+(defprotocol Connection
+  (connect* [_])
+  (send* [_ msg])
+  #_Close)
