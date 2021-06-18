@@ -54,9 +54,11 @@
              (d/chain
               (if socket-stream
                 socket-stream
-                (aleph.tcp/client {:host host
-                                   :port port
-                                   :insecure? true}))
+                (aleph.tcp/client (merge
+                                   {:host host
+                                    :port port
+                                    :insecure? true}
+                                   opts)))
               (fn [stream]
                 (vreset! streamV stream)
                 (put! evt| {:op :connected})
