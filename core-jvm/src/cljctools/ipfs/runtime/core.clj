@@ -24,7 +24,15 @@
    (com.southernstorm.noise.protocol Noise CipherState DHState HandshakeState)
    (java.net InetSocketAddress)
    (io.netty.bootstrap Bootstrap)
-   (io.netty.channel ChannelPipeline)))
+   (io.netty.channel ChannelPipeline)
+   
+   (io.libp2p.core Host)
+   (io.libp2p.core.dsl HostBuilder)
+   (io.libp2p.core.multiformats Multiaddr)
+   (io.libp2p.protocol Ping PingController)
+   (io.libp2p.security.noise NoiseXXSecureChannel)
+   (io.libp2p.core.crypto PrivKey)
+   (java.util.function Function)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -148,7 +156,7 @@
 #_[private-key-25519BA (doto (byte-array 32)
                          (Noise/random))]
 
-(defn connect
+(defn create-connection
   []
   (let [host nil
         port nil
@@ -260,6 +268,47 @@
       (ipfs.runtime.crypto/protobuf-decode-public-key)
       (ipfs.runtime.core/create-peer-id)
       (ipfs.protocols/to-string*))
+
+  ;
+  )
+
+
+(comment
+
+  (import
+   '(io.libp2p.core Host)
+   '(io.libp2p.core.dsl HostBuilder)
+   '(io.libp2p.core.multiformats Multiaddr)
+   '(io.libp2p.protocol Ping PingController)
+   '(java.util.function Function)
+   '(io.libp2p.security.noise NoiseXXSecureChannel)
+   '(io.libp2p.core.crypto PrivKey))
+
+  (do
+    (def node (->
+               (HostBuilder.)
+               (.protocol (into-array Ping [(Ping.)]))
+               (.secureChannel
+                (into-array Function [(reify Function
+                                        (apply
+                                          [_ priv-key]
+                                          (NoiseXXSecureChannel. ^PrivKey priv-key)))]))
+               (.listen (into-array String ["/ip4/127.0.0.1/tcp/0"]))
+               (.build)))
+    (-> node (.start) (.get))
+    (println (format "node listening on \n %s" (.listenAddresses node))))
+
+
+  (do
+    (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
+    (def pinger (-> (Ping.) (.dial node address) (.getController) (.get)))
+    (dotimes [i 5]
+      (let [latency (-> pinger (.ping) (.get))]
+        (println latency))))
+
+  (.stop node)
+
+
 
   ;
   )
