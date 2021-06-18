@@ -29,6 +29,7 @@
    (io.libp2p.core Host)
    (io.libp2p.core.dsl HostBuilder)
    (io.libp2p.core.multiformats Multiaddr)
+   (io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding)
    (io.libp2p.protocol Ping PingController)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.crypto PrivKey)
@@ -115,6 +116,22 @@
    (encode-multihash)
    (create-peer-id)))
 
+(defn create-connection
+  []
+  (let []
+    ^{:type ::ipfs.spec/connection}
+    (reify
+      ipfs.protocols/Connection
+      (connect*
+       [t]
+       )
+      (send*
+        [_ byte-arr]
+        )
+      ipfs.protocols/Close
+      (close*
+       [_]))))
+
 (defn decode-mplex
   ([buffer]
    (decode-mplex buffer 0))
@@ -152,62 +169,6 @@
 (def newlineBA (bytes.runtime.core/to-byte-array "\n"))
 (def noiseBA (bytes.runtime.core/to-byte-array "/noise"))
 (def mplexBA (bytes.runtime.core/to-byte-array "/mplex/1.0.0"))
-
-#_[private-key-25519BA (doto (byte-array 32)
-                         (Noise/random))]
-
-(defn create-connection
-  []
-  (let [host nil
-        port nil
-        msg| (chan 100)
-        evt| (chan (sliding-buffer 10))
-        ex| (chan 1)
-        streamV (volatile! nil)]
-    ^{:type ::ipfs.spec/connection}
-    (reify
-      ipfs.protocols/Connection
-      (connect*
-       [t]
-       (->
-        (d/chain
-         (aleph.tcp/client {:host host
-                            :port port
-                            :insecure? true
-                            :pipeline-transform (fn [^ChannelPipeline pipeline])})
-         (fn [stream]
-           (vreset! streamV stream)
-           (put! evt| {:op :connected})
-           stream)
-         (fn [stream]
-           (d/loop []
-             (->
-              (sm/take! stream nil)
-              (d/chain
-               (fn [byte-arr]
-                 (if byte-arr
-                   (do
-                     (put! msg| byte-arr)
-                     (d/recur))
-                   (do
-                     (when @streamV
-                       (throw (ex-info (str ::socket-stream-closed) {} nil)))))))
-              (d/catch Exception (fn [ex]
-                                   (put! ex| ex)
-                                   (ipfs.protocols/close* t)))))))
-        (d/catch Exception (fn [ex]
-                             (put! ex| ex)
-                             (ipfs.protocols/close* t)))))
-      (send*
-        [_ byte-arr]
-        (sm/put! @streamV byte-arr))
-      ipfs.protocols/Close
-      (close*
-        [_]
-        (when-let [stream @streamV]
-          (vreset! streamV nil)
-          (sm/close! stream))))))
-
 
 (comment
 
@@ -272,6 +233,13 @@
   ;
   )
 
+(defn create-dht-protocol
+  []
+  (let []
+    (reify
+      
+      
+      )))
 
 (comment
 
@@ -279,9 +247,10 @@
    '(io.libp2p.core Host)
    '(io.libp2p.core.dsl HostBuilder)
    '(io.libp2p.core.multiformats Multiaddr)
-   '(io.libp2p.protocol Ping PingController)
+   '(io.libp2p.protocol Ping PingProtocol PingController)
    '(java.util.function Function)
    '(io.libp2p.security.noise NoiseXXSecureChannel)
+   '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding)
    '(io.libp2p.core.crypto PrivKey))
 
   (do
@@ -298,7 +267,6 @@
     (-> node (.start) (.get))
     (println (format "node listening on \n %s" (.listenAddresses node))))
 
-
   (do
     (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
     (def pinger (-> (Ping.) (.dial node address) (.getController) (.get)))
@@ -307,6 +275,8 @@
         (println latency))))
 
   (.stop node)
+
+  
 
 
 
