@@ -137,43 +137,8 @@
       (close*
        [_]))))
 
-(defn decode-mplex
-  ([buffer]
-   (decode-mplex buffer 0))
-  ([buffer offset]
-   (let [header (varint.core/decode-varint buffer 0)
-         flag (bit-and header 0x07)
-         stream-id (bit-shift-right header 3)
-         header-size (varint.core/varint-size header)
-         msg-length (varint.core/decode-varint buffer header-size)
-         msg-length-size (varint.core/varint-size msg-length)]
-     {:flag (case flag
-              0 :new-stream
-              1 :message-receiver
-              2 :message-initiator
-              3 :close-receiver
-              4 :close-initiator
-              5 :reset-receiver
-              6 :reset-initiator)
-      :stream-id stream-id
-      :msg-length msg-length
-      :msgBB (bytes.runtime.core/buffer-slice buffer (+ header-size msg-length-size) msg-length)})))
 
-(defn encode-mplex
-  [{:as data
-    :keys [flag stream-id msgBB]}]
-  (bytes.runtime.core/concat
-   [(let [baos (bytes.runtime.core/byte-array-output-stream)]
-      (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
-      (varint.core/encode-varint (bytes.runtime.core/capacity msgBB) baos)
-      (-> baos (bytes.protocols/to-byte-array*) (bytes.runtime.core/buffer-wrap)))
-    msgBB]))
 
-(def multistreamBA (bytes.runtime.core/to-byte-array "/multistream/1.0.0\n"))
-(def not-availableBA (bytes.runtime.core/to-byte-array "na\n"))
-(def newlineBA (bytes.runtime.core/to-byte-array "\n"))
-(def noiseBA (bytes.runtime.core/to-byte-array "/noise"))
-(def mplexBA (bytes.runtime.core/to-byte-array "/mplex/1.0.0"))
 
 (comment
 
@@ -238,89 +203,6 @@
   ;
   )
 
-(defprotocol IPingController
-  (ping [_]))
-
-(defn create-ping-protocol
-  []
-  (let [protocol
-        (proxy
-         [ProtocolHandler]
-         [Long/MAX_VALUE Long/MAX_VALUE]
-          (onStartInitiator
-            [_  stream]
-            (println ::onStartInitiator)
-            (let [streamV (volatile! nil)
-                  activatedCF (CompletableFuture.)
-                  random (java.util.Random.)
-                  pingsA (atom {})
-                  handler (reify
-                            ProtocolMessageHandler
-                            (onActivated
-                              [t stream]
-                              (vreset! streamV stream)
-                              (println :ping-requester-activated)
-                              (.complete activatedCF t))
-                            (onMessage
-                              [_ stream msg]
-                              (when-let [[timestamp pingCF] (get @pingsA (let [msg ^ByteBuf msg
-                                                                               byte-arr (byte-array (.readableBytes msg))]
-                                                                           (->
-                                                                            (.slice msg)
-                                                                            (.readBytes byte-arr)
-                                                                            (ByteBufUtil/hexDump))))]
-                                (.complete ^CompletableFuture pingCF (- (java.lang.System/currentTimeMillis) timestamp))))
-                            (onClosed
-                              [_ stream]
-                              (println :dht-connection-closed))
-                            (onException
-                              [_ cause]
-                              (println :dht-requester-exception ^Throwable cause))
-                            (fireMessage
-                              [t stream msg]
-                              (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg))
-                            IPingController
-                            (ping
-                              [_]
-                              (let [pingCF (CompletableFuture.)
-                                    dataBA (byte-array 32)
-                                    _ (.nextBytes random dataBA)
-                                    data-hex (ByteBufUtil/hexDump dataBA)]
-                                (take! (timeout 5000)
-                                       (fn [_]
-                                         (when-let [[timestamp pingCF] (get @pingsA data-hex)]
-                                           (.completeExceptionally ^CompletableFuture pingCF (Libp2pException.))
-                                           (swap! pingsA dissoc data-hex))))
-                                (swap! pingsA assoc data-hex [(java.lang.System/currentTimeMillis) pingCF])
-                                (.writeAndFlush ^Stream @streamV (ByteString/copyFrom dataBA))
-                                pingCF)))]
-              (.pushHandler ^Stream stream handler)
-              activatedCF))
-          (onStartResponder
-            [_ stream]
-            (println ::onStartResponder)
-            (let [^Multiaddr remote-address (-> ^Stream stream (.getConnection) (.remoteAddress))
-                  handler (reify
-                            ProtocolMessageHandler
-                            (onActivated
-                              [_ stream]
-                              (println :dht-responder-activated))
-                            (onMessage
-                              [_ stream msg]
-                              (.writeAndFlush ^Stream stream msg))
-                            (onClosed
-                              [_ stream]
-                              (println :dht-responder-connection-closed))
-                            (onException
-                              [_ cause]
-                              (println :dht-responder-exception ^Throwable cause))
-                            (fireMessage
-                              [t stream msg]
-                              (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg)))]
-              (.pushHandler ^Stream stream handler)
-              (CompletableFuture/completedFuture handler))))]
-    (proxy [StrictProtocolBinding] ["/ipfs/ping/1.0.0" protocol])))
-
 (def dht-max-request-size (* 1024 1024))
 (def dht-max-response-size (* 1024 1024))
 
@@ -334,7 +216,7 @@
          [ProtobufProtocolHandler]
          [(DhtProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
           (onStartInitiator
-            [_  stream]
+            [stream]
             (println ::onStartInitiator)
             (let [handler (reify
                             ProtocolMessageHandler
@@ -343,7 +225,10 @@
                               (println :dht-requester-activated))
                             (onMessage
                               [_ stream msg]
-                              (println :requester-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
+                              (let [msg ^DhtProto$DhtMessage msg]
+                                (println :requester-recv-dht-message (-> msg (.getType) (.name)))
+                                (when (= (.getType msg) DhtProto$DhtMessage$Type/FIND_NODE)
+                                  (println (.size ^java.util.List (.getCloserPeersList msg))))))
                             (onClosed
                               [_ stream]
                               (println :dht-connection-closed))
@@ -352,6 +237,7 @@
                               (println :dht-requester-exception ^Throwable cause))
                             (fireMessage
                               [t stream msg]
+                              #_(.onMessage t stream msg)
                               (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg))
                             DhtController
                             (send*
@@ -360,30 +246,30 @@
               (.pushHandler ^Stream stream handler)
               (CompletableFuture/completedFuture handler)))
           (onStartResponder
-           [_ stream]
-           (println ::onStartResponder)
-           (let [^Multiaddr remote-address (-> ^Stream stream (.getConnection) (.remoteAddress))
-                 handler (reify
-                           ProtocolMessageHandler
-                           (onActivated
-                             [_ stream]
-                             (println :dht-responder-activated))
-                           (onMessage
-                             [_ stream msg]
-                             (println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
-                           (onClosed
-                             [_ stream]
-                             (println :dht-responder-connection-closed))
-                           (onException
-                             [_ cause]
-                             (println :dht-responder-exception ^Throwable cause))
-                           (fireMessage
-                             [t stream msg]
-                             (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg)))]
-             (.pushHandler ^Stream stream handler)
-             (CompletableFuture/completedFuture handler))))]
+            [stream]
+            (println ::onStartResponder)
+            (let [^Multiaddr remote-address (-> ^Stream stream (.getConnection) (.remoteAddress))
+                  handler (reify
+                            ProtocolMessageHandler
+                            (onActivated
+                              [_ stream]
+                              (println :dht-responder-activated))
+                            (onMessage
+                              [_ stream msg]
+                              (println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
+                            (onClosed
+                              [_ stream]
+                              (println :dht-responder-connection-closed))
+                            (onException
+                              [_ cause]
+                              (println :dht-responder-exception ^Throwable cause))
+                            (fireMessage
+                              [t stream msg]
+                              #_(.onMessage t stream msg)
+                              (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg)))]
+              (.pushHandler ^Stream stream handler)
+              (CompletableFuture/completedFuture handler))))]
     (proxy [StrictProtocolBinding] ["/ipfs/kad/1.0.0" protocol])))
-
 
 
 (comment
@@ -419,7 +305,7 @@
   (do
     (def node (->
                (HostBuilder.)
-               (.protocol (into-array ProtocolBinding [(ipfs.runtime.core/create-ping-protocol) #_(Ping.) (ipfs.runtime.core/create-dht-protocol)]))
+               (.protocol (into-array ProtocolBinding [(Ping.) (ipfs.runtime.core/create-dht-protocol)]))
                (.secureChannel
                 (into-array Function [(reify Function
                                         (apply
@@ -432,7 +318,7 @@
 
   (do
     (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
-    (def pinger (-> (ipfs.runtime.core/create-ping-protocol) #_(Ping.) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
+    (def pinger (-> (Ping.) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
     (dotimes [i 5]
       (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
         (println latency))))
@@ -441,14 +327,15 @@
   
   (def dht-controller (-> (ipfs.runtime.core/create-dht-protocol) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
 
-  (send* dht-controller (-> (DhtProto$DhtMessage/newBuilder)
-                            (.setType DhtProto$DhtMessage$Type/FIND_NODE)
-                            (.setKey (->
-                                      "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
-                                      (io.ipfs.multihash.Multihash/fromBase58)
-                                      (.toBytes)
-                                      (ByteString/copyFrom)))
-                            (.build)))
+  (ipfs.runtime.core/send* dht-controller
+                           (-> (DhtProto$DhtMessage/newBuilder)
+                               (.setType DhtProto$DhtMessage$Type/FIND_NODE)
+                               (.setKey (->
+                                         "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
+                                         (io.ipfs.multihash.Multihash/fromBase58)
+                                         (.toBytes)
+                                         (ByteString/copyFrom)))
+                               (.build)))
 
 
 
@@ -499,5 +386,48 @@
        (bytes.runtime.core/equals? id1BA id2BA))))
   ; "Elapsed time: 1315.877881 msecs"
   
+  ;
+  )
+
+(comment
+
+  (defn decode-mplex
+    ([buffer]
+     (decode-mplex buffer 0))
+    ([buffer offset]
+     (let [header (varint.core/decode-varint buffer 0)
+           flag (bit-and header 0x07)
+           stream-id (bit-shift-right header 3)
+           header-size (varint.core/varint-size header)
+           msg-length (varint.core/decode-varint buffer header-size)
+           msg-length-size (varint.core/varint-size msg-length)]
+       {:flag (case flag
+                0 :new-stream
+                1 :message-receiver
+                2 :message-initiator
+                3 :close-receiver
+                4 :close-initiator
+                5 :reset-receiver
+                6 :reset-initiator)
+        :stream-id stream-id
+        :msg-length msg-length
+        :msgBB (bytes.runtime.core/buffer-slice buffer (+ header-size msg-length-size) msg-length)})))
+
+  (defn encode-mplex
+    [{:as data
+      :keys [flag stream-id msgBB]}]
+    (bytes.runtime.core/concat
+     [(let [baos (bytes.runtime.core/byte-array-output-stream)]
+        (varint.core/encode-varint (bit-or (bit-shift-left stream-id 3) flag) baos)
+        (varint.core/encode-varint (bytes.runtime.core/capacity msgBB) baos)
+        (-> baos (bytes.protocols/to-byte-array*) (bytes.runtime.core/buffer-wrap)))
+      msgBB]))
+
+  (def multistreamBA (bytes.runtime.core/to-byte-array "/multistream/1.0.0\n"))
+  (def not-availableBA (bytes.runtime.core/to-byte-array "na\n"))
+  (def newlineBA (bytes.runtime.core/to-byte-array "\n"))
+  (def noiseBA (bytes.runtime.core/to-byte-array "/noise"))
+  (def mplexBA (bytes.runtime.core/to-byte-array "/mplex/1.0.0"))
+
   ;
   )
