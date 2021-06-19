@@ -8,7 +8,7 @@
                               :sha "d6b6a7017b5b90cf761e6ec04ceb3d1b2e3aaae9"
                               :tag "v1.3.1 + 3"}
         com.github.multiformats/java-multiaddr {:mvn/version "v1.4.1"}
-        com.google.protobuf/protobuf-java {:mvn/version "3.17.3"}
+        com.google.protobuf/protobuf-java {:mvn/version "3.11.0"}
         tech.pegasys/noise-java {:mvn/version "1.0.0"}
         aleph/aleph {:mvn/version "0.4.7-alpha5"}
         io.netty/netty-all {:mvn/version "4.1.51.Final"}
