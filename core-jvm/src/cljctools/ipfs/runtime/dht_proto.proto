@@ -77,8 +77,8 @@ message Envelope {
 }
 
 message Exchange {
-  optional bytes id = 1;
-  optional PublicKey pubkey = 2;
+  bytes id = 1;
+  PublicKey pubkey = 2;
 }
 
 
@@ -117,10 +117,10 @@ message CircuitRelay {
     repeated bytes addrs = 2; 
   }
 
-  optional Type type = 1; 
-  optional Peer srcPeer = 2; 
-  optional Peer dstPeer = 3;
-  optional Status code = 4;
+  Type type = 1; 
+  Peer srcPeer = 2; 
+  Peer dstPeer = 3;
+  Status code = 4;
 }
 
 message NoiseHandshakePayload {
