@@ -25,15 +25,19 @@
    (java.net InetSocketAddress)
    (io.netty.bootstrap Bootstrap)
    (io.netty.channel ChannelPipeline)
-   
+
    (io.libp2p.core Host)
    (io.libp2p.core.dsl HostBuilder)
    (io.libp2p.core.multiformats Multiaddr)
-   (io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding)
-   (io.libp2p.protocol Ping PingController)
+   (io.libp2p.core Stream P2PChannelHandler)
+   (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
+   (io.libp2p.protocol Ping PingController ProtocolHandler ProtobufProtocolHandler
+                       ProtocolMessageHandler ProtocolMessageHandler$DefaultImpls)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.crypto PrivKey)
-   (java.util.function Function)))
+   (java.util.function Function)
+   (java.util.concurrent CompletableFuture TimeUnit)
+   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -233,30 +237,85 @@
   ;
   )
 
+(def ^:const dht-max-request-size (* 1024 1024))
+(def ^:const dht-max-response-size (* 1024 1024))
+
+(defprotocol DhtController
+  (send* [_ msg]))
+
 (defn create-dht-protocol
   []
-  (let []
-    (reify
-      
-      
-      )))
+  (let [protocol
+        (proxy
+         [ProtobufProtocolHandler]
+         [(DhtProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
+          (onStartInitiator
+            [_  stream]
+            (let [handler (reify
+                            ProtocolMessageHandler
+                            (onActivated
+                              [_ stream]
+                              (println :dht-requester-activated))
+                            (onMessage
+                              [_ stream msg]
+                              (println :recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
+                            (onClosed
+                              [_ stream]
+                              (println :dht-connection-closed))
+                            (onException
+                              [_ cause]
+                              (println :exception ^Throwable cause))
+                            (fireMessage
+                              [t stream msg]
+                              (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg))
+                            DhtController
+                            (send*
+                              [_ msg]
+                              (.writeAndFlush ^Stream stream msg)))]
+              (.pushHandler ^Stream stream handler)
+              (CompletableFuture/completedFuture handler)))
+          (onStartResponder
+            [_ stream]
+            (let [^Multiaddr remote-address (-> ^Stream stream (.getConnection) (.remoteAddress))
+                  handler (reify
+                            ProtocolMessageHandler
+                            DhtController)]
+              (.pushHandler ^Stream stream handler)
+              (CompletableFuture/completedFuture handler))))]
+    (proxy [StrictProtocolBinding] ["/ipfs/kad/1.0.0" protocol])))
 
 (comment
 
-  (import
-   '(io.libp2p.core Host)
-   '(io.libp2p.core.dsl HostBuilder)
-   '(io.libp2p.core.multiformats Multiaddr)
-   '(io.libp2p.protocol Ping PingProtocol PingController)
-   '(java.util.function Function)
-   '(io.libp2p.security.noise NoiseXXSecureChannel)
-   '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding)
-   '(io.libp2p.core.crypto PrivKey))
+  (do
+    (require
+     '[cljctools.bytes.runtime.core :as bytes.runtime.core]
+     '[cljctools.codec.runtime.core :as codec.runtime.core]
+     '[cljctools.varint.core :as varint.core]
+     '[cljctools.ipfs.protocols :as ipfs.protocols]
+     '[cljctools.ipfs.spec :as ipfs.spec]
+     '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
+     '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
+     '[cljctools.ipfs.core :as ipfs.core]
+     :reload)
+    (import
+     '(io.libp2p.core Host)
+     '(io.libp2p.core.dsl HostBuilder)
+     '(io.libp2p.core.multiformats Multiaddr)
+     '(io.libp2p.core Stream P2PChannelHandler)
+     '(io.libp2p.protocol Ping
+                          PingProtocol PingController ProtocolHandler ProtobufProtocolHandler
+                          ProtocolMessageHandler ProtocolMessageHandler$DefaultImpls)
+     '(java.util.function Function)
+     '(java.util.concurrent CompletableFuture TimeUnit)
+     '(io.libp2p.security.noise NoiseXXSecureChannel)
+     '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding ProtocolDescriptor)
+     '(io.libp2p.core.crypto PrivKey)
+     '(cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
   (do
     (def node (->
                (HostBuilder.)
-               (.protocol (into-array Ping [(Ping.)]))
+               (.protocol (into-array ProtocolBinding [(Ping.) (ipfs.runtime.core/create-dht-protocol)]))
                (.secureChannel
                 (into-array Function [(reify Function
                                         (apply
@@ -271,13 +330,37 @@
     (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
     (def pinger (-> (Ping.) (.dial node address) (.getController) (.get)))
     (dotimes [i 5]
-      (let [latency (-> pinger (.ping) (.get))]
+      (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
         (println latency))))
 
   (.stop node)
 
+  (def dht-controller (-> (ipfs.runtime.core/create-dht-protocol) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
   
+  (send* dht-controller (-> (DhtProto$DhtMessage/newBuilder)
+                            (.setType DhtProto$DhtMessage$Type/PING)
+                            (.build)))
 
+
+
+
+  (StrictProtocolBinding. "/ipfs/ping/1.0.0" (PingProtocol.))
+  (ProtocolDescriptor. "/ipfs/ping/1.0.0")
+  (def strict-protocol-binding (proxy [StrictProtocolBinding] ["/ipfs/ping/1.0.0" (PingProtocol.)]))
+  (instance? StrictProtocolBinding strict-protocol-binding)
+
+  (def protocol-handler (proxy [ProtocolHandler] [1000 1000]))
+  (.initProtocolStream protocol-handler (reify Stream))
+
+
+  (instance? P2PChannelHandler (PingProtocol.))
+  (instance? ProtocolHandler (PingProtocol.))
+
+  (java.lang.reflect.Modifier/isAbstract (.getModifiers ProtocolMessageHandler))
+  (java.lang.reflect.Modifier/isInterface (.getModifiers ProtocolMessageHandler))
+  (java.lang.reflect.Modifier/isInterface (.getModifiers ProtocolBinding))
+
+  io.libp2p.protocol.ProtocolMessageHandler$DefaultImpls
 
 
   ;

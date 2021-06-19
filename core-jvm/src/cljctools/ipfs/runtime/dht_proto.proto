@@ -27,8 +27,8 @@ message Record {
 	string timeReceived = 5;
 }
 
-message Message {
-	enum MessageType {
+message DhtMessage {
+	enum Type {
 		PUT_VALUE = 0;
 		GET_VALUE = 1;
 		ADD_PROVIDER = 2;
@@ -50,23 +50,12 @@ message Message {
 		ConnectionType connection = 3;
 	}
 
-	MessageType type = 1;
+	Type type = 1;
 	int32 clusterLevelRaw = 10;
 	bytes key = 2;
 	Record record = 3;
 	repeated Peer closerPeers = 8;
 	repeated Peer providerPeers = 9;
-}
-
-message PeerRecord {
-  
-  message AddressInfo {
-      bytes multiaddr = 1;
-  }
-
-  bytes peer_id = 1;
-  uint64 seq = 2;
-  repeated AddressInfo addresses = 3;
 }
 
 message Envelope {
@@ -82,7 +71,7 @@ message Exchange {
 }
 
 
-message CircuitRelay {
+message CircuitRelayMessage {
 
   enum Status {
     not_defined1 = 0;
@@ -121,10 +110,4 @@ message CircuitRelay {
   Peer srcPeer = 2; 
   Peer dstPeer = 3;
   Status code = 4;
-}
-
-message NoiseHandshakePayload {
-	bytes identity_key = 1;
-	bytes identity_sig = 2;
-	bytes data = 3;
 }
