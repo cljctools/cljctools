@@ -6,6 +6,10 @@
 (defprotocol ToString
   (to-string* [_]))
 
+(defprotocol MultiAddress
+  #_ToByteArray
+  #_ToString)
+
 (defprotocol PeerId
   #_ToByteArray
   #_ToString)
@@ -29,10 +33,28 @@
   (verify* [_ dataBA signatureBA])
   #_Key)
 
-(defprotocol Close
-  (close* [_]))
+(defprotocol Release
+  (release* [_]))
+
+(defprotocol Connect
+  (connect* [_]))
+
+(defprotocol Send
+  (send* [_ msg]))
+
+(defprotocol Start
+  (start* [_]))
+
+(defprotocol Stop
+  (stop* [_]))
 
 (defprotocol Connection
-  (connect* [_])
-  (send* [_ msg])
-  #_Close)
+  #_Connect
+  #_Send
+  #_Release)
+
+(defprotocol Host
+  #_Start
+  #_Stop
+  #_Connect)
+

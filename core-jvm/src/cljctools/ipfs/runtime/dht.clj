@@ -1,4 +1,4 @@
-(ns cljctools.ipfs.dht.core
+(ns cljctools.ipfs.runtime.dht
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
@@ -12,14 +12,19 @@
 
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.protocols :as ipfs.protocols]
-   [cljctools.ipfs.runtime.core :as ipfs.runtime.core]))
+   [cljctools.ipfs.runtime.core :as ipfs.runtime.core]
+   [cljctools.ipfs.runtime.repl])
+  (:import
+   (io.libp2p.core Connection Host PeerId)
+   (io.libp2p.core.multiformats Multiaddr)))
 
-#?(:clj (do (set! *warn-on-reflection* true) (set! *unchecked-math* true)))
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+
 
 (defn create
   [{:as opts
     :keys []}]
-  
+
   (go
     (let [bootstrap-multiaddresses
           ["/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"

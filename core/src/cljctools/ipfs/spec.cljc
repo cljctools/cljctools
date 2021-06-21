@@ -13,6 +13,8 @@
                (satisfies? ipfs.protocols/ToByteArray %)
                (satisfies? ipfs.protocols/ToString %)))
 
+(s/def ::multi-address #(and
+                         (satisfies? ipfs.protocols/MultiAddress %)))
 
 (s/def ::RSA keyword?)
 (s/def ::Ed25519 keyword?)
@@ -30,6 +32,11 @@
 
 (s/def ::connection #(and
                       (satisfies? ipfs.protocols/Connection %)))
+
+(s/def ::host #(and
+                (satisfies? ipfs.protocols/Host %)))
+
+
 
 
 
