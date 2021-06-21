@@ -22,20 +22,22 @@
    (io.ipfs.multihash Multihash Multihash$Type)
    (io.ipfs.cid Cid Cid$Codec)
    (com.southernstorm.noise.protocol Noise CipherState DHState HandshakeState)
-   (java.net InetSocketAddress)
+   (java.net InetAddress InetSocketAddress)
    (io.netty.bootstrap Bootstrap)
    (io.netty.channel ChannelPipeline)
-   (io.libp2p.core Host)
+   (io.libp2p.core Connection Host PeerId)
    (io.libp2p.core.dsl HostBuilder)
-   (io.libp2p.core.multiformats Multiaddr)
+   (io.libp2p.core.multiformats Multiaddr MultiaddrDns)
    (io.libp2p.core Libp2pException Stream P2PChannelHandler)
    (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
    (io.libp2p.protocol Ping PingController ProtocolHandler ProtobufProtocolHandler
                        ProtocolMessageHandler ProtocolMessageHandler$DefaultImpls)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.crypto PrivKey)
-   (java.util.function Function)
-   (io.netty.buffer ByteBuf ByteBufUtil)
+   (io.libp2p.pubsub.gossip Gossip)
+   (io.libp2p.core.pubsub Topic MessageApi)
+   (java.util.function Function Consumer)
+   (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
    (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
@@ -137,7 +139,14 @@
       (close*
        [_]))))
 
+(defmulti to-byte-array type)
 
+(defmethod to-byte-array ByteBuf ^bytes
+  [^ByteBuf bytebuf]
+  (let [byte-arr (byte-array (.readableBytes bytebuf))]
+    (->   (.slice bytebuf)
+          (.readBytes byte-arr))
+    byte-arr))
 
 
 (comment
@@ -271,6 +280,9 @@
               (CompletableFuture/completedFuture handler))))]
     (proxy [StrictProtocolBinding] ["/ipfs/kad/1.0.0" protocol])))
 
+(def dns-protocols (into-array [io.libp2p.core.multiformats.Protocol/DNS4
+                                io.libp2p.core.multiformats.Protocol/DNS6
+                                io.libp2p.core.multiformats.Protocol/DNSADDR]))
 
 (comment
 
@@ -286,19 +298,23 @@
      '[cljctools.ipfs.core :as ipfs.core]
      :reload)
     (import
-     '(io.libp2p.core Host)
+     '(io.libp2p.core Connection Host PeerId)
      '(io.libp2p.core.dsl HostBuilder)
-     '(io.libp2p.core.multiformats Multiaddr)
+     '(java.net InetAddress InetSocketAddress)
+     '(io.libp2p.core.multiformats Multiaddr MultiaddrDns)
      '(io.libp2p.core Libp2pException Stream P2PChannelHandler)
      '(io.libp2p.protocol Ping
                           PingProtocol PingController ProtocolHandler ProtobufProtocolHandler
                           ProtocolMessageHandler ProtocolMessageHandler$DefaultImpls)
-     '(java.util.function Function)
-     '(io.netty.buffer ByteBuf ByteBufUtil)
+     '(java.util.function Function Consumer)
+     '(io.netty.buffer ByteBuf ByteBufUtil Unpooled)
      '(java.util.concurrent CompletableFuture TimeUnit)
      '(io.libp2p.security.noise NoiseXXSecureChannel)
      '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding ProtocolDescriptor)
      '(io.libp2p.core.crypto PrivKey)
+     '(io.libp2p.pubsub.gossip Gossip)
+     '(io.libp2p.core.pubsub Topic MessageApi)
+     '(io.libp2p.discovery MDnsDiscovery)
      '(com.google.protobuf ByteString)
      '(cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
@@ -337,12 +353,6 @@
                                          (ByteString/copyFrom)))
                                (.build)))
 
-
-
-
-
-
-
   (StrictProtocolBinding. "/ipfs/ping/1.0.0" (PingProtocol.))
   (ProtocolDescriptor. "/ipfs/ping/1.0.0")
   (def strict-protocol-binding (proxy [StrictProtocolBinding] ["/ipfs/ping/1.0.0" (PingProtocol.)]))
@@ -360,6 +370,141 @@
   (java.lang.reflect.Modifier/isInterface (.getModifiers ProtocolBinding))
 
   io.libp2p.protocol.ProtocolMessageHandler$DefaultImpls
+
+
+  ;
+  )
+
+(comment
+
+  (do
+    (defn start-host
+      [gossip]
+      (let [host (->
+                  (HostBuilder.)
+                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.core/create-dht-protocol)]))
+                  (.secureChannel
+                   (into-array Function [(reify Function
+                                           (apply
+                                             [_ priv-key]
+                                             (NoiseXXSecureChannel. ^PrivKey priv-key)))]))
+                  (.listen (into-array String ["/ip4/127.0.0.1/tcp/0"]))
+                  (.build))]
+        (-> host (.start) (.get))
+        (println (format "host listening on \n %s" (.listenAddresses host)))
+        host))
+    (defn connect
+      ([host multiaddr]
+       (connect host (.getFirst (.toPeerIdAndAddr multiaddr)) [(.getSecond (.toPeerIdAndAddr multiaddr))]))
+      ([host peerid multiaddrs]
+       (->
+        host
+        (.getNetwork)
+        (.connect ^PeerId peerid (into-array Multiaddr multiaddrs))
+        (.thenAccept (reify Consumer
+                       (accept [_ connection]
+                         (println ::connected connection)))))))
+
+    (defn ping
+      [host address]
+      (let [pinger (-> (Ping.) (.dial host address) (.getController) (.get 5 TimeUnit/SECONDS))]
+        (dotimes [i 5]
+          (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
+            (println latency)))))
+
+    (defn subsribe
+      [gossip key topic]
+      (.subscribe gossip
+                  (reify Consumer
+                    (accept [_ msg]
+                      (println ::gossip-recv-msg key (-> ^MessageApi msg
+                                                         (.getData)
+                                                         (ipfs.runtime.core/to-byte-array)
+                                                         (bytes.runtime.core/to-string)))))
+                  (into-array Topic [(Topic. topic)])))
+
+    (defn publish
+      [publisher topic string]
+      (.publish publisher (Unpooled/wrappedBuffer (.getBytes string "UTF-8")) (into-array Topic [(Topic. topic)])))
+
+    (defn linst-methods
+      [v]
+      (->> v
+           clojure.reflect/reflect
+           :members
+           (filter #(contains? (:flags %) :public))
+           (filter #(or (instance? clojure.reflect.Method %)
+                        (instance? clojure.reflect.Constructor %)))
+           (sort-by :name)
+           (map #(select-keys % [:name :return-type :parameter-types]))
+           clojure.pprint/print-table)))
+
+
+  (do
+    (def address1 (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
+    (def address2 (Multiaddr/fromString "/dnsaddr/bootstrap.libp2p.io/ipfs/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"))
+    (def address21 (Multiaddr/fromString "/ip4/147.75.109.213/tcp/4001/ipfs/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"))
+    (def address3 (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ")))
+
+  (do
+    (def gossip1 (Gossip.))
+    (def host1 (start-host gossip1))
+
+    (def gossip2 (Gossip.))
+    (def host2 (start-host gossip2))
+
+    (def host3 (start-host gossip2)))
+
+  (.getPeerId host1)
+  (.listenAddresses host1)
+
+
+  (connect host1 (.getPeerId host2) (.listenAddresses host2))
+
+  (subsribe gossip1  :gossip1  "topic1")
+  (subsribe gossip2  :gossip2  "topic1")
+
+  (def publisher1 (.createPublisher gossip1 (.getPrivKey host1) 1234))
+  (def publisher2 (.createPublisher gossip2 (.getPrivKey host2) 4321))
+
+
+  (publish publisher1 "topic1" "from publisher1")
+  (publish publisher2 "topic1" "from publisher2")
+  
+  (connect host1 (.getPeerId host3) (.listenAddresses host3))
+  (connect host2 (.getPeerId host3) (.listenAddresses host3))
+  
+
+  (connect host1 address3)
+  (connect host2 address3)
+
+  (.toString (.getSecond (.toPeerIdAndAddr address2)))
+
+  (MultiaddrDns/resolve address2)
+
+  (-> MultiaddrDns (clojure.reflect/reflect) (clojure.pprint/pprint))
+  (-> io.libp2p.core.multiformats.MultiaddrDns$Companion (clojure.reflect/reflect) (clojure.pprint/pprint))
+
+  (->>
+   (InetAddress/getAllByName "libp2p.io")
+   (filter (fn [inet-addr] (instance? java.net.Inet4Address inet-addr)))
+   (map (fn [inet-addr] (.getHostAddress ^InetAddress inet-addr))))
+
+  host -t TXT _dnsaddr.bootstrap.libp2p.io
+  nslookup sjc-2.bootstrap.libp2p.io
+  ; ewr-1.bootstrap.libp2p.io 147.75.77.187
+  ; ams-rust.bootstrap.libp2p.io 145.40.68.179
+  ; ams-2.bootstrap.libp2p.io 147.75.83.83
+  ; nrt-1.bootstrap.libp2p.io 147.75.94.115
+  ; sjc-2.bootstrap.libp2p.io 147.75.109.29
+  ; sjc-1.bootstrap.libp2p.io 147.75.109.213
+
+
+  (ping host1 address3)
+  (ping host1 address21)
+  
+  
+
 
 
   ;
