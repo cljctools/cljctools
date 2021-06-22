@@ -1,4 +1,4 @@
-(ns cljctools.ipfs.runtime.dht
+(ns cljctools.ipfs.runtime.node
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
@@ -18,15 +18,14 @@
    (io.libp2p.core.multiformats Multiaddr)
    (io.libp2p.pubsub.gossip Gossip)
    (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
-   (io.libp2p.protocol Ping)))
+   (io.libp2p.protocol Ping)
+   (java.util.concurrent CompletableFuture TimeUnit)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
-
 
 (defn create
   [{:as opts
     :keys []}]
-
   (go
     (let [bootstrap-multiaddresses
           ["/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
@@ -43,10 +42,28 @@
           ping-protocol (Ping.)
           dht-protocol (ipfs.runtime.impl/create-dht-protocol)
           gossip-potocol (Gossip.)
-          host (ipfs.runtime.impl/create-host [ping-protocol dht-protocol gossip-potocol])]
+          host (ipfs.runtime.impl/create-host [ping-protocol dht-protocol gossip-potocol])
+
+          node
+          ^{:type ::ipfs.spec/node}
+          (reify
+            ipfs.protocols/Node
+            (subsribe*
+              [_ topic on-message])
+            (unsubsribe*
+              [_ topic])
+            (publish*
+              [_ topic msg])
+            ipfs.protocols/Release
+            (release*
+              [_]))]
+
+      (-> host (.start) (.get 2 TimeUnit/SECONDS))
+      (println (format "host listening on \n %s" (.listenAddresses host)))
 
       (go
         (loop []))
 
       (go
-        (loop [])))))
+        (loop []))
+      node)))

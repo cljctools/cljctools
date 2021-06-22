@@ -18,6 +18,6 @@
    (io.ipfs.multihash Multihash Multihash$Type)
    (io.ipfs.cid Cid Cid$Codec)
    (io.libp2p.core Connection Host PeerId)
-   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
+   (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))

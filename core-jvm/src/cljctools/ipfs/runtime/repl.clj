@@ -36,7 +36,7 @@
    (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
-   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
+   (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
 
 #_(do
     (defn decode-mplex
@@ -187,7 +187,7 @@
    '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    '[cljctools.ipfs.runtime.impl :as ipfs.runtime.impl]
    '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
-   '[cljctools.ipfs.runtime.dht :as ipfs.runtime.dht]
+   '[cljctools.ipfs.runtime.node :as ipfs.runtime.node]
    '[cljctools.ipfs.runtime.repl :as ipfs.runtime.repl]
    :reload)
 
@@ -280,7 +280,7 @@
      '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
      '[cljctools.ipfs.runtime.impl :as ipfs.runtime.impl]
      '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
-     '[cljctools.ipfs.runtime.dht :as ipfs.runtime.dht]
+     '[cljctools.ipfs.runtime.node :as ipfs.runtime.node]
      '[cljctools.ipfs.runtime.repl :as ipfs.runtime.repl]
      :reload)
     (import
@@ -302,7 +302,7 @@
      '(io.libp2p.core.pubsub Topic MessageApi)
      '(io.libp2p.discovery MDnsDiscovery)
      '(com.google.protobuf ByteString)
-     '(cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
+     '(cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
 
   (do
     (def ping (Ping.))
@@ -332,8 +332,8 @@
   (def dht-controller (-> dht-protocol (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
 
   (ipfs.runtime.impl/send* dht-controller
-                           (-> (DhtProto$DhtMessage/newBuilder)
-                               (.setType DhtProto$DhtMessage$Type/FIND_NODE)
+                           (-> (NodeProto$DhtMessage/newBuilder)
+                               (.setType NodeProto$DhtMessage$Type/FIND_NODE)
                                (.setKey (->
                                          "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
                                          (io.ipfs.multihash.Multihash/fromBase58)
@@ -492,6 +492,15 @@
 
   (ping host1 address3)
   (ping host1 address21)
+
+
+  ;
+  )
+
+(comment
+
+  (def node1 (ipfs.runtime.node/create {}))
+  (def node2 (ipfs.runtime.node/create {}))
 
 
   ;

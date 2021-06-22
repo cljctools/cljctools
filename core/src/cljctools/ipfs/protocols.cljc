@@ -58,3 +58,9 @@
   #_Stop
   #_Connect)
 
+(defprotocol Node
+  (subsribe* [_ topic on-message])
+  (unsubsribe* [_ topic])
+  (publish* [_ topic msg])
+  #_Release)
+

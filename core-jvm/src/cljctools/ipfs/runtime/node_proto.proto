@@ -2,7 +2,7 @@ syntax = "proto3";
 package cljctools.ipfs.runtime;
 
 // SRC=ipfs/src/proto/src bash -c 'protoc --clojure_out=${SRC} ${SRC}/cljctools/ipfs/proto/dht.proto'
-// SRC=ipfs/core-jvm/src bash -c 'protoc --java_out=${SRC} ${SRC}/cljctools/ipfs/runtime/dht_proto.proto'
+// SRC=ipfs/core-jvm/src bash -c 'protoc --java_out=${SRC} ${SRC}/cljctools/ipfs/runtime/node_proto.proto'
 
 enum KeyType {
 	RSA = 0;

@@ -19,7 +19,7 @@
    (org.bouncycastle.asn1 ASN1Primitive)
    (com.google.protobuf ByteString)
    (org.bouncycastle.jcajce.provider.digest SHA3 SHA3$Digest224 SHA3$Digest256 SHA3$Digest384 SHA3$Digest512)
-   (cljctools.ipfs.runtime DhtProto DhtProto$KeyType DhtProto$PrivateKey DhtProto$PublicKey)))
+   (cljctools.ipfs.runtime NodeProto NodeProto$KeyType NodeProto$PrivateKey NodeProto$PublicKey)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -218,10 +218,10 @@
      ::ipfs.spec/public-key  (create-public-key key-type (cast Ed25519PublicKeyParameters (.getPublic key-pair)))}))
 
 (def key-type-to-proto-enum
-  {::ipfs.spec/RSA DhtProto$KeyType/RSA
-   ::ipfs.spec/Ed25519 DhtProto$KeyType/Ed25519
-   ::ipfs.spec/Secp256k1 DhtProto$KeyType/Secp256k1
-   ::ipfs.spec/ECDSA DhtProto$KeyType/ECDSA})
+  {::ipfs.spec/RSA NodeProto$KeyType/RSA
+   ::ipfs.spec/Ed25519 NodeProto$KeyType/Ed25519
+   ::ipfs.spec/Secp256k1 NodeProto$KeyType/Secp256k1
+   ::ipfs.spec/ECDSA NodeProto$KeyType/ECDSA})
 
 (def proto-enum-to-key-type
   (->>
@@ -232,30 +232,30 @@
 (defn protobuf-encode-public-key
   [public-key]
   (->
-   (DhtProto$PublicKey/newBuilder)
-   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* public-key)))
+   (NodeProto$PublicKey/newBuilder)
+   (.setType ^NodeProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* public-key)))
    (.setData (ByteString/copyFrom ^bytes (ipfs.protocols/to-byte-array* public-key)))
    (.build)
    (.toByteArray)))
 
 (defn protobuf-decode-public-key
   [byte-arr]
-  (let [pub-key-proto (DhtProto$PublicKey/parseFrom ^bytes byte-arr)
+  (let [pub-key-proto (NodeProto$PublicKey/parseFrom ^bytes byte-arr)
         pub-keyBA (-> pub-key-proto (.getData) (.toByteArray))]
     (decode-public-key (get proto-enum-to-key-type (.getType pub-key-proto)) pub-keyBA)))
 
 (defn protobuf-encode-private-key
   [private-key]
   (->
-   (DhtProto$PrivateKey/newBuilder)
-   (.setType ^DhtProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* private-key)))
+   (NodeProto$PrivateKey/newBuilder)
+   (.setType ^NodeProto$KeyType (get key-type-to-proto-enum (ipfs.protocols/key-type* private-key)))
    (.setData (ByteString/copyFrom ^bytes (ipfs.protocols/to-byte-array* private-key)))
    (.build)
    (.toByteArray)))
 
 (defn protobuf-decode-private-key
   [byte-arr]
-  (let [priv-key-proto (DhtProto$PrivateKey/parseFrom ^bytes byte-arr)
+  (let [priv-key-proto (NodeProto$PrivateKey/parseFrom ^bytes byte-arr)
         priv-keyBA (-> priv-key-proto (.getData) (.toByteArray))]
     (decode-private-key (get proto-enum-to-key-type (.getType priv-key-proto)) priv-keyBA)))
 

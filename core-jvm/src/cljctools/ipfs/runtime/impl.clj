@@ -36,7 +36,7 @@
    (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
-   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
+   (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -60,7 +60,7 @@
   (let [protocol
         (proxy
          [ProtobufProtocolHandler]
-         [(DhtProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
+         [(NodeProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
           (onStartInitiator
             [stream]
             (println ::onStartInitiator)
@@ -71,9 +71,9 @@
                               (println :dht-requester-activated))
                             (onMessage
                               [_ stream msg]
-                              (let [msg ^DhtProto$DhtMessage msg]
+                              (let [msg ^NodeProto$DhtMessage msg]
                                 (println :requester-recv-dht-message (-> msg (.getType) (.name)))
-                                (when (= (.getType msg) DhtProto$DhtMessage$Type/FIND_NODE)
+                                (when (= (.getType msg) NodeProto$DhtMessage$Type/FIND_NODE)
                                   (println (.size ^java.util.List (.getCloserPeersList msg))))))
                             (onClosed
                               [_ stream]
@@ -102,7 +102,7 @@
                               (println :dht-responder-activated))
                             (onMessage
                               [_ stream msg]
-                              (println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
+                              (println :responder-recv-dht-message (-> ^NodeProto$DhtMessage msg (.getType) (.name))))
                             (onClosed
                               [_ stream]
                               (println :dht-responder-connection-closed))
@@ -117,7 +117,7 @@
               (CompletableFuture/completedFuture handler))))]
     (proxy [StrictProtocolBinding] ["/ipfs/kad/1.0.0" protocol])))
 
-(defn create-host
+(defn create-host ^Host
   [protocols]
   (->
    (HostBuilder.)
