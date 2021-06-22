@@ -185,6 +185,7 @@
    '[cljctools.ipfs.protocols :as ipfs.protocols]
    '[cljctools.ipfs.spec :as ipfs.spec]
    '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
+   '[cljctools.ipfs.runtime.impl :as ipfs.runtime.impl]
    '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
    '[cljctools.ipfs.runtime.dht :as ipfs.runtime.dht]
    '[cljctools.ipfs.runtime.repl :as ipfs.runtime.repl]
@@ -196,7 +197,7 @@
       (ipfs.runtime.crypto/generate-keypair ::ipfs.spec/Ed25519))
     (def private-key (::ipfs.spec/private-key key-pair))
     (def public-key (::ipfs.spec/public-key key-pair))
-    (def peer-id (ipfs.runtime.core/create-peer-id public-key))
+    (def peer-id (ipfs.runtime.repl/create-peer-id public-key))
     (ipfs.protocols/to-string* peer-id))
 
   (do
@@ -209,8 +210,8 @@
     (-> (.toString cid)
         (io.ipfs.cid.Cid/decode)
         (.getHash)
-        (ipfs.runtime.core/encode-multihash)
-        (ipfs.runtime.core/create-peer-id)
+        (ipfs.runtime.repl/encode-multihash)
+        (ipfs.runtime.repl/create-peer-id)
         (ipfs.protocols/to-string*)
         (= (.toString multihash))))
 
@@ -223,18 +224,18 @@
   ; 0 first
 
   (-> "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
-      (ipfs.runtime.core/create-peer-id)
+      (ipfs.runtime.repl/create-peer-id)
       (ipfs.protocols/to-byte-array*)
-      (ipfs.runtime.core/decode-multihash)
+      (ipfs.runtime.repl/decode-multihash)
       (ipfs.runtime.crypto/protobuf-decode-public-key)
-      (ipfs.runtime.core/create-peer-id)
+      (ipfs.runtime.repl/create-peer-id)
       (ipfs.protocols/to-string*))
 
   (-> "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
       (io.ipfs.multihash.Multihash/fromBase58)
       (.getHash)
       (ipfs.runtime.crypto/protobuf-decode-public-key)
-      (ipfs.runtime.core/create-peer-id)
+      (ipfs.runtime.repl/create-peer-id)
       (ipfs.protocols/to-string*))
 
   ;
@@ -250,10 +251,10 @@
   ; "Elapsed time: 801.452481 msecs"
 
   (let [id1BA (-> "12D3KooWGDYpB839K6f12Z49qayjZbwBAYXFuDYSMEDJs7dwmD4c"
-                  (ipfs.runtime.core/create-peer-id)
+                  (ipfs.runtime.repl/create-peer-id)
                   (ipfs.protocols/to-byte-array*))
         id2BA (-> "12D3KooWMCS4kKTbAsJ6pzPFpNopzCdftMQ9Nm9dFbWMJNqrWA7i"
-                  (ipfs.runtime.core/create-peer-id)
+                  (ipfs.runtime.repl/create-peer-id)
                   (ipfs.protocols/to-byte-array*))]
     (time
      (dotimes [i 10000000]
@@ -277,6 +278,7 @@
      '[cljctools.ipfs.protocols :as ipfs.protocols]
      '[cljctools.ipfs.spec :as ipfs.spec]
      '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
+     '[cljctools.ipfs.runtime.impl :as ipfs.runtime.impl]
      '[cljctools.ipfs.runtime.core :as ipfs.runtime.core]
      '[cljctools.ipfs.runtime.dht :as ipfs.runtime.dht]
      '[cljctools.ipfs.runtime.repl :as ipfs.runtime.repl]
@@ -303,9 +305,11 @@
      '(cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
   (do
+    (def ping (Ping.))
+    (def dht-protocol (ipfs.runtime.impl/create-dht-protocol))
     (def node (->
                (HostBuilder.)
-               (.protocol (into-array ProtocolBinding [(Ping.) (ipfs.runtime.core/create-dht-protocol)]))
+               (.protocol (into-array ProtocolBinding [ping dht-protocol]))
                (.secureChannel
                 (into-array Function [(reify Function
                                         (apply
@@ -318,16 +322,16 @@
 
   (do
     (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
-    (def pinger (-> (Ping.) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
+    (def pinger (-> ping (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
     (dotimes [i 5]
       (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
         (println latency))))
 
   (.stop node)
 
-  (def dht-controller (-> (ipfs.runtime.core/create-dht-protocol) (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
+  (def dht-controller (-> dht-protocol (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
 
-  (ipfs.runtime.core/send* dht-controller
+  (ipfs.runtime.impl/send* dht-controller
                            (-> (DhtProto$DhtMessage/newBuilder)
                                (.setType DhtProto$DhtMessage$Type/FIND_NODE)
                                (.setKey (->
@@ -367,7 +371,7 @@
       [gossip]
       (let [host (->
                   (HostBuilder.)
-                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.core/create-dht-protocol)]))
+                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.impl/create-dht-protocol)]))
                   (.secureChannel
                    (into-array Function [(reify Function
                                            (apply
@@ -378,6 +382,7 @@
         (-> host (.start) (.get))
         (println (format "host listening on \n %s" (.listenAddresses host)))
         host))
+    
     (defn connect
       ([host multiaddr]
        (connect host (.getFirst (.toPeerIdAndAddr multiaddr)) [(.getSecond (.toPeerIdAndAddr multiaddr))]))
@@ -404,7 +409,7 @@
                     (accept [_ msg]
                       (println ::gossip-recv-msg key (-> ^MessageApi msg
                                                          (.getData)
-                                                         (ipfs.runtime.core/to-byte-array)
+                                                         (ipfs.runtime.impl/to-byte-array)
                                                          (bytes.runtime.core/to-string)))))
                   (into-array Topic [(Topic. topic)])))
 

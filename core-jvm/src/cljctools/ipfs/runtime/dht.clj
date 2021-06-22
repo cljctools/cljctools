@@ -12,11 +12,13 @@
 
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.protocols :as ipfs.protocols]
-   [cljctools.ipfs.runtime.core :as ipfs.runtime.core]
-   [cljctools.ipfs.runtime.repl])
+   [cljctools.ipfs.runtime.impl :as ipfs.runtime.impl])
   (:import
    (io.libp2p.core Connection Host PeerId)
-   (io.libp2p.core.multiformats Multiaddr)))
+   (io.libp2p.core.multiformats Multiaddr)
+   (io.libp2p.pubsub.gossip Gossip)
+   (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
+   (io.libp2p.protocol Ping)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -36,7 +38,12 @@
            #_"/dns4/node2.preload.ipfs.io/tcp/443/wss/p2p/QmV7gnbW5VTcJ3oyM2Xk1rdFBJ3kTkvxc87UFGsun29STS"
            #_"/dns4/node3.preload.ipfs.io/tcp/443/wss/p2p/QmY7JB6MQXhxHvq7dBDh4HpbH29v4yE9JRadAVpndvzySN"
            "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"
-           "/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"]]
+           "/ip4/104.131.131.82/udp/4001/quic/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"]
+
+          ping-protocol (Ping.)
+          dht-protocol (ipfs.runtime.impl/create-dht-protocol)
+          gossip-potocol (Gossip.)
+          host (ipfs.runtime.impl/create-host [ping-protocol dht-protocol gossip-potocol])]
 
       (go
         (loop []))
