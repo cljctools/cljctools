@@ -23,7 +23,7 @@
    (io.netty.channel ChannelPipeline)
    (io.libp2p.core Connection Host PeerId)
    (io.libp2p.core.dsl HostBuilder)
-   (io.libp2p.core.multiformats Multiaddr MultiaddrDns)
+   (io.libp2p.core.multiformats Multiaddr MultiaddrDns Protocol)
    (io.libp2p.core Libp2pException Stream P2PChannelHandler)
    (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
    (io.libp2p.protocol Ping PingController ProtocolHandler ProtobufProtocolHandler
@@ -55,8 +55,9 @@
 (defprotocol DhtController
   (send* [_ msg]))
 
-(defn create-dht-protocol
-  []
+(defn create-dht-protocol ^StrictProtocolBinding
+  [{:as opts
+    :keys [on-message]}]
   (let [protocol
         (proxy
          [ProtobufProtocolHandler]
@@ -71,10 +72,11 @@
                               (println :dht-requester-activated))
                             (onMessage
                               [_ stream msg]
-                              (let [msg ^NodeProto$DhtMessage msg]
-                                (println :requester-recv-dht-message (-> msg (.getType) (.name)))
-                                (when (= (.getType msg) NodeProto$DhtMessage$Type/FIND_NODE)
-                                  (println (.size ^java.util.List (.getCloserPeersList msg))))))
+                              (on-message stream msg)
+                              #_(let [msg ^NodeProto$DhtMessage msg]
+                                  (println :requester-recv-dht-message (-> msg (.getType) (.name)))
+                                  (when (= (.getType msg) NodeProto$DhtMessage$Type/FIND_NODE)
+                                    (println (.size ^java.util.List (.getCloserPeersList msg))))))
                             (onClosed
                               [_ stream]
                               (println :dht-connection-closed))
@@ -101,8 +103,9 @@
                               [_ stream]
                               (println :dht-responder-activated))
                             (onMessage
-                              [_ stream msg]
-                              (println :responder-recv-dht-message (-> ^NodeProto$DhtMessage msg (.getType) (.name))))
+                             [_ stream msg]
+                             (on-message stream msg)
+                             #_(println :responder-recv-dht-message (-> ^NodeProto$DhtMessage msg (.getType) (.name))))
                             (onClosed
                               [_ stream]
                               (println :dht-responder-connection-closed))
@@ -116,6 +119,22 @@
               (.pushHandler ^Stream stream handler)
               (CompletableFuture/completedFuture handler))))]
     (proxy [StrictProtocolBinding] ["/ipfs/kad/1.0.0" protocol])))
+
+(defn cfuture-to-channel
+  ([^CompletableFuture cfuture]
+   (cfuture-to-channel cfuture nil))
+  ([^CompletableFuture cfuture timeout|]
+   (let [result| (chan 1)
+         out| (chan 1)]
+     (.thenApply cfuture (reify Function
+                           (apply [_ result]
+                             (put! result| result))))
+     (do-alts (fn [[value port]]
+                (.cancel cfuture true)
+                (if (some? value)
+                  (put! out| value)
+                  (close! out|))) (if timeout| [result| timeout|] [result|]) {})
+     out|)))
 
 (defn create-host ^Host
   [protocols]
@@ -133,14 +152,14 @@
 (defn connect
   ([host multiaddr]
    (connect host (.getFirst (.toPeerIdAndAddr ^Multiaddr multiaddr)) [(.getSecond (.toPeerIdAndAddr ^Multiaddr multiaddr))]))
-  ([host peerid multiaddrs]
+  ([host peer-id multiaddrs]
    (->
     ^Host host
     (.getNetwork)
-    (.connect ^PeerId peerid (into-array Multiaddr multiaddrs))
-    (.thenAccept (reify Consumer
-                   (accept [_ connection]
-                     (println ::connected connection)))))))
+    (.connect ^PeerId peer-id (into-array Multiaddr multiaddrs))
+    (.thenApply (reify Function
+                  (apply [_ connection]
+                    (println ::connected connection)))))))
 
 (defn ping
   [ping-protocol host multiaddr]
@@ -148,3 +167,12 @@
     (dotimes [i 5]
       (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
         (println latency)))))
+
+(defn ip4-tcp-multiaddr
+  [multiaddrs]
+  (->>
+   multiaddrs
+   (filter (fn [^Multiaddr multiaddr]
+             (and (.has multiaddr Protocol/IP4)
+                  (.has multiaddr Protocol/TCP))))
+   (first)))

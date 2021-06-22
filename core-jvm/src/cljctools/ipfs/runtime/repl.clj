@@ -284,10 +284,10 @@
      '[cljctools.ipfs.runtime.repl :as ipfs.runtime.repl]
      :reload)
     (import
-     '(io.libp2p.core Connection Host PeerId)
+     '(io.libp2p.core Connection Host PeerId Stream)
      '(io.libp2p.core.dsl HostBuilder)
      '(java.net InetAddress InetSocketAddress)
-     '(io.libp2p.core.multiformats Multiaddr MultiaddrDns)
+     '(io.libp2p.core.multiformats Multiaddr MultiaddrDns Protocol)
      '(io.libp2p.core Libp2pException Stream P2PChannelHandler)
      '(io.libp2p.protocol Ping
                           PingProtocol PingController ProtocolHandler ProtobufProtocolHandler
@@ -299,15 +299,16 @@
      '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding ProtocolDescriptor)
      '(io.libp2p.core.crypto PrivKey)
      '(io.libp2p.pubsub.gossip Gossip)
+     '(io.libp2p.etc.encode Base58)
      '(io.libp2p.core.pubsub Topic MessageApi)
      '(io.libp2p.discovery MDnsDiscovery)
      '(com.google.protobuf ByteString)
-     '(cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
+     '(cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type NodeProto$DhtMessage$Peer)))
 
   (do
     (def ping (Ping.))
     (def dht-protocol (ipfs.runtime.impl/create-dht-protocol))
-    (def node (->
+    (def host (->
                (HostBuilder.)
                (.protocol (into-array ProtocolBinding [ping dht-protocol]))
                (.secureChannel
@@ -317,19 +318,19 @@
                                           (NoiseXXSecureChannel. ^PrivKey priv-key)))]))
                (.listen (into-array String ["/ip4/127.0.0.1/tcp/0"]))
                (.build)))
-    (-> node (.start) (.get))
-    (println (format "node listening on \n %s" (.listenAddresses node))))
+    (-> host (.start) (.get))
+    (println (format "host listening on \n %s" (.listenAddresses host))))
 
   (do
     (def address (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ"))
-    (def pinger (-> ping (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
+    (def pinger (-> ping (.dial host address) (.getController) (.get 5 TimeUnit/SECONDS)))
     (dotimes [i 5]
       (let [latency (-> pinger (.ping) (.get 5 TimeUnit/SECONDS))]
         (println latency))))
 
-  (.stop node)
+  (.stop host)
 
-  (def dht-controller (-> dht-protocol (.dial node address) (.getController) (.get 5 TimeUnit/SECONDS)))
+  (def dht-controller (-> dht-protocol (.dial host address) (.getController) (.get 5 TimeUnit/SECONDS)))
 
   (ipfs.runtime.impl/send* dht-controller
                            (-> (NodeProto$DhtMessage/newBuilder)
@@ -386,11 +387,11 @@
     (defn connect
       ([host multiaddr]
        (connect host (.getFirst (.toPeerIdAndAddr multiaddr)) [(.getSecond (.toPeerIdAndAddr multiaddr))]))
-      ([host peerid multiaddrs]
+      ([host peer-id multiaddrs]
        (->
         host
         (.getNetwork)
-        (.connect ^PeerId peerid (into-array Multiaddr multiaddrs))
+        (.connect ^PeerId peer-id (into-array Multiaddr multiaddrs))
         (.thenAccept (reify Consumer
                        (accept [_ connection]
                          (println ::connected connection)))))))
@@ -499,9 +500,43 @@
 
 (comment
 
-  (def node1 (ipfs.runtime.node/create {}))
-  (def node2 (ipfs.runtime.node/create {}))
+
+  (def cf (java.util.concurrent.CompletableFuture.))
+
+  (.thenApply cf (reify Function
+                   (apply [_ result]
+                     (println :complete result))))
+
+  (.complete cf 3)
+
+  (dotimes [i 1000000]
+    (let [cf (java.util.concurrent.CompletableFuture.)]
+      (.thenApply cf (reify Function
+                       (apply [_ result]
+                         (println :complete result))))))
+
+  ;
+  )
+
+(comment
+
+  (def node1 (a/<!! (ipfs.runtime.node/create {})))
+  (def node2 (a/<!! (ipfs.runtime.node/create {})))
 
 
+  (ipfs.protocols/connect* node1 (ipfs.protocols/get-peer-id* node2) (ipfs.protocols/get-listen-multiaddrs* node2))
+
+  (ipfs.protocols/subscribe* node1 "topic123" (fn [{:keys [dataBA from topics]}]
+                                                (->
+                                                 dataBA
+                                                 (bytes.runtime.core/to-string)
+                                                 (->> (println :received-msg)))))
+
+  (ipfs.protocols/publish* node2 "topic123" "message-from-node2")
+
+
+  (do
+    (ipfs.protocols/release* node1)
+    (ipfs.protocols/release* node2))
   ;
   )

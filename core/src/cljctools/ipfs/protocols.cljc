@@ -37,7 +37,10 @@
   (release* [_]))
 
 (defprotocol Connect
-  (connect* [_]))
+  (connect* [_] [_ a] [_ a b]))
+
+(defprotocol Disconnect
+  (disconnect* [_] [_ a] [_ a b]))
 
 (defprotocol Send
   (send* [_ msg]))
@@ -59,8 +62,13 @@
   #_Connect)
 
 (defprotocol Node
-  (subsribe* [_ topic on-message])
-  (unsubsribe* [_ topic])
+  (get-peer-id* [_])
+  (get-listen-multiaddrs* [_])
+  (subscribe* [_ topic on-message])
+  (unsubscribe* [_ topic])
   (publish* [_ topic msg])
+  (ping* [_ multiaddr])
+  (send-dht* [_ multiaddr msg])
+  (find-node* [_ multiaddr])
   #_Release)
 
