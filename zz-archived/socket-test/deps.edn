@@ -1,0 +1,47 @@
+{:paths ["src"]
+ :deps
+ {github.cljtools/socket-meta {:local/root  "./src/socket-meta"}
+  github.cljtools/socket {:local/root  "./src/socket"}}
+
+ :aliases
+ {:core
+  {:extra-deps {org.clojure/spec.alpha {:mvn/version "0.2.187"}
+                org.clojure/core.async {:mvn/version "1.1.587"}}}
+  :clj
+  {:extra-deps {org.clojure/clojure {:mvn/version "1.10.3"}
+                nrepl/bencode  {:mvn/version "1.1.0"}}}
+
+  :cljs
+  {:extra-deps {org.clojure/clojurescript {:mvn/version "1.10.758"}}}
+
+  :test
+  {:extra-deps {org.clojure/test.check {:mvn/version "1.0.0"}}}
+
+  :nodejs-net
+  {:extra-deps {github.cljctools/socket-nodejs-test {:local/root "./src/socket-nodejs-net"}}}
+
+  :repl
+  {:extra-deps {github.cljctools/deps-repl {:git/url "https://github.com/cljctools/deps-repl"
+                                            :sha "08283d3841c5948b0b9d36a977ebfdad111cdb2f"
+                                            :tag "v2.0.1"}
+                nrepl/nrepl {:mvn/version "0.8.3"}
+                cider/cider-nrepl {:mvn/version "0.25.5"}}
+   :main-opts ["-m" "lambdaisland.nrepl.main"
+               "--init-ns" "cljctools.socket.java-net-test"
+               "--port" "7788"
+               "--bind" "0.0.0.0"
+               "--middleware" "cider.nrepl/cider-middleware"]}
+
+  :clj-test-runner
+  {:extra-deps {github.cognitect-labs/test-runner {:git/url "https://github.com/cognitect-labs/test-runner"
+                                                   :sha "b6b3193fcc42659d7e46ecd1884a228993441182"}}
+   :main-opts ["-m" "cognitect.test-runner"
+               "-d" "src/socket-test"
+               "-n" "cljctools.socket.java-net-test"]}
+
+  :cljs-test-runner
+  {:extra-deps {github.Olical/cljs-test-runner {:git/url "https://github.com/Olical/cljs-test-runner"
+                                                :sha "a9cc21916f32fb6caa9f54e349e7cc32b199b0c2"
+                                                :tag "v3.8.0"}}
+   :main-opts ["-m" "cljs-test-runner.main"
+               "-d" "src/socket-test"]}}}

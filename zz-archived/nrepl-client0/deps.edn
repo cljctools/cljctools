@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :deps {github.cljctools/nrepl.client.meta {:local/root "../meta"}}}

@@ -1,0 +1,4 @@
+{:paths ["src"]
+ :deps {nrepl/nrepl {:mvn/version "0.6.0"}
+        cider/cider-nrepl {:mvn/version "0.24.0"}
+        github.cljctools/nrepl.meta {:local/root "../../meta"}}}

@@ -1,0 +1,6 @@
+{:paths ["src"]
+ :deps {github.cljctools/net.meta {:local/root "../../../meta"}
+        github.cljctools/net.server.meta {:local/root "../../meta"}
+        io.pedestal/pedestal.service {:mvn/version "0.5.8"}
+        io.pedestal/pedestal.route {:mvn/version "0.5.8"}
+        io.pedestal/pedestal.jetty {:mvn/version "0.5.8"}}}
