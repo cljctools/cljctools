@@ -70,5 +70,6 @@
   (ping* [_ multiaddr])
   (send-dht* [_ multiaddr msg])
   (find-node* [_ multiaddr])
-  #_Release)
+  #_Release
+  #_IDeref)
 

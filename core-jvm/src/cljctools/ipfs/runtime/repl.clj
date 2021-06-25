@@ -298,7 +298,9 @@
      '(io.libp2p.security.noise NoiseXXSecureChannel)
      '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding ProtocolDescriptor)
      '(io.libp2p.core.crypto PrivKey)
-     '(io.libp2p.pubsub.gossip Gossip)
+     '(io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams)
+     '(io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder)
+     '(io.libp2p.pubsub PubsubApiImpl )
      '(io.libp2p.etc.encode Base58)
      '(io.libp2p.core.pubsub Topic MessageApi)
      '(io.libp2p.discovery MDnsDiscovery)
@@ -372,7 +374,7 @@
       [gossip]
       (let [host (->
                   (HostBuilder.)
-                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.impl/create-dht-protocol)]))
+                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.impl/create-dht-protocol {:on-message (fn [msg])})]))
                   (.secureChannel
                    (into-array Function [(reify Function
                                            (apply
@@ -383,7 +385,7 @@
         (-> host (.start) (.get))
         (println (format "host listening on \n %s" (.listenAddresses host)))
         host))
-    
+
     (defn connect
       ([host multiaddr]
        (connect host (.getFirst (.toPeerIdAndAddr multiaddr)) [(.getSecond (.toPeerIdAndAddr multiaddr))]))
@@ -444,27 +446,33 @@
     (def gossip2 (Gossip.))
     (def host2 (start-host gossip2))
 
-    (def host3 (start-host gossip2)))
+    (def gossip3 (Gossip.))
+    (def host3 (start-host gossip3)))
 
   (.getPeerId host1)
   (.listenAddresses host1)
 
+  (do
+    (def publisher1 (.createPublisher gossip1 (.getPrivKey host1) 1234))
+    (def publisher2 (.createPublisher gossip2 (.getPrivKey host2) 1234))
+    (def publisher3 (.createPublisher gossip3 (.getPrivKey host3) 1234)))
 
   (connect host1 (.getPeerId host2) (.listenAddresses host2))
 
+  (do
+    (connect host1 (.getPeerId host3) (.listenAddresses host3))
+    (connect host2 (.getPeerId host3) (.listenAddresses host3)))
+
   (subsribe gossip1  :gossip1  "topic1")
   (subsribe gossip2  :gossip2  "topic1")
-
-  (def publisher1 (.createPublisher gossip1 (.getPrivKey host1) 1234))
-  (def publisher2 (.createPublisher gossip2 (.getPrivKey host2) 4321))
 
 
   (publish publisher1 "topic1" "from publisher1")
   (publish publisher2 "topic1" "from publisher2")
 
-  (connect host1 (.getPeerId host3) (.listenAddresses host3))
-  (connect host2 (.getPeerId host3) (.listenAddresses host3))
 
+  (do
+    (.stop host1) (.stop host2) (.stop host3))
 
   (connect host1 address3)
   (connect host2 address3)
@@ -520,11 +528,36 @@
 
 (comment
 
-  (def node1 (a/<!! (ipfs.runtime.node/create {})))
-  (def node2 (a/<!! (ipfs.runtime.node/create {})))
+  (do
+    (def node1 (a/<!! (ipfs.runtime.node/create {})))
+    (def node2 (a/<!! (ipfs.runtime.node/create {})))
+    (def node3 (a/<!! (ipfs.runtime.node/create {}))))
 
+  (->>
+   (Multiaddr/fromString "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ")
+   (ipfs.protocols/find-node* node1))
+
+  (-> @node1 :host (.getNetwork) (.getConnections) (vec) (count))
+  (-> @node1 :gossip-protocol (.getPeerTopics) (.get))
+
+  (go
+    (->>
+     (-> @node1 :host (.getNetwork) (.getConnections) (vec))
+     (map (fn [connection]
+            (ipfs.protocols/connect* node2 (Multiaddr.  (.remoteAddress connection) (-> connection (.secureSession) (.getRemoteId))))))
+     (a/map vector)
+     (<!))
+    (println :total-connections (-> @node2 :host (.getNetwork) (.getConnections) (vec) (count))))
+
+  (def connection (-> @node1 :host (.getNetwork) (.getConnections) (vec) (first)))
+  (Multiaddr.  (.remoteAddress connection) (-> connection (.secureSession) (.getRemoteId)))
+  (-> connection (.secureSession) (type))
 
   (ipfs.protocols/connect* node1 (ipfs.protocols/get-peer-id* node2) (ipfs.protocols/get-listen-multiaddrs* node2))
+
+  (do
+    (ipfs.protocols/connect* node1 (ipfs.protocols/get-peer-id* node3) (ipfs.protocols/get-listen-multiaddrs* node3))
+    (ipfs.protocols/connect* node2 (ipfs.protocols/get-peer-id* node3) (ipfs.protocols/get-listen-multiaddrs* node3)))
 
   (ipfs.protocols/subscribe* node1 "topic123" (fn [{:keys [dataBA from topics]}]
                                                 (->
@@ -532,11 +565,16 @@
                                                  (bytes.runtime.core/to-string)
                                                  (->> (println :received-msg)))))
 
-  (ipfs.protocols/publish* node2 "topic123" "message-from-node2")
+  (-> @node3 :gossip-protocol (.getPeerTopics) (.get))
+
+  (-> (ipfs.protocols/publish* node2 "topic123" "message-from-node2") (.get))
 
 
   (do
     (ipfs.protocols/release* node1)
-    (ipfs.protocols/release* node2))
+    (ipfs.protocols/release* node2)
+    (ipfs.protocols/release* node3))
+
+
   ;
   )

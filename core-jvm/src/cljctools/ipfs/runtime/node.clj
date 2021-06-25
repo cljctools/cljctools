@@ -17,7 +17,9 @@
    (io.libp2p.core.dsl HostBuilder)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.multiformats Multiaddr Protocol)
-   (io.libp2p.pubsub.gossip Gossip)
+   (io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams)
+   (io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder)
+   (io.libp2p.pubsub PubsubApiImpl)
    (io.libp2p.core.pubsub PubsubSubscription Topic MessageApi)
    (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
    (io.libp2p.protocol Ping PingController)
@@ -50,7 +52,8 @@
 
 (defn create
   [{:as opts
-    :keys []}]
+    :keys []
+    :or {}}]
   (let [bootstrap-multiaddresses
         ["/dnsaddr/bootstrap.libp2p.io/ipfs/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN"
          "/dnsaddr/bootstrap.libp2p.io/ipfs/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa"
@@ -71,10 +74,21 @@
                        (fn [stream msg]
                          (put! msg-dht| {:msg msg
                                          :peer-id (-> ^Stream stream (.remotePeerId))}))})
-        gossip-potocol (Gossip.)
+        gossip-router (GossipRouter.
+                       (->
+                        (GossipParamsBuilder.)
+                        (.floodPublish true)
+                        (.build))
+                       (->
+                        (GossipScoreParamsBuilder. (GossipScoreParams.))
+                        (.gossipThreshold 0.0)
+                        (.publishThreshold 0.0)
+                        (.build)))
+        pubsub-api (PubsubApiImpl. gossip-router)
+        gossip-protocol (Gossip. gossip-router pubsub-api)
         host (->
               (HostBuilder.)
-              (.protocol (into-array ProtocolBinding [ping-protocol dht-protocol gossip-potocol]))
+              (.protocol (into-array ProtocolBinding [ping-protocol dht-protocol gossip-protocol]))
               (.secureChannel
                (into-array Function [(reify Function
                                        (apply
@@ -87,7 +101,7 @@
         host-peer-idS (.toString host-peer-id)
         host-priv-key (.getPrivKey host)
 
-        publisher (.createPublisher gossip-potocol (.getPrivKey host) 1234)
+        publisher (.createPublisher gossip-protocol (.getPrivKey host)  1234)
 
         subscriptionsA (atom {})
         connectionsA (atom {})
@@ -95,6 +109,17 @@
         peersA (atom {})
 
         stop-channelsA (atom [])
+
+        stateA (atom
+                {:host host
+                 :host-peer-id host-peer-id
+                 :host-peer-idS host-peer-idS
+                 :publisher publisher
+                 :ping-protocol ping-protocol
+                 :gossip-protocol gossip-protocol
+                 :dht-protocol dht-protocol
+                 :connectionsA connectionsA
+                 :peersA peersA})
 
         node
         ^{:type ::ipfs.spec/node}
@@ -163,7 +188,7 @@
           (subscribe*
             [_ topic on-message]
             (let [subscription
-                  (.subscribe gossip-potocol
+                  (.subscribe gossip-protocol
                               ^Consumer
                               (reify Consumer
                                 (accept
@@ -179,10 +204,10 @@
                               (into-array Topic [(Topic. topic)]))]
               (swap! subscriptionsA assoc topic subscription)))
           (unsubscribe*
-           [_ topic]
-           (when-let [subscription (get @subscriptionsA topic)]
-             (.unsubscribe ^PubsubSubscription subscription)
-             (swap! subscriptionsA dissoc topic)))
+            [_ topic]
+            (when-let [subscription (get @subscriptionsA topic)]
+              (.unsubscribe ^PubsubSubscription subscription)
+              (swap! subscriptionsA dissoc topic)))
           (publish*
             [_ topic msg-string]
             (.publish publisher
@@ -193,7 +218,9 @@
             [_]
             (doseq [stop| @stop-channelsA]
               (close! stop|))
-            (-> host (.stop) (.get 2 TimeUnit/SECONDS))))]
+            (-> host (.stop) (.get 2 TimeUnit/SECONDS)))
+          clojure.lang.IDeref
+          (deref [_] @stateA))]
 
     (go
       (loop []
@@ -209,8 +236,12 @@
                                                   :multiaddrs multiaddrs}])))
                               (vec (.getCloserPeersList msg)))]
               (swap! peersA merge peers)
-              (doseq [[peer-idS {:keys [peer-id multiaddrs]}] peers]
-                (<! (ipfs.protocols/connect* node peer-id multiaddrs)))
+              (->>
+               peers
+               (map (fn [[peer-idS {:keys [peer-id multiaddrs]}]]
+                      (ipfs.protocols/connect* node peer-id multiaddrs)))
+               (a/map identity)
+               (<!))
               (println :total-connections (-> host (.getNetwork) (.getConnections) (vec) (count)))))
           (recur))))
 
@@ -220,6 +251,6 @@
 
       (let [stop| (chan 1)]
         (swap! stop-channelsA conj stop|)
-        (start-find-node {:node node
-                          :stop| stop|}))
+        #_(start-find-node {:node node
+                            :stop| stop|}))
       node)))
