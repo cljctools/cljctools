@@ -1,5 +1,5 @@
 {:paths ["src"]
- :deps {github.cljctools.ipfs/core {:local/root "../core"}
+ :deps {github.cljctools.ipfs/ipfs {:local/root "../ipfs"}
         org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
         com.github.multiformats/java-multibase {:mvn/version "v1.1.0"}
         com.github.multiformats/java-multihash {:mvn/version "v1.3.0"}
