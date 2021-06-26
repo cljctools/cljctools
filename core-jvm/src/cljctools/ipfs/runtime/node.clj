@@ -17,8 +17,8 @@
    (io.libp2p.core.dsl HostBuilder)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.multiformats Multiaddr Protocol)
-   (io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams)
-   (io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder)
+   (io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams GossipPeerScoreParams)
+   (io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder GossipPeerScoreParamsBuilder)
    (io.libp2p.pubsub PubsubApiImpl)
    (io.libp2p.core.pubsub PubsubSubscription Topic MessageApi)
    (io.libp2p.core.multistream  ProtocolBinding StrictProtocolBinding)
@@ -26,6 +26,7 @@
    (io.libp2p.etc.encode Base58)
    (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.function Function Consumer)
+   (kotlin.jvm.functions Function1)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
    (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type NodeProto$DhtMessage$Peer)))
@@ -81,6 +82,13 @@
                         (.build))
                        (->
                         (GossipScoreParamsBuilder. (GossipScoreParams.))
+                        (.peerScoreParams (->
+                                           (GossipPeerScoreParamsBuilder. (GossipPeerScoreParams.))
+                                           (.isDirect (reify
+                                                        Function1
+                                                        (invoke [_ peer-handler]
+                                                          true)))
+                                           (.build)))
                         (.gossipThreshold 0.0)
                         (.publishThreshold 0.0)
                         (.build)))
@@ -116,6 +124,8 @@
                  :host-peer-idS host-peer-idS
                  :publisher publisher
                  :ping-protocol ping-protocol
+                 :gossip-router gossip-router
+                 :pubsub-api pubsub-api
                  :gossip-protocol gossip-protocol
                  :dht-protocol dht-protocol
                  :connectionsA connectionsA

@@ -38,6 +38,8 @@
    (com.google.protobuf ByteString)
    (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
 
+(do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
+
 #_(do
     (defn decode-mplex
       ([buffer]
@@ -298,12 +300,14 @@
      '(io.libp2p.security.noise NoiseXXSecureChannel)
      '(io.libp2p.core.multistream ProtocolBinding StrictProtocolBinding ProtocolDescriptor)
      '(io.libp2p.core.crypto PrivKey)
-     '(io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams)
-     '(io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder)
-     '(io.libp2p.pubsub PubsubApiImpl )
+     '(io.libp2p.pubsub.gossip Gossip GossipRouter GossipParams GossipScoreParams GossipPeerScoreParams)
+     '(io.libp2p.pubsub.gossip.builders GossipParamsBuilder GossipScoreParamsBuilder GossipPeerScoreParamsBuilder)
+     '(io.libp2p.pubsub PubsubApiImpl)
      '(io.libp2p.etc.encode Base58)
+     '(io.libp2p.etc.util P2PService$PeerHandler)
      '(io.libp2p.core.pubsub Topic MessageApi)
      '(io.libp2p.discovery MDnsDiscovery)
+     '(kotlin.jvm.functions Function1)
      '(com.google.protobuf ByteString)
      '(cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type NodeProto$DhtMessage$Peer)))
 
@@ -566,6 +570,13 @@
                                                  (->> (println :received-msg)))))
 
   (-> @node3 :gossip-protocol (.getPeerTopics) (.get))
+  
+  (-> @node2 :gossip-router (.getScore) (.getPeerParams) (clojure.reflect/reflect) (clojure.pprint/pprint))
+  (-> @node2 :gossip-router (.getScore) (.getPeerParams) (.isDirect) (clojure.reflect/reflect) (clojure.pprint/pprint))
+  (-> @node2 :gossip-router (.getScore) (.getPeerParams) (.isDirect))
+  (-> Function1 (clojure.reflect/reflect) (clojure.pprint/pprint))
+  (->> @node2 :gossip-router (.getPeers) (map (fn [^P2PService$PeerHandler peer-handler]
+                                                (-> ^GossipRouter (:gossip-router @node2) (.getScore) (.getPeerParams) (.isDirect) (.invoke (.getPeerId peer-handler))))))
 
   (-> (ipfs.protocols/publish* node2 "topic123" "message-from-node2") (.get))
 
