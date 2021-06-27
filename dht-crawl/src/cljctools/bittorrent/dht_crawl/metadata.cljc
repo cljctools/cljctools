@@ -15,8 +15,8 @@
    [cljctools.socket.runtime.core :as socket.runtime.core]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.protocols :as socket.protocols]
-   [cljctools.bittorrent.bencode.core :as bencode.core]
-   [cljctools.bittorrent.wire-protocol.core :as wire-protocol.core]
+   [cljctools.bittorrent.bencode.runtime.core :as bencode.runtime.core]
+   [cljctools.bittorrent.wire.runtime.core :as wire.runtime.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
                                                 decode-nodes
@@ -63,11 +63,11 @@
                     (close! evt|)
                     (close! recv|))]
 
-      (wire-protocol.core/create
-       {::wire-protocol.core/send| send|
-        ::wire-protocol.core/recv| recv|
-        ::wire-protocol.core/metadata| result|
-        ::wire-protocol.core/ex| ex|
+      (wire.runtime.core/create
+       {::bittorrent.spec/send| send|
+        ::bittorrent.spec/recv| recv|
+        ::bittorrent.spec/metadata| result|
+        ::bittorrent.spec/ex| ex|
         ::bittorrent.spec/infohashBA infohashBA
         ::bittorrent.spec/peer-idBA idBA})
 
@@ -117,7 +117,7 @@
            cancel|
            (do
              #_(println "request-metadata: cancelled"))
-           
+
            ex|
            (do
              #_(println (str "request-metadata: " (ex-message value)))))
@@ -127,7 +127,7 @@
         result|
         ([metadataBA]
          (let [metadata (->
-                         (bencode.core/decode metadataBA)
+                         (bencode.runtime.core/decode metadataBA)
                          (clojure.walk/keywordize-keys)
                          (select-keys [:name :files :name.utf-8 :length])
                          (->> (clojure.walk/postwalk

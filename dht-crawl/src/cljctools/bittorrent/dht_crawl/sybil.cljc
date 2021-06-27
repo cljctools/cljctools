@@ -18,7 +18,7 @@
    [cljctools.datagram-socket.runtime.core :as datagram-socket.runtime.core]
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
-   [cljctools.bittorrent.bencode.core :as bencode.core]
+   [cljctools.bittorrent.bencode.runtime.core :as bencode.runtime.core]
    [cljctools.bittorrent.dht-crawl.impl :refer [decode-nodes
                                                 gen-neighbor-id
                                                 encode-nodes
@@ -57,7 +57,7 @@
         msg| (chan (sliding-buffer 1024)
                    (keep (fn [{:keys [msgBA host port]}]
                            (try
-                             {:msg (bencode.core/decode msgBA)
+                             {:msg (bencode.runtime.core/decode msgBA)
                               :host host
                               :port port}
                              (catch #?(:clj Exception :cljs :default) ex nil)))))
@@ -241,7 +241,7 @@
            (when value
              (datagram-socket.protocols/send*
               socket
-              (bencode.core/encode msg)
+              (bencode.runtime.core/encode msg)
               {:host host
                :port port})
              (recur)))
