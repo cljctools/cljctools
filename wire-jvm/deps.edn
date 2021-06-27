@@ -1,0 +1,3 @@
+{:paths ["src"]
+ :deps {github.cljctools.bittorrent/bittorrent {:local/root "../bittorrent"}
+        com.github.atomashpolskiy/bt-core {:mvn/version "1.9"}}}
