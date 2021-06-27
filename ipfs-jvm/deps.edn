@@ -1,0 +1,18 @@
+{:paths ["src"]
+ :deps {github.cljctools.ipfs/ipfs {:local/root "../ipfs"}
+        org.bouncycastle/bcprov-jdk15on {:mvn/version "1.69"}
+        com.github.multiformats/java-multibase {:mvn/version "v1.1.0"}
+        com.github.multiformats/java-multihash {:mvn/version "v1.3.0"}
+        ;; com.github.ipld/java-cid {:mvn/version "v1.3.1"}
+        github.ipld/java-cid {:git/url "https://github.com/ipld/java-cid"
+                              :sha "d6b6a7017b5b90cf761e6ec04ceb3d1b2e3aaae9"
+                              :tag "v1.3.1 + 3"}
+        com.github.multiformats/java-multiaddr {:mvn/version "v1.4.1"}
+        com.google.protobuf/protobuf-java {:mvn/version "3.11.0"}
+        tech.pegasys/noise-java {:mvn/version "1.0.0"}
+        aleph/aleph {:mvn/version "0.4.7-alpha5"}
+        io.netty/netty-all {:mvn/version "4.1.51.Final"}
+        manifold/manifold {:mvn/version "0.1.9-alpha3"}
+        io.libp2p/jvm-libp2p-minimal {:mvn/version "0.8.2-RELEASE"
+                                      :exclusions [io.netty/netty-all
+                                                   com.google.protobuf/protobuf-java]}}}

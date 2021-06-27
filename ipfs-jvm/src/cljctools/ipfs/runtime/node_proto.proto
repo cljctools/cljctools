@@ -1,0 +1,113 @@
+syntax = "proto3";
+package cljctools.ipfs.runtime;
+
+// SRC=ipfs/src/proto/src bash -c 'protoc --clojure_out=${SRC} ${SRC}/cljctools/ipfs/proto/dht.proto'
+// SRC=ipfs/core-jvm/src bash -c 'protoc --java_out=${SRC} ${SRC}/cljctools/ipfs/runtime/node_proto.proto'
+
+enum KeyType {
+	RSA = 0;
+	Ed25519 = 1;
+	Secp256k1 = 2;
+	ECDSA = 3;
+}
+
+message PublicKey {
+	KeyType Type = 1;
+	bytes Data = 2;
+}
+
+message PrivateKey {
+	KeyType Type = 1;
+	bytes Data = 2;
+}
+
+message Record {
+	bytes key = 1;
+	bytes value = 2;
+	string timeReceived = 5;
+}
+
+message DhtMessage {
+	enum Type {
+		PUT_VALUE = 0;
+		GET_VALUE = 1;
+		ADD_PROVIDER = 2;
+		GET_PROVIDERS = 3;
+		FIND_NODE = 4;
+		PING = 5;
+	}
+
+	enum ConnectionType {
+		NOT_CONNECTED = 0;
+		CONNECTED = 1;
+		CAN_CONNECT = 2;
+		CANNOT_CONNECT = 3;
+	}
+
+	message Peer {
+		bytes id = 1;
+		repeated bytes addrs = 2;
+		ConnectionType connection = 3;
+	}
+
+	Type type = 1;
+	int32 clusterLevelRaw = 10;
+	bytes key = 2;
+	Record record = 3;
+	repeated Peer closerPeers = 8;
+	repeated Peer providerPeers = 9;
+}
+
+message Envelope {
+  PublicKey public_key = 1;
+  bytes payload_type = 2;
+  bytes payload = 3;
+  bytes signature = 5;
+}
+
+message Exchange {
+  bytes id = 1;
+  PublicKey pubkey = 2;
+}
+
+
+message CircuitRelayMessage {
+
+  enum Status {
+    not_defined1 = 0;
+    SUCCESS                    = 100;
+    HOP_SRC_ADDR_TOO_LONG      = 220;
+    HOP_DST_ADDR_TOO_LONG      = 221;
+    HOP_SRC_MULTIADDR_INVALID  = 250;
+    HOP_DST_MULTIADDR_INVALID  = 251;
+    HOP_NO_CONN_TO_DST         = 260;
+    HOP_CANT_DIAL_DST          = 261;
+    HOP_CANT_OPEN_DST_STREAM   = 262;
+    HOP_CANT_SPEAK_RELAY       = 270;
+    HOP_CANT_RELAY_TO_SELF     = 280;
+    STOP_SRC_ADDR_TOO_LONG     = 320;
+    STOP_DST_ADDR_TOO_LONG     = 321;
+    STOP_SRC_MULTIADDR_INVALID = 350;
+    STOP_DST_MULTIADDR_INVALID = 351;
+    STOP_RELAY_REFUSED         = 390;
+    MALFORMED_MESSAGE          = 400;
+  }
+
+  enum Type {
+    not_defined2 = 0;
+    HOP     = 1;
+    STOP    = 2;
+    STATUS  = 3;
+    CAN_HOP = 4;
+  }
+
+  message Peer {
+    bytes id = 1;   
+    repeated bytes addrs = 2; 
+  }
+
+  Type type = 1; 
+  Peer srcPeer = 2; 
+  Peer dstPeer = 3;
+  Status code = 4;
+}
