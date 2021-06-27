@@ -20,3 +20,6 @@ library for editing clojure code
   - formatting as we type 
   - color tokens, brackets (as data decribing the document)
 - it's about representing doc as zipper and data, and notifying app of changes: get source code/streams -> change internal state of edit -> notify of changes
+
+## cljctools/bittorrent
+bittorrent DHT libs
