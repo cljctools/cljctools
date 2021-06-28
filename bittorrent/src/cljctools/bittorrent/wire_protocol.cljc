@@ -9,7 +9,7 @@
    [cljctools.bytes.spec :as bytes.spec]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
    [cljctools.codec.runtime.core :as codec.runtime.core]
-   [cljctools.bittorrent.bencode.core :as bencode.core]
+   [cljctools.bencode.core :as bencode.core]
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [clojure.walk :refer [keywordize-keys]]))
 
@@ -462,7 +462,7 @@
                                       timeout to-chan  sliding-buffer dropping-buffer
                                       pipeline pipeline-async]]
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
-   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.bencode.core :as bencode.core]
    '[cljctools.bittorrent.wire-protocol.core :as wire-protocol.core]
    :reload #_:reload-all)
   

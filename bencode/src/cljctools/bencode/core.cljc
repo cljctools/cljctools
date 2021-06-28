@@ -1,4 +1,4 @@
-(ns cljctools.bittorrent.bencode.core
+(ns cljctools.bencode.core
   (:require
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
@@ -220,10 +220,10 @@
                       github.cljctools/core-js {:local/root "./cljctools/core-js"}
                       github.cljctools/bytes-js {:local/root "./cljctools/bytes-js"}
                       github.cljctools/codec-js {:local/root "./cljctools/codec-js"}}}' \
-  -M -m cljs.main --repl-env node --compile cljctools.bittorrent.bencode.core --repl
+  -M -m cljs.main --repl-env node --compile cljctools.bencode.core --repl
   
   (require
-   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.bencode.core :as bencode.core]
    '[cljctools.runtime.core :as cljctools.runtime.core]
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.codec.runtime.core :as codec.runtime.core]
@@ -268,7 +268,7 @@
    '[clojure.core.async.impl.protocols :refer [closed?]])
 
   (require
-   '[cljctools.bittorrent.bencode.core :as bencode.core]
+   '[cljctools.bencode.core :as bencode.core]
    '[cljctools.runtime.core :as cljctools.runtime.core]
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.codec.runtime.core :as codec.runtime.core]
