@@ -22,7 +22,7 @@
    [cljctools.datagram-socket.protocols :as datagram-socket.protocols]
    [cljctools.datagram-socket.spec :as datagram-socket.spec]
 
-   [cljctools.bittorrent.bencode.runtime.core :as bencode.runtime.core]
+   [cljctools.bencode.core :as bencode.core]
    [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
                                                 send-krpc-request-fn
                                                 encode-nodes
@@ -77,7 +77,7 @@
                              (swap! count-messagesA inc)
                              (try
                                {:msg  (->
-                                       (bencode.runtime.core/decode msgBA)
+                                       (bencode.core/decode msgBA)
                                        (clojure.walk/keywordize-keys))
                                 :host host
                                 :port port}
@@ -351,7 +351,7 @@
            (when value
              (datagram-socket.protocols/send*
               socket
-              (bencode.runtime.core/encode msg)
+              (bencode.core/encode msg)
               {:host host
                :port port})
              (recur)))
@@ -629,7 +629,7 @@
    '[cljctools.fs.runtime.core :as fs.runtime.core]
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.codec.runtime.core :as codec.runtime.core]
-   '[cljctools.bittorrent.bencode.runtime.core :as bencode.runtime.core]
+   '[cljctools.bencode.core :as bencode.core]
    '[cljctools.bittorrent.dht-crawl.core :as dht-crawl.core]
    :reload #_:reload-all)
                    

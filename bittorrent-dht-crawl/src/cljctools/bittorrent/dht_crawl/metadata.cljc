@@ -15,8 +15,8 @@
    [cljctools.socket.runtime.core :as socket.runtime.core]
    [cljctools.socket.spec :as socket.spec]
    [cljctools.socket.protocols :as socket.protocols]
-   [cljctools.bittorrent.bencode.runtime.core :as bencode.runtime.core]
-   [cljctools.bittorrent.runtime.ut-metadata :as bittorrent.runtime.ut-metadata]
+   [cljctools.bencode.core :as bencode.core]
+   [cljctools.bittorrent.ut-metadata :as bittorrent.ut-metadata]
    [cljctools.bittorrent.spec :as bittorrent.spec]
    [cljctools.bittorrent.dht-crawl.impl :refer [hash-key-distance-comparator-fn
                                                 decode-nodes
@@ -63,7 +63,7 @@
                     (close! evt|)
                     (close! recv|))]
 
-      (bittorrent.runtime.ut-metadata/create
+      (bittorrent.ut-metadata/create
        {::bittorrent.spec/send| send|
         ::bittorrent.spec/recv| recv|
         ::bittorrent.spec/metadata| result|
@@ -127,7 +127,7 @@
         result|
         ([metadataBA]
          (let [metadata (->
-                         (bencode.runtime.core/decode metadataBA)
+                         (bencode.core/decode metadataBA)
                          (clojure.walk/keywordize-keys)
                          (select-keys [:name :files :name.utf-8 :length])
                          (->> (clojure.walk/postwalk
