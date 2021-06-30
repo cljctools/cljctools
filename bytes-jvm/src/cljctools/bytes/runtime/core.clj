@@ -565,7 +565,7 @@
   (->
    (java.security.MessageDigest/getInstance "sha1")
    (.digest (bytes.runtime.core/to-byte-array (clojure.string/join "" (repeat 1000 "aabbccdd"))))
-   (codec.core/hex-encode-string))
+   (codec.core/hex-to-string))
   ; "49e4076d086a529baf5d5e62f57bacbd9d4dbe81"
   
   (do

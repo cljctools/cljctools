@@ -55,8 +55,8 @@
     (let [state-filepath (fs.runtime.core/path-join data-dir "cljctools.bittorrent.dht-crawl.core.json")
           stateA (atom
                   (merge
-                   (let [self-idBA  (codec.runtime.core/hex-decode "a8fb5c14469fc7c46e91679c493160ed3d13be3d") #_(bytes.runtime.core/random-bytes 20)]
-                     {:self-id (codec.runtime.core/hex-encode-string self-idBA)
+                   (let [self-idBA  (codec.runtime.core/hex-to-bytes "a8fb5c14469fc7c46e91679c493160ed3d13be3d") #_(bytes.runtime.core/random-bytes 20)]
+                     {:self-id (codec.runtime.core/hex-to-string self-idBA)
                       :self-idBA self-idBA
                       :routing-table (sorted-map)
                       :dht-keyspace {}
@@ -93,7 +93,7 @@
           unique-infohashsesA (atom #{})
           xf-infohash (comp
                        (map (fn [{:keys [infohashBA] :as value}]
-                              (assoc value :infohash (codec.runtime.core/hex-encode-string infohashBA))))
+                              (assoc value :infohash (codec.runtime.core/hex-to-string infohashBA))))
                        (filter (fn [{:keys [infohash]}]
                                  (not (get @unique-infohashsesA infohash))))
                        (map (fn [{:keys [infohash] :as value}]

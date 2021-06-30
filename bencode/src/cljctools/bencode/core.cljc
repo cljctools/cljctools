@@ -232,8 +232,8 @@
   (let [data
         {:t "aabbccdd"
          :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}}
-        #_{:t (codec.runtime.core/hex-decode "aabbccdd")
-           :a {"id" (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+        #_{:t (codec.runtime.core/hex-to-bytes "aabbccdd")
+           :a {"id" (codec.runtime.core/hex-to-bytes "197957dab1d2900c5f6d9178656d525e22e63300")}}]
 
     (->
      (bencode.core/encode data)
@@ -241,7 +241,7 @@
      #_(bytes.runtime.core/to-byte-array)
      (bencode.core/decode)
      #_(-> (get-in ["a" "id"]))
-     #_(codec.runtime.core/hex-encode-string)))
+     #_(codec.runtime.core/hex-to-string)))
   
   (let [data
         {:msg_type 1
@@ -291,8 +291,8 @@
             (recur)))
         (println :done))))
 
-  (let [data {:t (codec.runtime.core/hex-decode "aabbccdd")
-              :a {"id" (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")}}]
+  (let [data {:t (codec.runtime.core/hex-to-bytes "aabbccdd")
+              :a {"id" (codec.runtime.core/hex-to-bytes "197957dab1d2900c5f6d9178656d525e22e63300")}}]
     (foo bencode.core/encode bencode.core/decode data))
 
   ; ~ 50% cpu node

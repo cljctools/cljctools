@@ -39,7 +39,7 @@
            count-messages-sybilA]}]
   (let [already-sybiledA (atom {})
         self-idBA (bytes.runtime.core/random-bytes 20)
-        self-id (codec.runtime.core/hex-encode-string self-idBA)
+        self-id (codec.runtime.core/hex-to-string self-idBA)
 
         port 6882
         host "0.0.0.0"

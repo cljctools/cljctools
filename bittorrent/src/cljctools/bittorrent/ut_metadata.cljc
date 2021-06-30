@@ -372,8 +372,8 @@
                             (cond
                               (== downloaded ut-metadata-size)
                               (let [metadataBA (bytes.runtime.core/concat (persistent! (conj! (:ut-metadata-pieces stateT) blockBA)))
-                                    metadata-hash (-> (bytes.runtime.core/sha1 metadataBA) (codec.runtime.core/hex-encode-string))
-                                    peer-infohash (-> (:peer-infohashBA stateT) (codec.runtime.core/hex-encode-string))]
+                                    metadata-hash (-> (bytes.runtime.core/sha1 metadataBA) (codec.runtime.core/hex-to-string))
+                                    peer-infohash (-> (:peer-infohashBA stateT) (codec.runtime.core/hex-to-string))]
                                 (if-not (= metadata-hash peer-infohash)
                                   (throw (ex-info "metadata hash differs from peer's infohash" {} nil))
                                   (>! metadata| metadataBA))

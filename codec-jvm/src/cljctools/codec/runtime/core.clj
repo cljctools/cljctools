@@ -5,12 +5,12 @@
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
-(defn hex-decode ^bytes
+(defn hex-to-bytes ^bytes
   [^String string]
   (ByteBufUtil/decodeHexDump string)
   #_(Hex/decodeHex string))
 
-(defn hex-encode-string ^String
+(defn hex-to-string ^String
   [^bytes byte-arr]
   (ByteBufUtil/hexDump byte-arr)
   #_(Hex/encodeHexString byte-arr))

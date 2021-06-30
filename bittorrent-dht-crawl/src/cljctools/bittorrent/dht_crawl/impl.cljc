@@ -49,7 +49,7 @@
     (let [nodesBB (bytes.runtime.core/buffer-wrap nodesBA)]
       (for [i (range 0 (bytes.runtime.core/alength nodesBA) 26)]
         (let [idBA (bytes.runtime.core/copy-byte-array nodesBA i (#?(:clj unchecked-add :cljs +) i 20))]
-          {:id (codec.runtime.core/hex-encode-string idBA)
+          {:id (codec.runtime.core/hex-to-string idBA)
            :idBA idBA
            :host (str (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 20)) "."
                       (bytes.runtime.core/get-uint8 nodesBB (#?(:clj unchecked-add :cljs +) i 21)) "."
@@ -110,8 +110,8 @@
   [targetBA]
   (fn [id1 id2]
     (distance-compare
-     (xor-distance targetBA (codec.runtime.core/hex-decode id1))
-     (xor-distance targetBA (codec.runtime.core/hex-decode id2)))))
+     (xor-distance targetBA (codec.runtime.core/hex-to-bytes id1))
+     (xor-distance targetBA (codec.runtime.core/hex-to-bytes id2)))))
 
 (defn sorted-map-buffer
   "sliding according to comparator sorted-map buffer"
@@ -143,7 +143,7 @@
   (let [handlers #?(:clj {bytes.runtime.core/ByteArray
                           (transit/write-handler
                            (fn [byte-arr] "::bytes.runtime.core/byte-array")
-                           (fn [byte-arr] (codec.runtime.core/hex-encode-string byte-arr)))
+                           (fn [byte-arr] (codec.runtime.core/hex-to-string byte-arr)))
                           clojure.core.async.impl.channels.ManyToManyChannel
                           (transit/write-handler
                            (fn [c|] "ManyToManyChannel")
@@ -151,7 +151,7 @@
                     :cljs {bytes.runtime.core/Buffer
                            (transit/write-handler
                             (fn [buffer] "::bytes.runtime.core/byte-array")
-                            (fn [buffer] (codec.runtime.core/hex-encode-string buffer)))
+                            (fn [buffer] (codec.runtime.core/hex-to-string buffer)))
                            cljs.core.async.impl.channels/ManyToManyChannel
                            (transit/write-handler
                             (fn [c|] "ManyToManyChannel")
@@ -162,13 +162,13 @@
 (def transit-read
   (let [handlers #?(:clj {"::bytes.runtime.core/byte-array"
                           (transit/read-handler
-                           (fn [string] (codec.runtime.core/hex-decode string)))
+                           (fn [string] (codec.runtime.core/hex-to-bytes string)))
                           "ManyToManyChannel"
                           (transit/read-handler
                            (fn [string] nil))}
                     :cljs {"::bytes.runtime.core/byte-array"
                            (transit/read-handler
-                            (fn [string] (codec.runtime.core/hex-decode string)))
+                            (fn [string] (codec.runtime.core/hex-to-bytes string)))
                            "ManyToManyChannel"
                            (transit/read-handler
                             (fn [string] nil))})]
@@ -202,7 +202,7 @@
     (go
       (loop []
         (when-let [{:keys [msg] :as value} (<! msg|tap)]
-          (when-let [txn-id (some-> (:t msg) (codec.runtime.core/hex-encode-string))]
+          (when-let [txn-id (some-> (:t msg) (codec.runtime.core/hex-to-string))]
             (when-let [response| (get @requestsA txn-id)]
               (put! response| value)
               (close! response|)
@@ -212,7 +212,7 @@
       ([msg node]
        (send-krpc-request msg node (timeout 2000)))
       ([msg {:keys [host port]} timeout|]
-       (let [txn-id (codec.runtime.core/hex-encode-string (:t msg))
+       (let [txn-id (codec.runtime.core/hex-to-string (:t msg))
              response| (chan 1)]
          (put! send| {:msg msg
                       :host host
@@ -488,13 +488,13 @@
 
   (time
    (dotimes [i 1000000]
-     (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")))
+     (codec.runtime.core/hex-to-bytes "197957dab1d2900c5f6d9178656d525e22e63300")))
   ; "Elapsed time: 93.882265 msecs"
 
   (time
-   (let [ba (codec.runtime.core/hex-decode "197957dab1d2900c5f6d9178656d525e22e63300")]
+   (let [ba (codec.runtime.core/hex-to-bytes "197957dab1d2900c5f6d9178656d525e22e63300")]
      (dotimes [i 1000000]
-       (codec.runtime.core/hex-encode-string ba))))
+       (codec.runtime.core/hex-to-string ba))))
   ; "Elapsed time: 102.516529 msecs"
 
   ;

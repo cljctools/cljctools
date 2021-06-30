@@ -49,7 +49,7 @@
                 :y "q"
                 :q "find_node"
                 :a {:id self-idBA
-                    :target (codec.runtime.core/hex-decode id)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
+                    :target (codec.runtime.core/hex-to-bytes id)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
                node
                (timeout 2000))
               (fn [{:keys [msg] :as value}]
@@ -116,7 +116,7 @@
                 :y "q"
                 :q "find_node"
                 :a {:id self-idBA
-                    :target (codec.runtime.core/hex-decode k)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
+                    :target (codec.runtime.core/hex-to-bytes k)  #_(gen-neighbor-id (.randomBytes crypto 20) self-idB)}}
                node
                (timeout 2000))
               (fn [{:keys [msg] :as value}]

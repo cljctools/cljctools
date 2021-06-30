@@ -205,7 +205,7 @@
                                            (when metadata
                                              (let [result (merge
                                                            metadata
-                                                           {:infohash (codec.runtime.core/hex-encode-string infohashBA)
+                                                           {:infohash (codec.runtime.core/hex-to-string infohashBA)
                                                             :seeder-count @seeders-countA})]
                                                (put! result| result)
                                                (put! out| result)))

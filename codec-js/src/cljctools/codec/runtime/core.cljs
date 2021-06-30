@@ -2,10 +2,10 @@
 
 ; requires js/Buffer
 
-(defn hex-decode
+(defn hex-to-bytes
   [string]
   (js/Buffer.from string "hex"))
 
-(defn hex-encode-string
+(defn hex-to-string
   [buffer]
   (.toString buffer "hex"))
