@@ -1,0 +1,3 @@
+{:paths []
+ :deps {github.cljctools.cljctools/varint {:local/root "../varint"}
+        github.cljctools.cljctools/bytes-jvm {:local/root "../bytes-jvm"}}}
