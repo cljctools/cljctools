@@ -1,0 +1,10 @@
+{:paths []
+ :deps {github.cljctools.cljctools/bittorrent-dht-crawl {:local/root "../bittorrent-dht-crawl"}
+        github.cljctools.cljctools/bittorrent-jvm {:local/root "../bittorrent-jvm"}
+        github.cljctools.cljctools/bytes-jvm {:local/root "../bytes-jvm"}
+        github.cljctools.cljctools/codec-jvm {:local/root "../codec-jvm"}
+        github.cljctools.cljctools/datagram-socket-jvm {:local/root "../datagram-socket-jvm"}
+        github.cljctools.cljctools/socket-jvm {:local/root "../socket-jvm"}
+        github.cljctools.cljctools/bencode-jvm {:local/root "../bencode-jvm"}
+        github.cljctools.cljctools/fs-jvm {:local/root "../fs-jvm"}
+        github.cljctools.cljctools/transit-jvm {:local/root "../transit-jvm"}}}

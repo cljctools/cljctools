@@ -6,9 +6,6 @@
                                      pipeline pipeline-async]]
    [clojure.spec.alpha :as s]
 
-   [cljctools.bytes.protocols :as bytes.protocols]
-   [cljctools.bytes.runtime.core :as bytes.runtime.core]
-
    [cljctools.ipfs.spec :as ipfs.spec]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.runtime.impl :as ipfs.runtime.impl])

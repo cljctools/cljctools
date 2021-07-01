@@ -1,6 +1,5 @@
 (ns cljctools.ipfs.runtime.crypto
   (:require
-   [cljctools.bytes.runtime.core :as bytes.runtime.core]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.spec :as ipfs.spec]
    [clojure.java.io :as io :refer [input-stream]])

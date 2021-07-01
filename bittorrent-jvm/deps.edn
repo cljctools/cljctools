@@ -1,0 +1,5 @@
+{:paths []
+ :deps {github.cljctools.cljctools/bittorrent {:local/root "../bittorrent"}
+        github.cljctools.cljctools/bytes-jvm {:local/root "../bytes-jvm"}
+        github.cljctools.cljctools/codec-jvm {:local/root "../codec-jvm"}
+        github.cljctools.cljctools/bencode-jvm {:local/root "../bencode-jvm"}}}

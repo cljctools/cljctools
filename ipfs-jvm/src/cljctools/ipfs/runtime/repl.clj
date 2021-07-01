@@ -7,7 +7,6 @@
 
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
-   [cljctools.varint.core :as varint.core]
 
    [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.protocols :as ipfs.protocols]
@@ -183,7 +182,6 @@
   (require
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.codec.runtime.core :as codec.runtime.core]
-   '[cljctools.varint.core :as varint.core]
    '[cljctools.ipfs.protocols :as ipfs.protocols]
    '[cljctools.ipfs.spec :as ipfs.spec]
    '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
@@ -276,7 +274,6 @@
                                         pipeline pipeline-async]]
      '[cljctools.bytes.runtime.core :as bytes.runtime.core]
      '[cljctools.codec.runtime.core :as codec.runtime.core]
-     '[cljctools.varint.core :as varint.core]
      '[cljctools.ipfs.protocols :as ipfs.protocols]
      '[cljctools.ipfs.spec :as ipfs.spec]
      '[cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
