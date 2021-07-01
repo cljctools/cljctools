@@ -69,3 +69,12 @@
       (when system-tray
         (.shutdown ^SystemTray system-tray) ;; does not work, needs look-into
         (swap! registry-ref dissoc id)))))
+
+
+(comment
+
+  (system-tray.core/create {:on-quit (fn [] (close! system-exit|))
+                            :image (clojure.java.io/resource "logo/logo.png")})
+
+  ;
+  )
