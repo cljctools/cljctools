@@ -213,22 +213,29 @@
   clj -Sdeps '{:deps {github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
                       github.cljctools/core-jvm {:local/root "./cljctools/core-jvm"}
                       github.cljctools/bytes-jvm {:local/root "./cljctools/bytes-jvm"}
-                      github.cljctools/codec-jvm {:local/root "./cljctools/codec-jvm"}}}'
-
-  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
-                      github.cljctools.bittorrent/bencode {:local/root "./bittorrent/bencode"}
-                      github.cljctools/core-js {:local/root "./cljctools/core-js"}
-                      github.cljctools/bytes-js {:local/root "./cljctools/bytes-js"}
-                      github.cljctools/codec-js {:local/root "./cljctools/codec-js"}}}' \
-  -M -m cljs.main --repl-env node --compile cljctools.bencode.core --repl
+                      github.cljctools/codec-jvm {:local/root "./cljctools/codec-jvm"}}} '
   
+  clj -Sdeps '{:deps {org.clojure/clojurescript {:mvn/version "1.10.844"}
+                      github.cljctools.cljctools/bencode {:local/root "./cljctools/bencode"}
+                      github.cljctools/core-js {:local/root "./cljctools/cljctools-js"}
+                      github.cljctools/bytes-js {:local/root "./cljctools/bytes-js"}
+                      github.cljctools/codec-js {:local/root "./cljctools/codec-js"}}} '\
+  -M -m cljs.main \
+  -co '{:npm-deps {"randombytes" "2.1.0"
+                   "bitfield" "4.0.0"
+                   "fs-extra" "9.1.0"}
+        :install-deps true
+        :repl-requires [[cljs.repl :refer-macros [source doc find-doc apropos dir pst]]
+                        [cljs.pprint :refer [pprint] :refer-macros [pp]]]} '\
+  --repl-env node --compile cljctools.bencode.core --repl
+
   (require
    '[cljctools.bencode.core :as bencode.core]
    '[cljctools.runtime.core :as cljctools.runtime.core]
    '[cljctools.bytes.runtime.core :as bytes.runtime.core]
    '[cljctools.codec.runtime.core :as codec.runtime.core]
    :reload #_:reload-all)
-  
+
   (let [data
         {:t "aabbccdd"
          :a {"id" "197957dab1d2900c5f6d9178656d525e22e63300"}}
@@ -242,7 +249,7 @@
      (bencode.core/decode)
      #_(-> (get-in ["a" "id"]))
      #_(codec.runtime.core/hex-to-string)))
-  
+
   (let [data
         {:msg_type 1
          :piece 0
