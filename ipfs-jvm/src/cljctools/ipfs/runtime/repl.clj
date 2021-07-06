@@ -8,7 +8,6 @@
    [cljctools.bytes.protocols :as bytes.protocols]
    [cljctools.bytes.runtime.core :as bytes.runtime.core]
 
-   [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.spec :as ipfs.spec])
   (:import
@@ -35,7 +34,7 @@
    (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
-   (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
+   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -306,7 +305,7 @@
      '(io.libp2p.discovery MDnsDiscovery)
      '(kotlin.jvm.functions Function1)
      '(com.google.protobuf ByteString)
-     '(cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type NodeProto$DhtMessage$Peer)))
+     '(cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type DhtProto$DhtMessage$Peer)))
 
   (do
     (def ping (Ping.))
@@ -336,8 +335,8 @@
   (def dht-controller (-> dht-protocol (.dial host address) (.getController) (.get 5 TimeUnit/SECONDS)))
 
   (ipfs.runtime.impl/send* dht-controller
-                           (-> (NodeProto$DhtMessage/newBuilder)
-                               (.setType NodeProto$DhtMessage$Type/FIND_NODE)
+                           (-> (DhtProto$DhtMessage/newBuilder)
+                               (.setType DhtProto$DhtMessage$Type/FIND_NODE)
                                (.setKey (->
                                          "12D3KooWQGcNmEMGBT1gXmLraNDZVPiv3GVf3WhrDiJAokRQ6Sqg"
                                          (io.ipfs.multihash.Multihash/fromBase58)

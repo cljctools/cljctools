@@ -36,8 +36,8 @@
 (s/def ::host #(and
                 (satisfies? ipfs.protocols/Host %)))
 
-(s/def ::node #(and
-                (satisfies? ipfs.protocols/Node %)))
+(s/def ::dht #(and
+               (satisfies? ipfs.protocols/Dht %)))
 
 
 

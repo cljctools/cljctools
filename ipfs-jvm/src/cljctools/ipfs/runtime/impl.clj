@@ -26,13 +26,11 @@
                        ProtocolMessageHandler ProtocolMessageHandler$DefaultImpls)
    (io.libp2p.security.noise NoiseXXSecureChannel)
    (io.libp2p.core.crypto PrivKey)
-   (io.libp2p.pubsub.gossip Gossip)
-   (io.libp2p.core.pubsub Topic MessageApi)
    (java.util.function Function Consumer)
    (io.netty.buffer ByteBuf ByteBufUtil Unpooled)
    (java.util.concurrent CompletableFuture TimeUnit)
    (com.google.protobuf ByteString)
-   (cljctools.ipfs.runtime NodeProto$DhtMessage NodeProto$DhtMessage$Type)))
+   (cljctools.ipfs.runtime DhtProto$DhtMessage DhtProto$DhtMessage$Type)))
 
 (do (set! *warn-on-reflection* true) (set! *unchecked-math* true))
 
@@ -57,7 +55,7 @@
   (let [protocol
         (proxy
          [ProtobufProtocolHandler]
-         [(NodeProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
+         [(DhtProto$DhtMessage/getDefaultInstance) dht-max-request-size dht-max-response-size]
           (onStartInitiator
             [stream]
             (println ::onStartInitiator)
@@ -69,9 +67,9 @@
                             (onMessage
                               [_ stream msg]
                               (on-message stream msg)
-                              #_(let [msg ^NodeProto$DhtMessage msg]
+                              #_(let [msg ^DhtProto$DhtMessage msg]
                                   (println :requester-recv-dht-message (-> msg (.getType) (.name)))
-                                  (when (= (.getType msg) NodeProto$DhtMessage$Type/FIND_NODE)
+                                  (when (= (.getType msg) DhtProto$DhtMessage$Type/FIND_NODE)
                                     (println (.size ^java.util.List (.getCloserPeersList msg))))))
                             (onClosed
                               [_ stream]
@@ -101,7 +99,7 @@
                             (onMessage
                              [_ stream msg]
                              (on-message stream msg)
-                             #_(println :responder-recv-dht-message (-> ^NodeProto$DhtMessage msg (.getType) (.name))))
+                             #_(println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
                             (onClosed
                               [_ stream]
                               (println :dht-responder-connection-closed))
