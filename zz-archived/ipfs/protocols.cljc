@@ -1,18 +1,5 @@
 (ns cljctools.ipfs.protocols)
 
-(defprotocol Release
-  (release* [_]))
-
-(defprotocol Connect
-  (connect* [_] [_ a] [_ a b]))
-
-(defprotocol Disconnect
-  (disconnect* [_] [_ a] [_ a b]))
-
-(defprotocol Send
-  (send* [_ msg] [_ multiaddr msg]))
-
-
 (defprotocol ToByteArray
   (to-byte-array* [_]))
 
@@ -62,8 +49,6 @@
 (defprotocol Stop
   (stop* [_]))
 
-
-
 (defprotocol Node
   (get-peer-id* [_])
   (get-listen-multiaddrs* [_])
@@ -72,16 +57,6 @@
   (publish* [_ topic msg])
   (ping* [_ multiaddr])
   (send-dht* [_ multiaddr msg])
-  (find-node* [_ multiaddr])
-  #_Release
-  #_IDeref)
-
-
-
-(defprotocol Dht
-  (get-peer-id* [_])
-  (get-listen-multiaddrs* [_])
-  (ping* [_ multiaddr])
   (find-node* [_ multiaddr])
   #_Release
   #_IDeref)
