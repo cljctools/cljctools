@@ -144,15 +144,9 @@
                   (dotimes [i 1]
                     (let [latency (-> pinger (.ping) (.get 2 TimeUnit/SECONDS))]
                       (println latency)))))))
-          (send-dht*
-            [t multiaddr msg]
-            (go
-              (when (<! (ipfs.protocols/connect* t multiaddr))
-                (let [dht-controller (-> dht-protocol (.dial host ^Multiaddr multiaddr) (.getController) (.get 2 TimeUnit/SECONDS))]
-                  (ipfs.runtime.impl/send* dht-controller msg)))))
           (find-node*
             [t multiaddr]
-            (ipfs.protocols/send-dht*
+            (ipfs.protocols/send*
              t
              multiaddr
              (-> (DhtProto$DhtMessage/newBuilder)
@@ -163,6 +157,13 @@
                            (.toBytes)
                            (ByteString/copyFrom)))
                  (.build))))
+          ipfs.protocols/Send
+          (send*
+            [t multiaddr msg]
+            (go
+              (when (<! (ipfs.protocols/connect* t multiaddr))
+                (let [dht-controller (-> dht-protocol (.dial host ^Multiaddr multiaddr) (.getController) (.get 2 TimeUnit/SECONDS))]
+                  (ipfs.runtime.impl/send* dht-controller msg)))))
           ipfs.protocols/Release
           (release*
             [_]
@@ -204,3 +205,14 @@
         #_(start-find-nodes {:dht dht
                              :stop| stop|}))
       dht)))
+
+
+(comment
+
+  (require
+   '[cljctools.ipfs.runtime.dht :as ipfs.runtime.dht]
+   :reload)
+
+
+  ;
+  )

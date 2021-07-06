@@ -10,13 +10,12 @@
   (disconnect* [_] [_ a] [_ a b]))
 
 (defprotocol Send
-  (send* [_ msg]))
+  (send* [_ msg] [_ multiaddr msg]))
 
 (defprotocol Dht
   (get-peer-id* [_])
   (get-listen-multiaddrs* [_])
   (ping* [_ multiaddr])
-  (send-dht* [_ multiaddr msg])
   (find-node* [_ multiaddr])
   #_Release
   #_IDeref)
