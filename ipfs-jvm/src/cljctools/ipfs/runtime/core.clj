@@ -5,7 +5,6 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
 
-   [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.spec :as ipfs.spec])
   (:import

@@ -5,7 +5,6 @@
                                      timeout to-chan  sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]
 
-   [cljctools.ipfs.runtime.crypto :as ipfs.runtime.crypto]
    [cljctools.ipfs.protocols :as ipfs.protocols]
    [cljctools.ipfs.spec :as ipfs.spec])
   (:import
@@ -13,7 +12,6 @@
    (io.ipfs.multibase Multibase Base58)
    (io.ipfs.multihash Multihash Multihash$Type)
    (io.ipfs.cid Cid Cid$Codec)
-   (com.southernstorm.noise.protocol Noise CipherState DHState HandshakeState)
    (java.net InetAddress InetSocketAddress)
    (io.netty.bootstrap Bootstrap)
    (io.netty.channel ChannelPipeline)
