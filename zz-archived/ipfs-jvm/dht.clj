@@ -1,4 +1,4 @@
-(ns cljctools.ipfs.runtime.dht
+(ns ipfs-shipyard.find.ipfs-dht
   (:require
    [clojure.core.async :as a :refer [chan go go-loop <! >! take! put! offer! poll! alt! alts! close!
                                      pub sub unsub mult tap untap mix admix unmix pipe
