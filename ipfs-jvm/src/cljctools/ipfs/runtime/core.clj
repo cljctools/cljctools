@@ -44,9 +44,6 @@
 (def dht-max-request-size (* 1024 1024))
 (def dht-max-response-size (* 1024 1024))
 
-(defprotocol DhtController
-  (send* [_ msg]))
-
 (defn create-dht-protocol ^StrictProtocolBinding
   [{:as opts
     :keys [on-message]}]
@@ -79,7 +76,7 @@
                               [t stream msg]
                               #_(.onMessage t stream msg)
                               (ProtocolMessageHandler$DefaultImpls/fireMessage t ^Stream stream msg))
-                            DhtController
+                            ipfs.protocols/Send
                             (send*
                               [_ msg]
                               (.writeAndFlush ^Stream stream msg)))]
