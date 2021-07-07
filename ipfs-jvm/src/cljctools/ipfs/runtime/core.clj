@@ -49,7 +49,7 @@
 
 (defn create-dht-protocol ^StrictProtocolBinding
   [{:as opts
-    :keys [on-message]}]
+    :keys [msg|]}]
   (let [protocol
         (proxy
          [ProtobufProtocolHandler]
@@ -63,12 +63,13 @@
                               [_ stream]
                               (println :dht-requester-activated))
                             (onMessage
-                              [_ stream msg]
-                              (on-message stream msg)
-                              #_(let [msg ^DhtProto$DhtMessage msg]
-                                  (println :requester-recv-dht-message (-> msg (.getType) (.name)))
-                                  (when (= (.getType msg) DhtProto$DhtMessage$Type/FIND_NODE)
-                                    (println (.size ^java.util.List (.getCloserPeersList msg))))))
+                             [_ stream msg]
+                             (put! msg| {:stream stream
+                                         :msg msg})
+                             #_(let [msg ^DhtProto$DhtMessage msg]
+                                 (println :requester-recv-dht-message (-> msg (.getType) (.name)))
+                                 (when (= (.getType msg) DhtProto$DhtMessage$Type/FIND_NODE)
+                                   (println (.size ^java.util.List (.getCloserPeersList msg))))))
                             (onClosed
                               [_ stream]
                               (println :dht-connection-closed))
@@ -95,9 +96,10 @@
                               [_ stream]
                               (println :dht-responder-activated))
                             (onMessage
-                              [_ stream msg]
-                              (on-message stream msg)
-                              #_(println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
+                             [_ stream msg]
+                             (put! msg| {:stream stream
+                                         :msg msg})
+                             #_(println :responder-recv-dht-message (-> ^DhtProto$DhtMessage msg (.getType) (.name))))
                             (onClosed
                               [_ stream]
                               (println :dht-responder-connection-closed))

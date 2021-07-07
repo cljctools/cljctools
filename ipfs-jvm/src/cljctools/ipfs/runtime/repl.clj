@@ -374,7 +374,7 @@
       [gossip]
       (let [host (->
                   (HostBuilder.)
-                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.impl/create-dht-protocol {:on-message (fn [msg])})]))
+                  (.protocol (into-array ProtocolBinding [(Ping.) gossip (ipfs.runtime.impl/create-dht-protocol {:msg| (chan (sliding-buffer 10))})]))
                   (.secureChannel
                    (into-array Function [(reify Function
                                            (apply
