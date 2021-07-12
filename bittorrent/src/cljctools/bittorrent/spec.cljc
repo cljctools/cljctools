@@ -1,5 +1,6 @@
 (ns cljctools.bittorrent.spec
   (:require
+   [clojure.core.async.impl.channels]
    [clojure.spec.alpha :as s]
    [cljctools.bytes.spec :as bytes.spec]
    [cljctools.bittorrent.protocols :as bittorrent.protocols]))
