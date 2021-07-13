@@ -1,10 +1,10 @@
-# cljctools
+cljctools
 jvm, nodejs, js common abstractions to write cljc code
 
-## cljctools/edit
+cljctools/edit
 library for editing clojure code
 
-## why
+why
 
 - an editor extension like cljctools/mult needs to format/color/edit clojure source files
 - as of now (March 2021) every editor extension implements their own logic to select forms, color brackets, format etc.
@@ -20,25 +20,25 @@ library for editing clojure code
   - color tokens, brackets (as data decribing the document)
 - it's about representing doc as zipper and data, and notifying app of changes: get source code/streams -> change internal state of edit -> notify of changes
 
-## cljctools/bittorrent
+cljctools/bittorrent
 bittorrent DHT libs
 
-## cljctools/ipfs
+cljctools/ipfs
 ipfs and libp2p libs
 
-## why
+why
 
 - <s>should be imlemented in cljc,</s> for jvm first and foremost: jvm is key, networking is key, that's why we need the jvm implementaion to be the best
 - there is no need - simply by design of p2p networking - for libp2p to be in the browser
 
-## goal
+goal
 
 - one protocol, one encryption,...  - pick one (like bittorrent) and focus on user programs, not swiss army knife bloated tooling (MULTICS vs UNIX all over again..)
 
-## cljctools/http-repl
+cljctools/http-repl
 nrepl server should be an http server
 
-## reason
+reason
 
 - currenty (March 2021) nrepl server has it's own socket protocol and at least bencode and edn transports
 - since this is a socket, we have to manually add ids to operations with send, and then manually group incoming messages - basically, re-inveting the wheel of request-response which is already solved by most widely used HTTP protocol, which does suppport streams as reposnse
