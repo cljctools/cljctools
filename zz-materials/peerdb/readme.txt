@@ -1,7 +1,9 @@
-## cljctools/peerdb
+peerdb
 peer-to-peer database, best of orbitdb and datomic
 
-## goal
+[merged into https://github.com/cljctools/cljctools]
+
+goal
 
 - should sync data over IFPS pubsub, like orbitdb, but have datomic interface and design (time travel not necessary)
 - no need for orbits eventlog/docstore/feed etc. - like in datomic, eventlog is tranasaction log , else is high level abstraction for querying
