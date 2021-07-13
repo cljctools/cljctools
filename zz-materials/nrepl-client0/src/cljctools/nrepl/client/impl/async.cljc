@@ -1,16 +1,10 @@
-;;   Copyright (c) Rich Hickey and contributors. All rights reserved.
-;;   The use and distribution terms for this software are covered by the
-;;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
-;;   which can be found in the file epl-v10.html at the root of this distribution.
-;;   By using this software in any fashion, you are agreeing to be bound by
-;;   the terms of this license.
-;;   You must not remove this notice, or any other, from this software.
-
 (ns cljctools.nrepl.client.impl.async
   (:require
    [clojure.core.async :as a :refer [<! >!  chan go alt! take! put! offer! poll! alts! sub mult tap untap
                                      timeout close! to-chan go-loop sliding-buffer dropping-buffer
                                      pipeline pipeline-async]]))
+
+; code copied from clojure/core.async https://github.com/clojure/core.async/blob/master/src/main/clojure/clojure/core/async.clj#L881
 
 ; Why this file, why change core.async/pub:
 ; Needed a way to close a topic's underlying mult (unless there is a better approach/strategy)
@@ -22,7 +16,6 @@
 (defn close-topic [pub topic]
   (close-topic* pub topic))
 
-; code copied from clojure/core.async https://github.com/clojure/core.async/blob/master/src/main/clojure/clojure/core/async.clj#L881
 
 (defn pub
   "Creates and returns a pub(lication) of the supplied channel,
